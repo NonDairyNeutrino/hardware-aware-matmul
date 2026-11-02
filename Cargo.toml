@@ -1,0 +1,12 @@
+[package]
+name = "naive_matmul"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.73"
+default-run = "compare"
+description = "Streaming, multithreaded, cache-friendly dense matrix multiplication"
+readme = "README.md"
+
+[lib]
+name = "naive_matmul"
+path = "src/lib.rs"
