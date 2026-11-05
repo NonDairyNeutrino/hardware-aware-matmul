@@ -4,7 +4,8 @@ thread's loops are rearranged so the processor stops waiting for memory.
 # What changed from level 1
 
 Only the kernel, the loop nest each thread runs. The row-block partitioning
-and the scoped threads are copied unchanged from [`threaded`](crate::threaded).
+and the scoped threads are the same driver as level 1
+([`threaded`](crate::threaded)); the kernel is what changes.
 Two changes to the kernel:
 
 1. a different **loop order**, and

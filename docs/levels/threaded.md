@@ -56,8 +56,10 @@ Two Rust features make this short and free of `unsafe`:
 - **Scoped threads** (`std::thread::scope`). The workers may borrow `a` and `b`
   directly from the caller's stack, because the scope guarantees they finish
   before it ends. No `Arc`, no cloning, no `'static` bound.
-- **`chunks_mut`** splits the output's backing storage into non-overlapping
-  `&mut [f64]` blocks. The borrow checker therefore *proves* that no two
+- **`split_at_mut`**, driven by the blocks of
+  [`row_block_plan`](crate::threaded::row_block_plan), splits the output's
+  backing storage into non-overlapping `&mut [f64]` blocks. The borrow checker
+  therefore *proves* that no two
   threads can write the same element, so no lock or atomic is needed in the
   arithmetic.
 
