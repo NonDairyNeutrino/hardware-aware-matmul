@@ -3,12 +3,14 @@
 //!
 //! The levels differ in *how* they compute, never in *what* they compute: each
 //! output element is summed in increasing `k` order starting from zero, so the
-//! results are bit-for-bit identical. These tests assert exact equality.
+//! results are bit-for-bit identical. These tests compare the raw bits of
+//! every element, on operands chosen so that any change in summation order
+//! would show.
 
 use std::num::NonZeroUsize;
 
 use naive_matmul::streaming::StreamConfig;
-use naive_matmul::{cache_friendly, naive, streaming, threaded, DimensionMismatch, MatmulError, Matrix};
+use naive_matmul::{cache_friendly, naive, simd, streaming, threaded, DimensionMismatch, MatmulError, Matrix};
 
 fn nz(n: usize) -> NonZeroUsize {
     NonZeroUsize::new(n).unwrap()
@@ -21,9 +23,53 @@ fn sample_operands(m: usize, n: usize, p: usize) -> (Matrix, Matrix) {
     (a, b)
 }
 
+/// Operands with entries of very different magnitudes, so nearly every partial
+/// sum rounds. Regrouping or reordering the additions of an output element
+/// changes its bits, which the small integers above could never reveal.
+fn rough_operands(m: usize, n: usize, p: usize) -> (Matrix, Matrix) {
+    let mut state = 0x9E37_79B9_7F4A_7C15_u64;
+    let mut next = move || {
+        state = state
+            .wrapping_mul(6_364_136_223_846_793_005)
+            .wrapping_add(1_442_695_040_888_963_407);
+        let unit = (state >> 11) as f64 / (1_u64 << 53) as f64; // in [0, 1)
+        let exponent = (state >> 60) as i32 - 8; // -8 ..= 7
+        (unit - 0.5) * 2.0_f64.powi(exponent)
+    };
+    let a = Matrix::from_fn(m, n, |_, _| next());
+    let b = Matrix::from_fn(n, p, |_, _| next());
+    (a, b)
+}
+
+/// The raw bits of every element, so `-0.0` and `0.0` (or two NaNs) differ.
+fn bits(m: &Matrix) -> Vec<u64> {
+    m.as_slice().iter().map(|x| x.to_bits()).collect()
+}
+
+fn assert_same_bits(got: &Matrix, want: &Matrix, context: &str) {
+    assert_eq!((got.rows(), got.cols()), (want.rows(), want.cols()), "{context}: shape");
+    assert_eq!(bits(got), bits(want), "{context}");
+}
+
+/// Guards this file's own power: if summing in decreasing `k` gave the same
+/// bits, no test using these operands could detect a reordering.
+#[test]
+fn rough_operands_are_sensitive_to_summation_order() {
+    let (a, b) = rough_operands(8, 64, 8);
+    let forward = naive::matmul(&a, &b).unwrap();
+    let backward = Matrix::from_fn(8, 8, |i, j| {
+        let mut sum = 0.0;
+        for k in (0..64).rev() {
+            sum += a[(i, k)] * b[(k, j)];
+        }
+        sum
+    });
+    assert_ne!(bits(&forward), bits(&backward));
+}
+
 /// The product computed at every level, labelled by module name.
 ///
-/// Level 3 is run with small tiles so that even modest matrices are split into
+/// Level 4 is run with small tiles so that even modest matrices are split into
 /// several tiles and several depth slices.
 fn product_at_every_level(a: &Matrix, b: &Matrix, threads: usize) -> Vec<(&'static str, Matrix)> {
     let t = nz(threads);
@@ -35,6 +81,7 @@ fn product_at_every_level(a: &Matrix, b: &Matrix, threads: usize) -> Vec<(&'stat
         ("naive", naive::matmul(a, b).unwrap()),
         ("threaded", threaded::matmul(a, b, t).unwrap()),
         ("cache_friendly", cache_friendly::matmul(a, b, t).unwrap()),
+        ("simd", simd::matmul(a, b, t).unwrap()),
         ("streaming (default tiles)", streaming::matmul(a, b, t).unwrap()),
         ("streaming (small tiles)", sink.into_matrix()),
     ]
@@ -58,12 +105,18 @@ fn every_level_agrees_with_naive_on_awkward_shapes() {
     // the crate, plus degenerate 1-wide cases.
     let shapes = [(1, 1, 1), (1, 9, 1), (9, 1, 9), (37, 23, 41), (64, 64, 64), (70, 75, 133)];
     for (m, n, p) in shapes {
-        let (a, b) = sample_operands(m, n, p);
-        for threads in [1, 3, 8] {
-            let results = product_at_every_level(&a, &b, threads);
-            let reference = &results[0].1;
-            for (level, c) in &results[1..] {
-                assert_eq!(c, reference, "{level}, shape {m}x{n}x{p}, {threads} thread(s)");
+        let operand_sets = [
+            ("integer", sample_operands(m, n, p)),
+            ("rough", rough_operands(m, n, p)),
+        ];
+        for (kind, (a, b)) in &operand_sets {
+            for threads in [1, 3, 8] {
+                let results = product_at_every_level(a, b, threads);
+                let reference = &results[0].1;
+                for (level, c) in &results[1..] {
+                    let context = format!("{level}, {kind} operands, shape {m}x{n}x{p}, {threads} thread(s)");
+                    assert_same_bits(c, reference, &context);
+                }
             }
         }
     }
@@ -84,6 +137,7 @@ fn more_threads_than_rows() {
     let reference = naive::matmul(&a, &b).unwrap();
     assert_eq!(threaded::matmul(&a, &b, nz(16)).unwrap(), reference);
     assert_eq!(cache_friendly::matmul(&a, &b, nz(16)).unwrap(), reference);
+    assert_eq!(simd::matmul(&a, &b, nz(16)).unwrap(), reference);
     assert_eq!(streaming::matmul(&a, &b, nz(16)).unwrap(), reference);
 }
 
@@ -96,6 +150,7 @@ fn empty_operands_give_empty_results() {
         assert_eq!(shape(&naive::matmul(&a, &b).unwrap()), (m, p));
         assert_eq!(shape(&threaded::matmul(&a, &b, t).unwrap()), (m, p));
         assert_eq!(shape(&cache_friendly::matmul(&a, &b, t).unwrap()), (m, p));
+        assert_eq!(shape(&simd::matmul(&a, &b, t).unwrap()), (m, p));
         assert_eq!(shape(&streaming::matmul(&a, &b, t).unwrap()), (m, p));
     }
 }
@@ -118,6 +173,7 @@ fn every_level_rejects_mismatched_dimensions() {
     assert_eq!(naive::matmul(&a, &b).unwrap_err(), expected);
     assert_eq!(threaded::matmul(&a, &b, t).unwrap_err(), expected);
     assert_eq!(cache_friendly::matmul(&a, &b, t).unwrap_err(), expected);
+    assert_eq!(simd::matmul(&a, &b, t).unwrap_err(), expected);
     assert!(matches!(
         streaming::matmul(&a, &b, t),
         Err(MatmulError::DimensionMismatch(e)) if e == expected
