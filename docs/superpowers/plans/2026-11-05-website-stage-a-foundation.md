@@ -535,7 +535,7 @@ with:
 - [ ] **Step 2: Verify in debug and release**
 
 Run: `cargo test --test levels && cargo test --release --test levels`
-Expected: both runs end `test result: ok. 9 passed` (8 original-style tests plus the guard), including `rough_operands_are_sensitive_to_summation_order`.
+Expected: both runs end `test result: ok. 8 passed` (the 7 existing tests plus the guard), including `rough_operands_are_sensitive_to_summation_order`.
 
 Run (optional, exercises wider vectors): `RUSTFLAGS="-C target-cpu=native" cargo test --release --test levels`
 Expected: `test result: ok.`
