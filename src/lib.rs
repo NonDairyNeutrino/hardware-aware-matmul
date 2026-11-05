@@ -9,6 +9,7 @@ pub mod matrix;
 // module's documentation is the chapter of the story that introduces it.
 pub mod cache_friendly;
 pub mod naive;
+pub mod runner;
 pub mod simd;
 pub mod streaming;
 pub mod threaded;

@@ -9,7 +9,11 @@
 
 use std::num::NonZeroUsize;
 
+use std::sync::atomic::{AtomicUsize, Ordering};
+
 use naive_matmul::cache_friendly::BlockConfig;
+use naive_matmul::runner::{Runner, StdRunner};
+use naive_matmul::threaded::row_block_plan;
 use naive_matmul::streaming::StreamConfig;
 use naive_matmul::{cache_friendly, naive, simd, streaming, threaded, DimensionMismatch, MatmulError, Matrix};
 
@@ -152,6 +156,80 @@ fn block_configs_never_change_the_bits() {
                 assert_same_bits(&sink.into_matrix(), &reference, &context("streaming"));
             }
         }
+    }
+}
+
+/// Runs every job on the calling thread, one after another, and counts them.
+struct CountingInline {
+    jobs: AtomicUsize,
+}
+
+impl CountingInline {
+    fn new() -> Self {
+        Self { jobs: AtomicUsize::new(0) }
+    }
+
+    fn jobs(&self) -> usize {
+        self.jobs.load(Ordering::SeqCst)
+    }
+}
+
+impl Runner for CountingInline {
+    fn run<'env>(&self, jobs: Vec<Box<dyn FnOnce() + Send + 'env>>) {
+        self.jobs.fetch_add(jobs.len(), Ordering::SeqCst);
+        for job in jobs {
+            job();
+        }
+    }
+}
+
+#[test]
+fn runners_never_change_the_bits() {
+    for (m, n, p) in [(1, 1, 1), (9, 13, 11), (37, 23, 41), (70, 75, 133)] {
+        let (a, b) = rough_operands(m, n, p);
+        let reference = naive::matmul(&a, &b).unwrap();
+        for threads in [1, 3, 8] {
+            let t = nz(threads);
+            let jobs_expected = row_block_plan(m, t).len();
+            let context = |level: &str, runner: &str| {
+                format!("{level}, {runner}, shape {m}x{n}x{p}, {threads} thread(s)")
+            };
+
+            let inline = CountingInline::new();
+            let c = threaded::matmul_with_runner(&a, &b, t, &inline).unwrap();
+            assert_same_bits(&c, &reference, &context("threaded", "inline"));
+            assert_eq!(inline.jobs(), jobs_expected, "{}", context("threaded", "job count"));
+            let c = threaded::matmul_with_runner(&a, &b, t, &StdRunner).unwrap();
+            assert_same_bits(&c, &reference, &context("threaded", "std"));
+
+            for block in block_configs() {
+                let inline = CountingInline::new();
+                let c = cache_friendly::matmul_with_runner(&a, &b, t, &block, &inline).unwrap();
+                assert_same_bits(&c, &reference, &context("cache_friendly", &format!("inline {block:?}")));
+                assert_eq!(inline.jobs(), jobs_expected, "{}", context("cache_friendly", "job count"));
+
+                let inline = CountingInline::new();
+                let c = simd::matmul_with_runner(&a, &b, t, &block, &inline).unwrap();
+                assert_same_bits(&c, &reference, &context("simd", &format!("inline {block:?}")));
+                assert_eq!(inline.jobs(), jobs_expected, "{}", context("simd", "job count"));
+
+                let c = simd::matmul_with_runner(&a, &b, t, &block, &StdRunner).unwrap();
+                assert_same_bits(&c, &reference, &context("simd", &format!("std {block:?}")));
+            }
+        }
+    }
+}
+
+#[test]
+fn an_empty_product_hands_the_runner_no_jobs() {
+    let block = BlockConfig::default();
+    for (m, n, p) in [(0, 3, 2), (2, 3, 0), (0, 3, 0)] {
+        let (a, b) = (Matrix::zeros(m, n), Matrix::zeros(n, p));
+        let inline = CountingInline::new();
+        threaded::matmul_with_runner(&a, &b, nz(4), &inline).unwrap();
+        cache_friendly::matmul_with_runner(&a, &b, nz(4), &block, &inline).unwrap();
+        simd::matmul_with_runner(&a, &b, nz(4), &block, &inline).unwrap();
+        assert_eq!(inline.jobs(), 0, "shape {m}x{n}x{p}");
     }
 }
 

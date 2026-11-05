@@ -2,10 +2,10 @@
 
 use std::num::NonZeroUsize;
 use std::ops::Range;
-use std::thread;
 
 use crate::error::{check_inner_dimensions, DimensionMismatch};
 use crate::matrix::Matrix;
+use crate::runner::{Runner, StdRunner};
 
 /// Computes a contiguous block of rows of the product `a * b`.
 ///
@@ -75,14 +75,16 @@ pub fn row_block_plan(rows: usize, threads: NonZeroUsize) -> Vec<Range<usize>> {
 /// divided into at most `threads` contiguous blocks of equal size (the last may
 /// be smaller). If there are fewer rows than threads, only as many threads as
 /// there are non-empty blocks are spawned.
-pub(crate) fn multiply_by_row_blocks<K>(
+pub(crate) fn multiply_by_row_blocks<K, R>(
     a: &Matrix,
     b: &Matrix,
     threads: NonZeroUsize,
     kernel: K,
+    runner: &R,
 ) -> Result<Matrix, DimensionMismatch>
 where
     K: Fn(&Matrix, &Matrix, usize, &mut [f64]) + Sync,
+    R: Runner + ?Sized,
 {
     let (m, _, p) = check_inner_dimensions((a.rows(), a.cols()), (b.rows(), b.cols()))?;
 
@@ -96,15 +98,16 @@ where
     // Every thread shares one kernel by reference.
     let kernel = &kernel;
 
-    thread::scope(|scope| {
-        let mut remaining = c.as_mut_slice();
-        for block in row_block_plan(m, threads) {
-            let (c_block, rest) = std::mem::take(&mut remaining).split_at_mut(block.len() * p);
-            remaining = rest;
-            let first_row = block.start;
-            scope.spawn(move || kernel(a, b, first_row, c_block));
-        }
-    });
+    // One job per row block; the runner decides where and when each one runs.
+    let mut jobs: Vec<Box<dyn FnOnce() + Send + '_>> = Vec::new();
+    let mut remaining = c.as_mut_slice();
+    for block in row_block_plan(m, threads) {
+        let (c_block, rest) = std::mem::take(&mut remaining).split_at_mut(block.len() * p);
+        remaining = rest;
+        let first_row = block.start;
+        jobs.push(Box::new(move || kernel(a, b, first_row, c_block)));
+    }
+    runner.run(jobs);
 
     Ok(c)
 }
@@ -137,7 +140,24 @@ where
 /// # Ok::<(), naive_matmul::DimensionMismatch>(())
 /// ```
 pub fn matmul(a: &Matrix, b: &Matrix, threads: NonZeroUsize) -> Result<Matrix, DimensionMismatch> {
-    multiply_by_row_blocks(a, b, threads, multiply_row_block)
+    matmul_with_runner(a, b, threads, &StdRunner)
+}
+
+/// Like [`matmul`], with the row blocks executed by `runner`.
+///
+/// [`matmul`] uses [`StdRunner`]. Results are bit-for-bit identical for every
+/// runner. See the [`runner`](crate::runner) module for an example.
+///
+/// # Errors
+///
+/// Returns [`DimensionMismatch`] if `a.cols() != b.rows()`.
+pub fn matmul_with_runner<R: Runner + ?Sized>(
+    a: &Matrix,
+    b: &Matrix,
+    threads: NonZeroUsize,
+    runner: &R,
+) -> Result<Matrix, DimensionMismatch> {
+    multiply_by_row_blocks(a, b, threads, multiply_row_block, runner)
 }
 
 #[cfg(test)]

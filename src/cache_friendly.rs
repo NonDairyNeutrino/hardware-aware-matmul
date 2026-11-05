@@ -4,6 +4,7 @@ use std::num::NonZeroUsize;
 
 use crate::error::DimensionMismatch;
 use crate::matrix::Matrix;
+use crate::runner::{Runner, StdRunner};
 use crate::threaded::multiply_by_row_blocks;
 
 /// Number of `k` values (rows of `b`) processed per cache block.
@@ -180,9 +181,31 @@ pub fn matmul_with_config(
     threads: NonZeroUsize,
     block: &BlockConfig,
 ) -> Result<Matrix, DimensionMismatch> {
-    multiply_by_row_blocks(a, b, threads, |a, b, first_row, c_block| {
-        multiply_row_block(a, b, first_row, c_block, block)
-    })
+    matmul_with_runner(a, b, threads, block, &StdRunner)
+}
+
+/// Like [`matmul_with_config`], with the row blocks executed by `runner`.
+///
+/// Results are bit-for-bit identical for every `block` and every runner. See
+/// the [`runner`](crate::runner) module for an example.
+///
+/// # Errors
+///
+/// Returns [`DimensionMismatch`] if `a.cols() != b.rows()`.
+pub fn matmul_with_runner<R: Runner + ?Sized>(
+    a: &Matrix,
+    b: &Matrix,
+    threads: NonZeroUsize,
+    block: &BlockConfig,
+    runner: &R,
+) -> Result<Matrix, DimensionMismatch> {
+    multiply_by_row_blocks(
+        a,
+        b,
+        threads,
+        |a, b, first_row, c_block| multiply_row_block(a, b, first_row, c_block, block),
+        runner,
+    )
 }
 
 #[cfg(test)]
