@@ -47,7 +47,7 @@ cargo run --release -- 1024        # n = 1024
 cargo run --release -- 1024 4      # n = 1024, 4 threads
 ```
 
-It multiplies two `n × n` matrices with every level, verifies that the four
+It multiplies two `n × n` matrices with every level, verifies that the five
 results are identical, and prints a table showing each level's time and its
 speed relative to the previous level and to the naive baseline. Always use
 `--release`.
