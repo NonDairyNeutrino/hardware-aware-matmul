@@ -3,7 +3,7 @@
 use std::num::NonZeroUsize;
 use std::ops::Range;
 
-use crate::cache_friendly::{axpy, TILE_J, TILE_K};
+use crate::cache_friendly::{axpy, BlockConfig};
 use crate::error::DimensionMismatch;
 use crate::matrix::Matrix;
 use crate::threaded::multiply_by_row_blocks;
@@ -196,19 +196,26 @@ impl Operands<'_> {
 /// register-blocked [`micro_kernel`].
 ///
 /// Edges (fewer than `MR` rows left, or fewer than `NR` columns left in a
-/// cache block) fall back to `axpy`.
-pub(crate) fn accumulate_tile(c: &mut [f64], a: &[f64], b: &[f64], depth: usize, cols: usize) {
+/// cache block) fall back to `axpy`. The cache-block sizes come from `block`.
+pub(crate) fn accumulate_tile(
+    c: &mut [f64],
+    a: &[f64],
+    b: &[f64],
+    depth: usize,
+    cols: usize,
+    block: &BlockConfig,
+) {
     debug_assert_eq!(c.len() % cols, 0);
     debug_assert_eq!(a.len(), c.len() / cols * depth);
     debug_assert_eq!(b.len(), depth * cols);
 
     let operands = Operands { a, b, depth, cols };
 
-    for k_start in (0..depth).step_by(TILE_K) {
-        let ks = k_start..(k_start + TILE_K).min(depth);
+    for k_start in (0..depth).step_by(block.tile_k()) {
+        let ks = k_start..(k_start + block.tile_k()).min(depth);
 
-        for j_start in (0..cols).step_by(TILE_J) {
-            let js = j_start..(j_start + TILE_J).min(cols);
+        for j_start in (0..cols).step_by(block.tile_j()) {
+            let js = j_start..(j_start + block.tile_j()).min(cols);
 
             for (group_index, c_group) in c.chunks_mut(MR * cols).enumerate() {
                 operands.update_row_group(c_group, group_index * MR, &ks, &js);
@@ -221,12 +228,12 @@ pub(crate) fn accumulate_tile(c: &mut [f64], a: &[f64], b: &[f64], depth: usize,
 ///
 /// As in level 2, the matching rows of `a` form one flat slice, so the block is
 /// one [`accumulate_tile`] call.
-fn multiply_row_block(a: &Matrix, b: &Matrix, first_row: usize, c_block: &mut [f64]) {
+fn multiply_row_block(a: &Matrix, b: &Matrix, first_row: usize, c_block: &mut [f64], block: &BlockConfig) {
     let n = a.cols();
     let p = b.cols();
     let rows = c_block.len() / p;
     let a_block = &a.as_slice()[first_row * n..(first_row + rows) * n];
-    accumulate_tile(c_block, a_block, b.as_slice(), n, p);
+    accumulate_tile(c_block, a_block, b.as_slice(), n, p, block);
 }
 
 /// Multiplies `a` by `b` on `threads` threads, with a register-blocked,
@@ -257,12 +264,48 @@ fn multiply_row_block(a: &Matrix, b: &Matrix, first_row: usize, c_block: &mut [f
 /// # Ok::<(), naive_matmul::DimensionMismatch>(())
 /// ```
 pub fn matmul(a: &Matrix, b: &Matrix, threads: NonZeroUsize) -> Result<Matrix, DimensionMismatch> {
-    multiply_by_row_blocks(a, b, threads, multiply_row_block)
+    matmul_with_config(a, b, threads, &BlockConfig::default())
+}
+
+/// Like [`matmul`], with explicit cache-block sizes.
+///
+/// The micro-tile shape stays fixed at compile time (see [`micro_tile_shape`]);
+/// only the cache blocks around it are adjustable. Results are bit-for-bit
+/// identical to [`matmul`] for every `block`.
+///
+/// # Errors
+///
+/// Returns [`DimensionMismatch`] if `a.cols() != b.rows()`.
+///
+/// # Examples
+///
+/// ```
+/// use std::num::NonZeroUsize;
+/// use naive_matmul::cache_friendly::BlockConfig;
+/// use naive_matmul::{simd, Matrix};
+///
+/// let a = Matrix::new(2, 3, vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
+/// let b = Matrix::new(3, 2, vec![7.0, 8.0, 9.0, 10.0, 11.0, 12.0]);
+/// let one = NonZeroUsize::new(1).unwrap();
+/// let c = simd::matmul_with_config(&a, &b, one, &BlockConfig::new(one, one))?;
+/// assert_eq!(c, Matrix::new(2, 2, vec![58.0, 64.0, 139.0, 154.0]));
+/// # Ok::<(), naive_matmul::DimensionMismatch>(())
+/// ```
+pub fn matmul_with_config(
+    a: &Matrix,
+    b: &Matrix,
+    threads: NonZeroUsize,
+    block: &BlockConfig,
+) -> Result<Matrix, DimensionMismatch> {
+    multiply_by_row_blocks(a, b, threads, |a, b, first_row, c_block| {
+        multiply_row_block(a, b, first_row, c_block, block)
+    })
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::cache_friendly::{TILE_J, TILE_K};
 
     fn nz(n: usize) -> NonZeroUsize {
         NonZeroUsize::new(n).unwrap()
@@ -307,7 +350,7 @@ mod tests {
                     let a = tile(rows, depth, 1);
                     let b = tile(depth, cols, 2);
                     let mut c = vec![0.0; rows * cols];
-                    accumulate_tile(&mut c, &a, &b, depth, cols);
+                    accumulate_tile(&mut c, &a, &b, depth, cols, &BlockConfig::default());
                     assert_eq!(
                         c,
                         reference(&a, &b, rows, depth, cols),
@@ -324,7 +367,7 @@ mod tests {
         let a = tile(rows, depth, 3);
         let b = tile(depth, cols, 4);
         let mut c = vec![100.0; rows * cols];
-        accumulate_tile(&mut c, &a, &b, depth, cols);
+        accumulate_tile(&mut c, &a, &b, depth, cols, &BlockConfig::default());
         let product = reference(&a, &b, rows, depth, cols);
         for (got, want) in c.iter().zip(&product) {
             assert_eq!(*got, 100.0 + want);

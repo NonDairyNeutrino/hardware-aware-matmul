@@ -143,6 +143,8 @@ fn block_configs_never_change_the_bits() {
                 let context = |level: &str| format!("{level}, {block:?}, shape {m}x{n}x{p}, {threads} thread(s)");
                 let c2 = cache_friendly::matmul_with_config(&a, &b, t, &block).unwrap();
                 assert_same_bits(&c2, &reference, &context("cache_friendly"));
+                let c3 = simd::matmul_with_config(&a, &b, t, &block).unwrap();
+                assert_same_bits(&c3, &reference, &context("simd"));
             }
         }
     }
