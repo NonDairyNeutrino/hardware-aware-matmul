@@ -83,4 +83,11 @@ mod tests {
     fn std_runner_with_no_jobs_returns_immediately() {
         StdRunner.run(Vec::new());
     }
+
+    #[test]
+    #[should_panic(expected = "a scoped thread panicked")]
+    fn std_runner_propagates_a_job_panic() {
+        let jobs: Vec<Box<dyn FnOnce() + Send>> = vec![Box::new(|| panic!("boom"))];
+        StdRunner.run(jobs);
+    }
 }
