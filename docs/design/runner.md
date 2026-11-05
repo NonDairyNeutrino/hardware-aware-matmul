@@ -15,6 +15,11 @@ A runner must run every job and return only when all have finished. It does not
 change the answer: each job writes its own rows, so results are bit-for-bit
 identical whichever runner executes them.
 
+The `threads` argument is the maximum number of jobs, not a promise of
+parallelism: how many run at once is the runner's choice. A runner that
+silently drops jobs would leave the rows of those jobs zero, so it must run
+every one.
+
 ```rust
 use std::num::NonZeroUsize;
 use naive_matmul::runner::Runner;

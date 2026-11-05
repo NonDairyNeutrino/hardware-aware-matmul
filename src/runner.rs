@@ -7,6 +7,17 @@
 /// return until every job has finished. Jobs are independent: they may run in
 /// any order, on any threads, or one after another on the calling thread.
 ///
+/// The `threads` argument of the `matmul` functions is an upper bound on the
+/// number of jobs, not a promise of parallelism: the runner decides how many
+/// run at once. Jobs must not assume any order, or that they run on separate
+/// threads. This crate never calls `run` from inside a job, so runners need not
+/// support re-entrant calls.
+///
+/// A panic in a job reaches the caller of `run` under [`StdRunner`] (the
+/// original payload is replaced by a generic "a scoped thread panicked"
+/// message). On targets built with `panic=abort`, such as the wasm build, it
+/// aborts instead.
+///
 /// See the [module documentation](self) for an example.
 pub trait Runner: Sync {
     /// Runs every job in `jobs`, returning only when all have finished.
