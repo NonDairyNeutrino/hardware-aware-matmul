@@ -194,3 +194,7 @@ poetry.toml
 pyrightconfig.json
 
 # End of https://www.toptal.com/developers/gitignore/api/python
+
+anim/media/texts
+anim/media/Tex
+anim/media/videos/**/partial_movie_files
