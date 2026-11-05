@@ -20,7 +20,7 @@ Reading it as a chain of reuse:
 | Level | Reuses from below | Adds |
 |-------|-------------------|------|
 | 0 `naive`          | (nothing)                                  | The triple loop |
-| 1 `threaded`       | Level 0's loop, as the per-thread kernel   | Row-block partitioning (`row_block_plan`), scoped threads |
+| 1 `threaded`       | Level 0's loop, as the per-thread kernel   | Row-block partitioning (`row_block_plan`), jobs on a `Runner` (scoped threads by default) |
 | 2 `cache_friendly` | Level 1's partitioning and threading       | A new kernel: `i-k-j` order, `axpy`, cache blocks |
 | 3 `simd`           | Level 1's partitioning and threading; level 2's `axpy` and cache blocks | A register-blocked micro-kernel for the innermost step |
 | 4 `streaming`      | Level 2's `axpy` and cache blocks          | Tiles, the source/sink traits, a work queue |
@@ -36,6 +36,7 @@ error types.
 | `error`                     | yes      | `MatmulError`, `DimensionMismatch`, and the shared shape check. |
 | `naive`                     | yes      | Level 0. |
 | `threaded`                  | yes      | Level 1, `row_block_plan`, and the row-block driver that levels 2 and 3 reuse. |
+| `runner`                    | yes      | `Runner` and `StdRunner`: where levels 1 to 3 run their row-block jobs. |
 | `cache_friendly`            | yes      | Level 2, including `axpy`, `BlockConfig`, and the default cache-block constants used by levels 3 and 4. |
 | `simd`                      | yes      | Level 3: the register-blocked micro-kernel and `micro_tile_shape`. |
 | `streaming`                 | yes      | Level 4 and its submodules (below). |

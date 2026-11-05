@@ -123,6 +123,7 @@ src/
 ├── error.rs             MatmulError, DimensionMismatch, the shared shape check
 ├── naive.rs             level 0
 ├── threaded.rs          level 1 (also the row-block driver levels 2 and 3 reuse)
+├── runner.rs            Runner trait and StdRunner: where levels 1 to 3 run their row-block jobs
 ├── cache_friendly.rs    level 2 (also home of axpy and the cache-block sizes)
 ├── simd.rs              level 3 (the register-blocked micro-kernel)
 ├── streaming/           level 4
@@ -138,7 +139,7 @@ docs/
 ├── introduction.md
 ├── levels/              naive, threaded, cache_friendly, simd, streaming
 ├── guide/               getting_started, in_memory
-└── design/              architecture
+└── design/              architecture, runner
 tests/
 ├── levels.rs            all five levels agree, exactly
 └── streaming.rs         level 4: tile shapes, errors, files
