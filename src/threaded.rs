@@ -60,8 +60,8 @@ pub fn row_block_plan(rows: usize, threads: NonZeroUsize) -> Vec<Range<usize>> {
         .collect()
 }
 
-/// Splits the output rows across `threads` scoped threads, running `kernel`
-/// on each block.
+/// Splits the output rows into jobs for a [`Runner`], running `kernel` on each
+/// block.
 ///
 /// `kernel(a, b, first_row, c_block)` fills (or accumulates into) `c_block`, the
 /// rows of the output starting at row `first_row`, reading `a` and `b`. The
@@ -73,8 +73,8 @@ pub fn row_block_plan(rows: usize, threads: NonZeroUsize) -> Vec<Range<usize>> {
 /// This is the whole of the parallel structure shared by levels 1, 2, and 3:
 /// they differ only in the kernel they pass in. The rows of the result are
 /// divided into at most `threads` contiguous blocks of equal size (the last may
-/// be smaller). If there are fewer rows than threads, only as many threads as
-/// there are non-empty blocks are spawned.
+/// be smaller). Each block becomes one job handed to `runner`; if there are
+/// fewer rows than `threads` there are fewer jobs.
 pub(crate) fn multiply_by_row_blocks<K, R>(
     a: &Matrix,
     b: &Matrix,
