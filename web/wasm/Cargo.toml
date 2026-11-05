@@ -1,0 +1,23 @@
+[package]
+name = "naive_matmul_web"
+version = "0.1.0"
+edition = "2021"
+description = "Browser wrapper around naive_matmul (stage B spike)"
+publish = false
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+# Keep this crate out of any parent workspace: it builds on a pinned nightly
+# and must never affect the core crate's stable build.
+[workspace]
+
+[features]
+# Needed when the page loads the wasm module without a bundler.
+no-bundler = ["wasm-bindgen-rayon/no-bundler"]
+
+[dependencies]
+naive_matmul = { path = "../.." }
+rayon = "1.8"
+wasm-bindgen = "=0.2.130"
+wasm-bindgen-rayon = "1.2"
