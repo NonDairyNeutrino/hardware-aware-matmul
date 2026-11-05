@@ -1,0 +1,16 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>gate</title>
+<script type="module">
+  const gate = new URLSearchParams(location.search).get('gate');
+  let expected = {};
+  try { expected = await (await fetch('./expected.json')).json(); } catch (e) { /* g1 needs none */ }
+  const worker = new Worker('./worker.js', { type: 'module' });
+  const result = await new Promise((resolve) => {
+    worker.onmessage = (event) => resolve(event.data);
+    worker.onerror = (event) => resolve({ gate, ok: false, error: 'worker error: ' + event.message });
+    worker.postMessage({ gate, threads: 4, expected });
+  });
+  await fetch('/report', { method: 'POST', body: JSON.stringify(result) });
+  document.title = result.ok ? 'done' : 'failed';
+</script>

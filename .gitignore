@@ -203,4 +203,5 @@ anim/media/videos/**/partial_movie_files
 node_modules/
 .astro/
 web/wasm/pkg/
+web/wasm/www/expected.json
 !web/wasm/Cargo.lock
