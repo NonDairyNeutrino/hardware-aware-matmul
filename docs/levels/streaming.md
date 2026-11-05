@@ -191,7 +191,9 @@ same bits as [`naive`](crate::naive).
   [`cache_friendly`](crate::cache_friendly) is the better choice. Level 4 earns
   its keep when the data does not fit, or when you want to consume results
   without storing them.
-- **Rereading.** The inputs are read many times; see the cost model.
+- **Rereading.** The inputs are read many times;
+  [`StreamConfig::peak_buffer_bytes`] and
+  [`StreamConfig::with_tile_shape`] let you trade memory against rereading.
 - **I/O can fail.** Sources and sinks return `io::Result`, so this level has a
   richer error type, [`MatmulError`](crate::MatmulError).
 - **More machinery.** A tile abstraction, a plan, per-worker buffers, and an
