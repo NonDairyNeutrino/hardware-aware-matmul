@@ -199,8 +199,8 @@ assert_eq!(c, Matrix::new(2, 2, vec![58.0, 64.0, 139.0, 154.0]));
 # Where to go next
 
 Everything so far assumes `A`, `B`, and `C` all fit in memory.
-[`streaming`](crate::streaming) removes that assumption, and it reuses this
-level's micro-kernel as its inner loop.
+[`streaming`](crate::streaming) removes that assumption. It computes its tiles with level 2's
+`axpy` kernel, not with this level's micro-kernel.
 
 [`micro_tile_shape`]: crate::simd::micro_tile_shape
 [`target_vector_isa`]: crate::simd::target_vector_isa

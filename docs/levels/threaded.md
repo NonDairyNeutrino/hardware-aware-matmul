@@ -1,4 +1,4 @@
-**Level 1 of 3.** The same triple loop, spread across threads. One idea, a
+**Level 1 of 4.** The same triple loop, spread across threads. One idea, a
 few lines of new code.
 
 # What changed from level 0
@@ -85,7 +85,7 @@ partitioning on the other, is kept at every level from here on.
 - **Fixed, equal-sized blocks.** Work is divided in advance, with no
   rebalancing. For this problem every row costs the same, so equal blocks are
   fine, but if one thread were slowed by something else the others would idle
-  waiting for it. Level 3 uses a work queue instead.
+  waiting for it. Level 4 uses a work queue instead.
 - **Parallelism is capped at the row count.** With fewer rows than threads,
   only as many threads as rows are used.
 - **Still three whole matrices in memory.**

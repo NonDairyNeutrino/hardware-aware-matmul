@@ -1,4 +1,4 @@
-**Level 2 of 3.** Same threads, same partitioning, same results, but each
+**Level 2 of 4.** Same threads, same partitioning, same results, but each
 thread's loops are rearranged so the processor stops waiting for memory.
 
 # What changed from level 1
