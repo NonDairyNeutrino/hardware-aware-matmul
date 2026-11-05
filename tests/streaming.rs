@@ -5,8 +5,9 @@
 use std::io;
 use std::num::NonZeroUsize;
 
+use naive_matmul::runner::Runner;
 use naive_matmul::streaming::{
-    matmul, matmul_streaming, MemorySink, StreamConfig, TileSource,
+    matmul, matmul_streaming, matmul_streaming_with_runner, MemorySink, StreamConfig, TileSource,
 };
 use naive_matmul::{DimensionMismatch, MatmulError, Matrix};
 
@@ -161,6 +162,50 @@ fn io_errors_propagate() {
         Err(MatmulError::Io(e)) => assert!(e.to_string().contains("disk on fire")),
         other => panic!("expected an I/O error, got {other:?}"),
     }
+}
+
+/// Runs every job on the calling thread, one after another.
+struct Inline;
+
+impl Runner for Inline {
+    fn run<'env>(&self, jobs: Vec<Box<dyn FnOnce() + Send + 'env>>) {
+        for job in jobs {
+            job();
+        }
+    }
+}
+
+#[test]
+fn io_errors_propagate_through_any_runner() {
+    let b = Matrix::zeros(8, 8);
+    let sink = MemorySink::new(8, 8);
+    let config = StreamConfig::new(nz(4)).with_tile_shape(2, 2, 2);
+    match matmul_streaming_with_runner(&FailingSource, &b, &sink, &config, &Inline) {
+        Err(MatmulError::Io(e)) => assert!(e.to_string().contains("disk on fire")),
+        other => panic!("expected an I/O error, got {other:?}"),
+    }
+}
+
+/// A source whose reads panic, to check that panics reach the caller.
+struct PanickingSource;
+
+impl TileSource for PanickingSource {
+    fn shape(&self) -> (usize, usize) {
+        (8, 8)
+    }
+
+    fn read_tile(&self, _: usize, _: usize, _: usize, _: usize, _: &mut [f64]) -> io::Result<()> {
+        panic!("boom");
+    }
+}
+
+#[test]
+#[should_panic(expected = "boom")]
+fn a_panic_in_a_source_reaches_the_caller_of_an_inline_runner() {
+    let b = Matrix::zeros(8, 8);
+    let sink = MemorySink::new(8, 8);
+    let config = StreamConfig::new(nz(2)).with_tile_shape(2, 2, 2);
+    let _ = matmul_streaming_with_runner(&PanickingSource, &b, &sink, &config, &Inline);
 }
 
 #[cfg(any(unix, windows))]

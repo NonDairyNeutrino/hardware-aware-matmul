@@ -32,13 +32,14 @@ use std::io;
 use std::num::NonZeroUsize;
 use std::ops::Range;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
-use std::thread;
+use std::sync::Mutex;
 
 use super::kernel::accumulate_tile;
 use super::tile::{MemorySink, TileSink, TileSource};
 use crate::cache_friendly::BlockConfig;
 use crate::error::{check_inner_dimensions, MatmulError};
 use crate::matrix::Matrix;
+use crate::runner::{Runner, StdRunner};
 
 /// Tile size used when none is specified: 256 in every dimension, i.e.
 /// 512 KiB per tile buffer.
@@ -399,6 +400,38 @@ where
     B: TileSource + ?Sized,
     C: TileSink + ?Sized,
 {
+    matmul_streaming_with_runner(a, b, c, config, &StdRunner)
+}
+
+/// Like [`matmul_streaming`], with the workers executed by `runner`.
+///
+/// The runner receives one job per worker: at most `config.threads()` of them,
+/// fewer when there are fewer output tiles, and none for an empty product. Each
+/// job claims output tiles from a shared counter until none remain, so a runner
+/// that runs its jobs one after another simply lets the first job claim every
+/// tile. Results are bit-for-bit identical for every runner.
+///
+/// # Errors
+///
+/// The same as [`matmul_streaming`]: the first I/O error observed is returned.
+///
+/// # Panics
+///
+/// A panic in a source or sink reaches the caller as the runner decides: with
+/// [`StdRunner`] it is a panic from this function.
+pub fn matmul_streaming_with_runner<A, B, C, R>(
+    a: &A,
+    b: &B,
+    c: &C,
+    config: &StreamConfig,
+    runner: &R,
+) -> Result<(), MatmulError>
+where
+    A: TileSource + ?Sized,
+    B: TileSource + ?Sized,
+    C: TileSink + ?Sized,
+    R: Runner + ?Sized,
+{
     let (m, n, p) = check_inner_dimensions(a.shape(), b.shape())?;
     if c.shape() != (m, p) {
         return Err(MatmulError::OutputShapeMismatch {
@@ -416,34 +449,25 @@ where
     let next_tile = AtomicUsize::new(0);
     let failed = AtomicBool::new(false);
 
-    let first_error = thread::scope(|scope| {
-        let mut handles = Vec::with_capacity(workers);
-        for _ in 0..workers {
-            handles.push(scope.spawn(|| {
-                let result = run_worker(a, b, c, &plan, &next_tile, &failed);
-                if result.is_err() {
+    // One job per worker. The first error any worker hits is kept for the caller.
+    let first_error: Mutex<Option<io::Error>> = Mutex::new(None);
+    let jobs: Vec<Box<dyn FnOnce() + Send + '_>> = (0..workers)
+        .map(|_| {
+            let (plan, next_tile, failed, first_error) = (&plan, &next_tile, &failed, &first_error);
+            Box::new(move || {
+                if let Err(error) = run_worker(a, b, c, plan, next_tile, failed) {
                     failed.store(true, Ordering::Relaxed);
-                }
-                result
-            }));
-        }
-
-        let mut first_error = None;
-        for handle in handles {
-            match handle.join() {
-                Ok(Ok(())) => {}
-                Ok(Err(error)) => {
-                    if first_error.is_none() {
-                        first_error = Some(error);
+                    let mut slot = first_error.lock().expect("no code panics while holding this lock");
+                    if slot.is_none() {
+                        *slot = Some(error);
                     }
                 }
-                Err(panic) => std::panic::resume_unwind(panic),
-            }
-        }
-        first_error
-    });
+            }) as Box<dyn FnOnce() + Send + '_>
+        })
+        .collect();
+    runner.run(jobs);
 
-    match first_error {
+    match first_error.into_inner().expect("no code panics while holding this lock") {
         Some(error) => Err(MatmulError::Io(error)),
         None => Ok(()),
     }

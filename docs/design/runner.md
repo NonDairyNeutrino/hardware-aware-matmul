@@ -44,5 +44,8 @@ assert_eq!(c, Matrix::new(2, 2, vec![58.0, 64.0, 139.0, 154.0]));
 # Ok::<(), naive_matmul::DimensionMismatch>(())
 ```
 
-Level 4 ([`streaming`](crate::streaming)) has its own worker loop and does not
-use a `Runner` yet.
+Level 4 takes a runner too:
+[`streaming::matmul_streaming_with_runner`](crate::streaming::matmul_streaming_with_runner)
+hands it one job per worker. Each worker claims output tiles from a shared
+counter, so a runner that runs its jobs one after another simply lets the first
+job claim every tile.

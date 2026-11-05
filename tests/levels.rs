@@ -221,6 +221,33 @@ fn runners_never_change_the_bits() {
 }
 
 #[test]
+fn streaming_runners_never_change_the_bits() {
+    for (m, n, p) in [(1, 1, 1), (9, 13, 11), (37, 23, 41), (70, 75, 133)] {
+        let (a, b) = rough_operands(m, n, p);
+        let reference = naive::matmul(&a, &b).unwrap();
+        for threads in [1, 3, 8] {
+            for (rows, cols, depth) in [(16, 24, 20), (1, 1, 1), (1000, 1000, 1000)] {
+                let config = StreamConfig::new(nz(threads)).with_tile_shape(rows, cols, depth);
+                let context = |runner: &str| {
+                    format!("streaming, {runner}, tiles {rows}x{cols}x{depth}, shape {m}x{n}x{p}, {threads} thread(s)")
+                };
+
+                let inline = CountingInline::new();
+                let sink = streaming::MemorySink::new(m, p);
+                streaming::matmul_streaming_with_runner(&a, &b, &sink, &config, &inline).unwrap();
+                assert_same_bits(&sink.into_matrix(), &reference, &context("inline"));
+                let jobs_expected = threads.min(streaming::tile_plan(m, n, p, &config).tiles.len());
+                assert_eq!(inline.jobs(), jobs_expected, "{}", context("job count"));
+
+                let sink = streaming::MemorySink::new(m, p);
+                streaming::matmul_streaming_with_runner(&a, &b, &sink, &config, &StdRunner).unwrap();
+                assert_same_bits(&sink.into_matrix(), &reference, &context("std"));
+            }
+        }
+    }
+}
+
+#[test]
 fn an_empty_product_hands_the_runner_no_jobs() {
     let block = BlockConfig::default();
     for (m, n, p) in [(0, 3, 2), (2, 3, 0), (0, 3, 0)] {
@@ -229,6 +256,8 @@ fn an_empty_product_hands_the_runner_no_jobs() {
         threaded::matmul_with_runner(&a, &b, nz(4), &inline).unwrap();
         cache_friendly::matmul_with_runner(&a, &b, nz(4), &block, &inline).unwrap();
         simd::matmul_with_runner(&a, &b, nz(4), &block, &inline).unwrap();
+        let config = StreamConfig::new(nz(4));
+        streaming::matmul_streaming_with_runner(&a, &b, &streaming::MemorySink::new(m, p), &config, &inline).unwrap();
         assert_eq!(inline.jobs(), 0, "shape {m}x{n}x{p}");
     }
 }
