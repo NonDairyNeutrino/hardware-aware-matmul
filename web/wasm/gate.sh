@@ -1,16 +1,36 @@
 #!/usr/bin/env bash
 # Runs one browser gate headlessly and exits non-zero unless it passes.
 # usage: gate.sh g1|g2|probe [--no-build]
+# `--no-build` reuses pkg/, and refuses to run if pkg/ is missing or older than
+# any source file (run ./build.sh first).
 # `probe` is informational: it records whether the standard-library runner works
 # in the browser (expected: it does not) and passes whenever the page ran.
 # env: WASM_BINDGEN (path to the CLI), PORT (default 8765)
 set -euo pipefail
 cd "$(dirname "$0")"
 GATE=${1:?usage: gate.sh g1|g2|probe [--no-build]}
-[ "${2:-}" = "--no-build" ] || ./build.sh
+if [ "${2:-}" = "--no-build" ]; then
+  WASM=pkg/naive_matmul_web_bg.wasm
+  if [ ! -f "$WASM" ]; then
+    echo "REFUSING: $WASM is missing; run ./build.sh (or drop --no-build)" >&2
+    exit 1
+  fi
+  NEWER=$(find src examples Cargo.toml ../../src ../../Cargo.toml \
+    \( -name '*.rs' -o -name Cargo.toml \) -newer "$WASM" -print -quit)
+  if [ -n "$NEWER" ]; then
+    echo "REFUSING: $NEWER is newer than $WASM; run ./build.sh (or drop --no-build)" >&2
+    exit 1
+  fi
+else
+  ./build.sh
+fi
 mkdir -p target
 if [ "$GATE" = g2 ]; then
-  cargo run --release --example expected 2>/dev/null > www/expected.json
+  if ! cargo run --release --example expected 2>target/expected-build.log > www/expected.json; then
+    echo "FAIL: could not generate www/expected.json:" >&2
+    cat target/expected-build.log >&2
+    exit 1
+  fi
 fi
 export REPORT="$PWD/target/$GATE-report.json" LOG="$PWD/target/$GATE-server.log"
 rm -f "$LOG"
