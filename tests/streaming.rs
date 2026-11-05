@@ -1,6 +1,6 @@
 //! Integration tests for the streaming level (level 3), exercising only the
 //! public API: tile shapes, error propagation, and file-backed matrices.
-//! `tests/levels.rs` checks that all four levels agree.
+//! `tests/levels.rs` checks that all five levels agree.
 
 use std::io;
 use std::num::NonZeroUsize;
