@@ -145,6 +145,11 @@ fn block_configs_never_change_the_bits() {
                 assert_same_bits(&c2, &reference, &context("cache_friendly"));
                 let c3 = simd::matmul_with_config(&a, &b, t, &block).unwrap();
                 assert_same_bits(&c3, &reference, &context("simd"));
+
+                let config = StreamConfig::new(t).with_tile_shape(16, 24, 20).with_block_config(block);
+                let sink = streaming::MemorySink::new(m, p);
+                streaming::matmul_streaming(&a, &b, &sink, &config).unwrap();
+                assert_same_bits(&sink.into_matrix(), &reference, &context("streaming"));
             }
         }
     }

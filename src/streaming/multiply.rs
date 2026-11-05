@@ -36,6 +36,7 @@ use std::thread;
 
 use super::kernel::accumulate_tile;
 use super::tile::{MemorySink, TileSink, TileSource};
+use crate::cache_friendly::BlockConfig;
 use crate::error::{check_inner_dimensions, MatmulError};
 use crate::matrix::Matrix;
 
@@ -62,6 +63,7 @@ pub struct StreamConfig {
     tile_rows: NonZeroUsize,
     tile_cols: NonZeroUsize,
     tile_depth: NonZeroUsize,
+    block: BlockConfig,
 }
 
 impl StreamConfig {
@@ -73,6 +75,7 @@ impl StreamConfig {
             tile_rows: tile,
             tile_cols: tile,
             tile_depth: tile,
+            block: BlockConfig::default(),
         }
     }
 
@@ -90,6 +93,34 @@ impl StreamConfig {
         self.tile_cols = NonZeroUsize::new(cols).expect("tile cols must be non-zero");
         self.tile_depth = NonZeroUsize::new(depth).expect("tile depth must be non-zero");
         self
+    }
+
+    /// Sets the cache-block sizes used by the kernel inside each tile.
+    ///
+    /// They are independent of the tile shape: the tile shape decides how much
+    /// data each worker holds, the cache blocks decide how the kernel walks it.
+    /// Results are bit-for-bit identical for every choice.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use std::num::NonZeroUsize;
+    /// use naive_matmul::cache_friendly::BlockConfig;
+    /// use naive_matmul::streaming::StreamConfig;
+    ///
+    /// let one = NonZeroUsize::new(1).unwrap();
+    /// let block = BlockConfig::new(NonZeroUsize::new(8).unwrap(), NonZeroUsize::new(16).unwrap());
+    /// let config = StreamConfig::new(one).with_block_config(block);
+    /// assert_eq!(config.block_config(), block);
+    /// ```
+    pub fn with_block_config(mut self, block: BlockConfig) -> Self {
+        self.block = block;
+        self
+    }
+
+    /// Returns the cache-block sizes used by the kernel inside each tile.
+    pub fn block_config(&self) -> BlockConfig {
+        self.block
     }
 
     /// Returns the number of worker threads.
@@ -135,6 +166,8 @@ struct Plan {
     tiles_per_row: usize,
     /// Total number of output tiles.
     total_tiles: usize,
+    /// Cache-block sizes for the kernel.
+    block: BlockConfig,
 }
 
 impl Plan {
@@ -156,6 +189,7 @@ impl Plan {
             tile_depth,
             tiles_per_row,
             total_tiles,
+            block: config.block_config(),
         }
     }
 
@@ -280,7 +314,7 @@ where
         let b_tile = &mut buffers.b[..depth * cols];
         b.read_tile(depth_start, col, depth, cols, b_tile)?;
 
-        accumulate_tile(c_tile, a_tile, b_tile, depth, cols);
+        accumulate_tile(c_tile, a_tile, b_tile, depth, cols, &plan.block);
     }
 
     c.write_tile(row, col, rows, cols, c_tile)
@@ -454,6 +488,7 @@ mod tests {
     fn config_defaults_and_buffer_bytes() {
         let config = StreamConfig::new(nz(2));
         assert_eq!(config.tile_shape(), (256, 256, 256));
+        assert_eq!(config.block_config(), BlockConfig::default());
         assert_eq!(config.peak_buffer_bytes(), 2 * 3 * 256 * 256 * 8);
     }
 
