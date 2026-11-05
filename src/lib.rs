@@ -20,8 +20,6 @@ pub mod threaded;
 pub mod design;
 #[cfg(any(doc, doctest))]
 pub mod guide;
-#[cfg(any(doc, doctest))]
-pub mod reference;
 
 pub use error::{DimensionMismatch, MatmulError};
 pub use matrix::Matrix;
