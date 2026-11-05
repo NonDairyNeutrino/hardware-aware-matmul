@@ -6,6 +6,7 @@ rust-version = "1.73"
 default-run = "compare"
 description = "Streaming, multithreaded, cache-friendly dense matrix multiplication"
 readme = "README.md"
+exclude = ["web/", "anim/", ".github/", "docs/superpowers/"]
 
 [lib]
 name = "naive_matmul"

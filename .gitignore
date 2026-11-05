@@ -38,8 +38,8 @@ dist/
 downloads/
 eggs/
 .eggs/
-lib/
-lib64/
+/lib/
+/lib64/
 parts/
 sdist/
 var/
@@ -198,3 +198,9 @@ pyrightconfig.json
 anim/media/texts
 anim/media/Tex
 anim/media/videos/**/partial_movie_files
+
+# Website (see docs/superpowers/specs/2026-11-05-website-design.md)
+node_modules/
+.astro/
+web/wasm/pkg/
+!web/wasm/Cargo.lock
