@@ -31,8 +31,8 @@ cargo doc --open
 
 The five implementations are the modules `naive`, `threaded`,
 `cache_friendly`, `simd`, and `streaming`, and each module's page is one chapter of
-the story, so read them in that order. The `guide`, `design`, and `reference`
-modules hold the other pages. Pass `--document-private-items` to include the
+the story, so read them in that order. The `guide` and `design` modules hold
+the other pages. Pass `--document-private-items` to include the
 private streaming kernel.
 
 # Run the demos
