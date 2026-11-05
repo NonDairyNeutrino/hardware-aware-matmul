@@ -73,7 +73,7 @@ core crate only if G2 passes.
 - A `RayonRunner` in the wrapper implements `Runner` with `rayon::scope`.
 - Build with `cargo build --release --target wasm32-unknown-unknown` then the
   `wasm-bindgen` CLI (`--target web`). No `wasm-pack`.
-- A tiny stdlib-only Python dev server (`web/dev-server.py`) serves a
+- A tiny stdlib-only Python dev server (`web/dev/serve.py`) serves a
   directory with COOP/COEP headers and the right wasm MIME type, so G1 and G2
   can be checked without Node.
 - Gate G3 uses a minimal Astro project, since stage C is Astro. That needs Node.
