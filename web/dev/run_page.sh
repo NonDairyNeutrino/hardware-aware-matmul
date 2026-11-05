@@ -18,13 +18,18 @@ PROFILE=$(mktemp -d)
 firefox --headless --no-remote --profile "$PROFILE" "http://127.0.0.1:$PORT/$URLPATH" >/dev/null 2>&1 &
 BROWSER=$!
 
+cleanup() {
+  kill "$BROWSER" "$SERVER" 2>/dev/null
+  sleep 1
+  kill -9 "$BROWSER" "$SERVER" 2>/dev/null
+  rm -rf "$PROFILE"
+}
+trap cleanup EXIT
+trap 'exit 130' INT TERM HUP
+
 for _ in $(seq 1 "$TIMEOUT"); do
   [ -f "$REPORT" ] && break
   sleep 1
 done
 
-kill "$BROWSER" "$SERVER" 2>/dev/null
-sleep 1
-kill -9 "$BROWSER" "$SERVER" 2>/dev/null
-rm -rf "$PROFILE"
 [ -f "$REPORT" ]
