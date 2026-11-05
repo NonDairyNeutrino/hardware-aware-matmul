@@ -1,6 +1,7 @@
 #![doc = include_str!("../docs/levels/threaded.md")]
 
 use std::num::NonZeroUsize;
+use std::ops::Range;
 use std::thread;
 
 use crate::error::{check_inner_dimensions, DimensionMismatch};
@@ -26,6 +27,37 @@ fn multiply_row_block(a: &Matrix, b: &Matrix, first_row: usize, c_block: &mut [f
             *c_ij = sum;
         }
     }
+}
+
+/// Divides `rows` output rows into the contiguous blocks that [`matmul`] (and
+/// levels 2 and 3) give to their threads.
+///
+/// The rows are cut into at most `threads` blocks of equal size; the last block
+/// may be smaller. If there are fewer rows than threads, there are fewer blocks
+/// than threads, and zero rows give no blocks at all. The blocks are returned
+/// in row order and together cover `0..rows` exactly once.
+///
+/// This is the function the drivers themselves call, so it describes what the
+/// code does rather than a copy of it.
+///
+/// # Examples
+///
+/// ```
+/// use std::num::NonZeroUsize;
+/// use naive_matmul::threaded::row_block_plan;
+///
+/// let plan = row_block_plan(10, NonZeroUsize::new(4).unwrap());
+/// assert_eq!(plan, vec![0..3, 3..6, 6..9, 9..10]);
+/// ```
+pub fn row_block_plan(rows: usize, threads: NonZeroUsize) -> Vec<Range<usize>> {
+    if rows == 0 {
+        return Vec::new();
+    }
+    let rows_per_block = rows.div_ceil(threads.get());
+    (0..rows)
+        .step_by(rows_per_block)
+        .map(|first| first..(first + rows_per_block).min(rows))
+        .collect()
 }
 
 /// The signature of a kernel that [`multiply_by_row_blocks`] can drive.
@@ -59,12 +91,12 @@ pub(crate) fn multiply_by_row_blocks(
         return Ok(c);
     }
 
-    let rows_per_block = m.div_ceil(threads.get());
-    let block_len = rows_per_block * p;
-
     thread::scope(|scope| {
-        for (block_idx, c_block) in c.as_mut_slice().chunks_mut(block_len).enumerate() {
-            let first_row = block_idx * rows_per_block;
+        let mut remaining = c.as_mut_slice();
+        for block in row_block_plan(m, threads) {
+            let (c_block, rest) = std::mem::take(&mut remaining).split_at_mut(block.len() * p);
+            remaining = rest;
+            let first_row = block.start;
             scope.spawn(move || kernel(a, b, first_row, c_block));
         }
     });
@@ -131,6 +163,40 @@ mod tests {
         let mut block = vec![0.0; 2 * b.cols()];
         multiply_row_block(&a, &b, 1, &mut block);
         assert_eq!(block, full.as_slice()[b.cols()..3 * b.cols()]);
+    }
+
+    #[test]
+    fn row_block_plan_has_a_short_last_block() {
+        assert_eq!(row_block_plan(10, nz(4)), vec![0..3, 3..6, 6..9, 9..10]);
+        assert_eq!(row_block_plan(7, nz(3)), vec![0..3, 3..6, 6..7]);
+    }
+
+    #[test]
+    fn row_block_plan_has_fewer_blocks_than_threads_when_rows_run_out() {
+        assert_eq!(row_block_plan(2, nz(16)), vec![0..1, 1..2]);
+        assert_eq!(row_block_plan(5, nz(4)), vec![0..2, 2..4, 4..5]);
+    }
+
+    #[test]
+    fn row_block_plan_of_no_rows_is_empty() {
+        assert!(row_block_plan(0, nz(4)).is_empty());
+    }
+
+    #[test]
+    fn row_block_plan_covers_every_row_exactly_once() {
+        for rows in 0..40 {
+            for threads in 1..=9 {
+                let plan = row_block_plan(rows, nz(threads));
+                assert!(plan.len() <= threads);
+                let mut next_row = 0;
+                for block in &plan {
+                    assert_eq!(block.start, next_row, "rows={rows}, threads={threads}");
+                    assert!(!block.is_empty());
+                    next_row = block.end;
+                }
+                assert_eq!(next_row, rows, "rows={rows}, threads={threads}");
+            }
+        }
     }
 
     #[test]
