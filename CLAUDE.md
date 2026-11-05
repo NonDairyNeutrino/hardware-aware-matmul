@@ -10,7 +10,7 @@ A teaching-oriented Rust crate (`naive_matmul`, no dependencies, `#![forbid(unsa
 
 ```sh
 cargo build
-cargo test                              # unit + integration + doc tests (CI runs build + test only)
+cargo test                              # unit + integration + doc tests (CI runs build + test, plus an MSRV 1.73 build and a wasm32 library check)
 cargo test --test levels                # one integration test file (tests/levels.rs or tests/streaming.rs)
 cargo test <name>                       # single test by name substring
 cargo run --release                     # `compare` bin (default-run): times all levels; args: [n] [threads]
