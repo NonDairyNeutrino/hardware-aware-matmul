@@ -1,10 +1,10 @@
 #![doc = include_str!("../docs/levels/cache_friendly.md")]
 
 use std::num::NonZeroUsize;
-use std::thread;
 
-use crate::error::{check_inner_dimensions, DimensionMismatch};
+use crate::error::DimensionMismatch;
 use crate::matrix::Matrix;
+use crate::threaded::multiply_by_row_blocks;
 
 /// Number of `k` values (rows of `b`) processed per cache block.
 ///
@@ -90,26 +90,7 @@ fn multiply_row_block(a: &Matrix, b: &Matrix, first_row: usize, c_block: &mut [f
 /// # Ok::<(), naive_matmul::DimensionMismatch>(())
 /// ```
 pub fn matmul(a: &Matrix, b: &Matrix, threads: NonZeroUsize) -> Result<Matrix, DimensionMismatch> {
-    let (m, _, p) = check_inner_dimensions((a.rows(), a.cols()), (b.rows(), b.cols()))?;
-
-    // Zero-initialised, because the kernel accumulates into it.
-    let mut c = Matrix::zeros(m, p);
-    if c.as_slice().is_empty() {
-        // Nothing to compute; also avoids `chunks_mut(0)`, which panics.
-        return Ok(c);
-    }
-
-    let rows_per_block = m.div_ceil(threads.get());
-    let block_len = rows_per_block * p;
-
-    thread::scope(|scope| {
-        for (block_idx, c_block) in c.as_mut_slice().chunks_mut(block_len).enumerate() {
-            let first_row = block_idx * rows_per_block;
-            scope.spawn(move || multiply_row_block(a, b, first_row, c_block));
-        }
-    });
-
-    Ok(c)
+    multiply_by_row_blocks(a, b, threads, multiply_row_block)
 }
 
 #[cfg(test)]
