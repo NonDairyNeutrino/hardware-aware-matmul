@@ -60,3 +60,27 @@ pub fn run_case_std(
 ) -> Result<String, JsError> {
     cases::run_hash(level, n, threads, tile_k, tile_j, &StdRunner).map_err(|e| JsError::new(&e))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::cases::run_hash;
+
+    #[test]
+    fn rayon_runner_gives_the_same_hash_as_the_std_runner() {
+        for level in 1..=3 {
+            for threads in [1, 3] {
+                let std = run_hash(level, 48, threads, 32, 64, &StdRunner).unwrap();
+                let rayon = run_hash(level, 48, threads, 32, 64, &RayonRunner).unwrap();
+                assert_eq!(std, rayon, "level {level}, {threads} threads");
+            }
+        }
+    }
+
+    #[test]
+    #[should_panic(expected = "boom")]
+    fn rayon_runner_propagates_a_job_panic() {
+        let jobs: Vec<Box<dyn FnOnce() + Send>> = vec![Box::new(|| panic!("boom"))];
+        RayonRunner.run(jobs);
+    }
+}

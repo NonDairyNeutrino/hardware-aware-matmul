@@ -109,10 +109,9 @@ mod tests {
 
     #[test]
     fn hash_is_stable() {
-        // Pins the generator and the hash so the browser and native sides agree.
-        let (a, b) = rough_operands(3, 3, 3);
-        let c = naive::matmul(&a, &b).unwrap();
-        assert_eq!(bit_hash(&c), run_hash(0, 3, 1, 32, 64, &StdRunner).unwrap());
-        assert_eq!(bit_hash(&c).len(), 16);
+        // These pin the generator and the hash so the browser and native sides
+        // agree.
+        assert_eq!(run_hash(0, 64, 1, 32, 64, &StdRunner).unwrap(), "653a9b093a002dca");
+        assert_eq!(run_hash(0, 256, 1, 32, 64, &StdRunner).unwrap(), "c3bc2df46a8aee26");
     }
 }
