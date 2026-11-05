@@ -65,7 +65,28 @@ class ParallelCacheOptimalMatMul(Scene):
             "memory, column-major  |  one cache line = 3 elements",
             font_size=18, color=GREY_B,
         ).move_to(LEFT * 3.2 + UP * 0.78)
-        self.play(FadeIn(strips), FadeIn(caption))
+        # ---------- Narration (bottom-left, one short caption at a time) ----------
+        narr = [None]
+
+        def say(msg):
+            """Return the animation that swaps the narration caption to `msg`."""
+            new = Text(msg, font_size=20, line_spacing=0.9, color=GREY_A)
+            if new.width > 6.2:
+                new.scale(6.2 / new.width)
+            new.move_to(LEFT * 3.2 + DOWN * 2.8)
+            old, narr[0] = narr[0], new
+            return FadeIn(new) if old is None else FadeTransform(old, new)
+
+        def pause(k, long=1.8, short=0.4):
+            """Give the viewer time to read: long on the first k pass, brief afterwards."""
+            self.wait(long if k == 0 else short)
+
+        self.play(
+            FadeIn(strips), FadeIn(caption),
+            say("Arrays live in memory column-major, so a column is\n"
+                "contiguous. The CPU fetches memory a cache line at a time."),
+        )
+        self.wait(2.5)
 
         # ---------- Pseudocode (j-k-i order, column-major friendly) ----------
         spec = [
@@ -136,7 +157,10 @@ class ParallelCacheOptimalMatMul(Scene):
             *[rects["C"][t].animate.set_stroke(T_COLORS[t]) for t in range(N)],
             *[FadeIn(s) for s in stats],
             FadeIn(legend),
+            say("One thread per column j: it writes only column j of C\n"
+                "and reads column j of B. Each thread has its own cache."),
         )
+        self.wait(3)
 
         # ---------- Main loops ----------
         Cacc = [[0] * N for _ in range(N)]
@@ -145,7 +169,12 @@ class ParallelCacheOptimalMatMul(Scene):
             rt = 0.9 if k == 0 else 0.3
 
             # for k ...
-            self.play(goto(1), run_time=rt * 0.5)
+            self.play(
+                goto(1),
+                say(f"k = {k + 1}: use column {k + 1} of A and row {k + 1} of B."),
+                run_time=rt * 0.5,
+            )
+            pause(k, 1.5, 0.3)
 
             # b = B[k,j]   (each thread loads its own element; column j of B is contiguous)
             anims, missed = [], {}
@@ -159,10 +188,22 @@ class ParallelCacheOptimalMatMul(Scene):
                     B_ent[k * N + t].animate.set_color(T_COLORS[t]),
                     cells["B"][idx].animate.set_fill(T_COLORS[t], opacity=0.6),
                 ]
-            self.play(goto(2), *anims, *flashes(missed), *stat_anims(), run_time=rt)
+            if k == 0:
+                msg_b = ("Each thread loads its own b = B[k,j] once and keeps\n"
+                         "it in a register. First touch of B's line: a miss.")
+            else:
+                msg_b = "b = B[k,j]: same cache line as before, so a hit."
+            self.play(goto(2), *anims, *flashes(missed), *stat_anims(), say(msg_b), run_time=rt)
+            pause(k, 2.5, 0.5)
 
             # for i ...  (unit stride through column k of A and column j of C)
-            self.play(goto(3), run_time=rt * 0.5)
+            self.play(
+                goto(3),
+                say("Inner loop walks down column k of A and column j of C:\n"
+                    "consecutive addresses (unit stride)."),
+                run_time=rt * 0.5,
+            )
+            pause(k, 2.2, 0.3)
 
             for i in range(N):
                 rt_i = 0.8 if (k == 0 and i == 0) else 0.3
@@ -181,7 +222,20 @@ class ParallelCacheOptimalMatMul(Scene):
                         C_ent[i * N + t].animate.set_color(T_COLORS[t]),
                         cells["C"][c_idx].animate.set_fill(T_COLORS[t], opacity=0.6),
                     ]
-                self.play(goto(4), *anims, *flashes(missed), *stat_anims(), run_time=rt_i)
+                narration = []
+                if i == 0:
+                    if k == 0:
+                        narration = [say("First elements of A[:,k] and C[:,j] are not\n"
+                                         "cached yet: misses (flashing lines).")]
+                    else:
+                        narration = [say("A's next column is a new line: one miss.\n"
+                                         "C[:,j] is already cached: hit.")]
+                elif i == 1 and k == 0:
+                    narration = [say("The rest of the column is on the line we just\n"
+                                     "fetched, so every further access is a hit.")]
+                self.play(goto(4), *anims, *flashes(missed), *stat_anims(), *narration, run_time=rt_i)
+                if narration:
+                    pause(k, 2.2, 0.8)
 
                 # C[i,j] += A[i,k] * b
                 tf = []
@@ -222,7 +276,11 @@ class ParallelCacheOptimalMatMul(Scene):
 
         # ---------- Wrap-up ----------
         loads = hits[0] + miss[0]
-        self.play(FadeOut(hl), FadeOut(legend))
+        self.play(
+            FadeOut(hl), FadeOut(legend),
+            say("Done: every cache line was fetched once per thread and\n"
+                "fully used, and no two threads write the same line."),
+        )
         summary = VGroup(
             Text(f"per thread: {loads} loads, {miss[0]} misses", font_size=17, color=WHITE),
             Text("A[:,k], C[:,j]: unit stride", font_size=17, color=GREY_B),
