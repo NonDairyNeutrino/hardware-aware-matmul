@@ -60,9 +60,10 @@ sinks) and the kernel is level 2's, adapted to flat buffers. Because the pieces
 are independent, each level's difference from its predecessor is small.
 
 The partition is an ordinary function: `threaded::row_block_plan` for levels 1
-to 3 and `streaming::tile_plan` for level 4. The drivers call the same
-functions, so a plan describes exactly what will run. For level 4 the plan lists
-the tiles in the order they are numbered; which worker computes which tile is
+to 3 and `streaming::tile_plan` for level 4. The levels 1 to 3 driver calls
+`row_block_plan` itself; for level 4, `tile_plan` and the streaming driver are
+built on the same private geometry code (`Plan`). Either way a plan describes
+exactly what will run. For level 4 the plan lists the tiles in the order they are numbered; which worker computes which tile is
 decided at run time, because workers claim tiles from a shared counter.
 
 # Data flow in level 4
