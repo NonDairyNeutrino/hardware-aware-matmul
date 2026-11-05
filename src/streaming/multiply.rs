@@ -30,6 +30,7 @@
 
 use std::io;
 use std::num::NonZeroUsize;
+use std::ops::Range;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::thread;
 
@@ -136,6 +137,101 @@ struct Plan {
     total_tiles: usize,
 }
 
+impl Plan {
+    /// Resolves the geometry of an `m × n` by `n × p` product. `m` and `p`
+    /// must be non-zero.
+    fn new(m: usize, n: usize, p: usize, config: &StreamConfig) -> Self {
+        let (tile_rows, tile_cols, tile_depth) = config.tile_shape();
+        let tile_rows = tile_rows.min(m);
+        let tile_cols = tile_cols.min(p);
+        let tile_depth = tile_depth.min(n).max(1); // `n` may be 0.
+        let tiles_per_row = p.div_ceil(tile_cols);
+        let total_tiles = m.div_ceil(tile_rows) * tiles_per_row;
+        Self {
+            m,
+            n,
+            p,
+            tile_rows,
+            tile_cols,
+            tile_depth,
+            tiles_per_row,
+            total_tiles,
+        }
+    }
+
+    /// Returns the rows and columns covered by output tile `tile_index`.
+    ///
+    /// Tiles are numbered row-major over the grid, and `tile_index` must be
+    /// below `total_tiles`.
+    fn tile(&self, tile_index: usize) -> OutputTile {
+        let row = (tile_index / self.tiles_per_row) * self.tile_rows;
+        let col = (tile_index % self.tiles_per_row) * self.tile_cols;
+        OutputTile {
+            rows: row..(row + self.tile_rows).min(self.m),
+            cols: col..(col + self.tile_cols).min(self.p),
+        }
+    }
+
+    /// Returns the slices of the shared dimension streamed past each tile.
+    fn depth_slices(&self) -> impl Iterator<Item = Range<usize>> + '_ {
+        (0..self.n)
+            .step_by(self.tile_depth)
+            .map(|start| start..(start + self.tile_depth).min(self.n))
+    }
+}
+
+/// One output tile of the grid that [`matmul_streaming`] works through.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct OutputTile {
+    /// The rows of `C` (and of `A`) the tile covers.
+    pub rows: Range<usize>,
+    /// The columns of `C` (and of `B`) the tile covers.
+    pub cols: Range<usize>,
+}
+
+/// The geometry of a streaming multiplication: which tiles exist and which
+/// slices of the shared dimension are streamed past each one.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TilePlan {
+    /// The output tiles, numbered row-major over the grid. Workers claim them
+    /// in this order from a shared counter, so which worker computes which tile
+    /// is decided at run time and is not part of the plan.
+    pub tiles: Vec<OutputTile>,
+    /// The slices of the shared dimension read for every tile, in order.
+    pub depth_slices: Vec<Range<usize>>,
+}
+
+/// Describes how [`matmul_streaming`] would tile an `m × n` by `n × p`
+/// product under `config`, without multiplying anything.
+///
+/// It is built from the same code the multiplication uses, so it is exactly
+/// the tiling that will run. An empty product (`m` or `p` zero) has no tiles.
+///
+/// # Examples
+///
+/// ```
+/// use std::num::NonZeroUsize;
+/// use naive_matmul::streaming::{tile_plan, StreamConfig};
+///
+/// let config = StreamConfig::new(NonZeroUsize::new(2).unwrap()).with_tile_shape(2, 3, 4);
+/// let plan = tile_plan(4, 6, 6, &config);
+/// assert_eq!(plan.tiles.len(), 4); // a 2 x 2 grid of 2 x 3 tiles
+/// assert_eq!(plan.depth_slices, vec![0..4, 4..6]);
+/// ```
+pub fn tile_plan(m: usize, n: usize, p: usize, config: &StreamConfig) -> TilePlan {
+    if m == 0 || p == 0 {
+        return TilePlan {
+            tiles: Vec::new(),
+            depth_slices: Vec::new(),
+        };
+    }
+    let plan = Plan::new(m, n, p, config);
+    TilePlan {
+        tiles: (0..plan.total_tiles).map(|index| plan.tile(index)).collect(),
+        depth_slices: plan.depth_slices().collect(),
+    }
+}
+
 /// One worker's reusable tile buffers.
 struct Buffers {
     a: Vec<f64>,
@@ -168,16 +264,15 @@ where
     B: TileSource + ?Sized,
     C: TileSink + ?Sized,
 {
-    let row = (tile_index / plan.tiles_per_row) * plan.tile_rows;
-    let col = (tile_index % plan.tiles_per_row) * plan.tile_cols;
-    let rows = plan.tile_rows.min(plan.m - row);
-    let cols = plan.tile_cols.min(plan.p - col);
+    let tile = plan.tile(tile_index);
+    let (row, col) = (tile.rows.start, tile.cols.start);
+    let (rows, cols) = (tile.rows.len(), tile.cols.len());
 
     let c_tile = &mut buffers.c[..rows * cols];
     c_tile.fill(0.0);
 
-    for depth_start in (0..plan.n).step_by(plan.tile_depth) {
-        let depth = plan.tile_depth.min(plan.n - depth_start);
+    for slice in plan.depth_slices() {
+        let (depth_start, depth) = (slice.start, slice.len());
 
         let a_tile = &mut buffers.a[..rows * depth];
         a.read_tile(row, depth_start, rows, depth, a_tile)?;
@@ -277,24 +372,9 @@ where
         return Ok(()); // The product is empty; nothing to compute.
     }
 
-    let (tile_rows, tile_cols, tile_depth) = config.tile_shape();
-    let tile_rows = tile_rows.min(m);
-    let tile_cols = tile_cols.min(p);
-    let tile_depth = tile_depth.min(n).max(1); // `n` may be 0.
-    let tiles_per_row = p.div_ceil(tile_cols);
-    let total_tiles = m.div_ceil(tile_rows) * tiles_per_row;
-    let plan = Plan {
-        m,
-        n,
-        p,
-        tile_rows,
-        tile_cols,
-        tile_depth,
-        tiles_per_row,
-        total_tiles,
-    };
+    let plan = Plan::new(m, n, p, config);
 
-    let workers = config.threads().min(total_tiles);
+    let workers = config.threads().min(plan.total_tiles);
     let next_tile = AtomicUsize::new(0);
     let failed = AtomicBool::new(false);
 
@@ -375,6 +455,54 @@ mod tests {
         let config = StreamConfig::new(nz(2));
         assert_eq!(config.tile_shape(), (256, 256, 256));
         assert_eq!(config.peak_buffer_bytes(), 2 * 3 * 256 * 256 * 8);
+    }
+
+    #[test]
+    fn tile_plan_numbers_tiles_row_major() {
+        let config = StreamConfig::new(nz(1)).with_tile_shape(2, 3, 5);
+        let plan = tile_plan(4, 5, 6, &config);
+        let tile = |rows, cols| OutputTile { rows, cols };
+        assert_eq!(
+            plan.tiles,
+            vec![tile(0..2, 0..3), tile(0..2, 3..6), tile(2..4, 0..3), tile(2..4, 3..6)]
+        );
+        assert_eq!(plan.depth_slices, vec![0..5]);
+    }
+
+    #[test]
+    fn tile_plan_clamps_edge_tiles_and_depth_slices() {
+        let config = StreamConfig::new(nz(1)).with_tile_shape(4, 4, 3);
+        let plan = tile_plan(5, 7, 5, &config);
+        assert_eq!(plan.tiles.len(), 4);
+        assert_eq!(plan.tiles[3], OutputTile { rows: 4..5, cols: 4..5 });
+        assert_eq!(plan.depth_slices, vec![0..3, 3..6, 6..7]);
+    }
+
+    #[test]
+    fn tile_plan_covers_every_output_element_exactly_once() {
+        let shapes = [(5, 7, 9, (2, 4, 3)), (1, 1, 1, (256, 256, 256)), (10, 10, 10, (10, 10, 10)), (7, 0, 5, (3, 3, 3))];
+        for (m, n, p, (r, q, d)) in shapes {
+            let config = StreamConfig::new(nz(2)).with_tile_shape(r, q, d);
+            let plan = tile_plan(m, n, p, &config);
+            let mut seen = vec![0_u8; m * p];
+            for tile in &plan.tiles {
+                for i in tile.rows.clone() {
+                    for j in tile.cols.clone() {
+                        seen[i * p + j] += 1;
+                    }
+                }
+            }
+            assert!(seen.iter().all(|&count| count == 1), "{m}x{n}x{p}");
+            let depth: usize = plan.depth_slices.iter().map(|slice| slice.len()).sum();
+            assert_eq!(depth, n, "{m}x{n}x{p}");
+        }
+    }
+
+    #[test]
+    fn tile_plan_of_an_empty_product_has_no_tiles() {
+        let config = StreamConfig::new(nz(1));
+        assert!(tile_plan(0, 3, 4, &config).tiles.is_empty());
+        assert!(tile_plan(4, 3, 0, &config).tiles.is_empty());
     }
 
     #[test]

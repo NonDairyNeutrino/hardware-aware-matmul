@@ -9,5 +9,5 @@ pub mod file;
 
 #[cfg(any(unix, windows))]
 pub use file::FileMatrix;
-pub use multiply::{matmul, matmul_streaming, StreamConfig};
+pub use multiply::{matmul, matmul_streaming, tile_plan, OutputTile, StreamConfig, TilePlan};
 pub use tile::{MemorySink, TileSink, TileSource};
