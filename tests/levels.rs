@@ -9,6 +9,7 @@
 
 use std::num::NonZeroUsize;
 
+use naive_matmul::cache_friendly::BlockConfig;
 use naive_matmul::streaming::StreamConfig;
 use naive_matmul::{cache_friendly, naive, simd, streaming, threaded, DimensionMismatch, MatmulError, Matrix};
 
@@ -117,6 +118,31 @@ fn every_level_agrees_with_naive_on_awkward_shapes() {
                     let context = format!("{level}, {kind} operands, shape {m}x{n}x{p}, {threads} thread(s)");
                     assert_same_bits(c, reference, &context);
                 }
+            }
+        }
+    }
+}
+
+/// Cache-block sizes from degenerate (1 x 1) through odd sizes to larger than
+/// any test matrix.
+fn block_configs() -> Vec<BlockConfig> {
+    [(1, 1), (3, 5), (7, 2), (32, 64), (1000, 1000)]
+        .iter()
+        .map(|&(tile_k, tile_j)| BlockConfig::new(nz(tile_k), nz(tile_j)))
+        .collect()
+}
+
+#[test]
+fn block_configs_never_change_the_bits() {
+    for (m, n, p) in [(1, 1, 1), (9, 13, 11), (37, 23, 41), (70, 75, 133)] {
+        let (a, b) = rough_operands(m, n, p);
+        let reference = naive::matmul(&a, &b).unwrap();
+        for block in block_configs() {
+            for threads in [1, 3] {
+                let t = nz(threads);
+                let context = |level: &str| format!("{level}, {block:?}, shape {m}x{n}x{p}, {threads} thread(s)");
+                let c2 = cache_friendly::matmul_with_config(&a, &b, t, &block).unwrap();
+                assert_same_bits(&c2, &reference, &context("cache_friendly"));
             }
         }
     }

@@ -60,28 +60,30 @@ pub fn row_block_plan(rows: usize, threads: NonZeroUsize) -> Vec<Range<usize>> {
         .collect()
 }
 
-/// The signature of a kernel that [`multiply_by_row_blocks`] can drive.
-///
-/// A kernel fills (or accumulates into) `c_block`, the rows of the output
-/// starting at row `first_row`, reading `a` and `b`. The block is
-/// zero-initialised by the driver, so both overwriting and accumulating kernels
-/// produce the plain product.
-pub(crate) type RowBlockKernel = fn(&Matrix, &Matrix, usize, &mut [f64]);
-
 /// Splits the output rows across `threads` scoped threads, running `kernel`
 /// on each block.
+///
+/// `kernel(a, b, first_row, c_block)` fills (or accumulates into) `c_block`, the
+/// rows of the output starting at row `first_row`, reading `a` and `b`. The
+/// block is zero-initialised by the driver, so both overwriting and
+/// accumulating kernels produce the plain product. The kernel is a closure so
+/// that it can carry tuning parameters such as
+/// [`BlockConfig`](crate::cache_friendly::BlockConfig).
 ///
 /// This is the whole of the parallel structure shared by levels 1, 2, and 3:
 /// they differ only in the kernel they pass in. The rows of the result are
 /// divided into at most `threads` contiguous blocks of equal size (the last may
 /// be smaller). If there are fewer rows than threads, only as many threads as
 /// there are non-empty blocks are spawned.
-pub(crate) fn multiply_by_row_blocks(
+pub(crate) fn multiply_by_row_blocks<K>(
     a: &Matrix,
     b: &Matrix,
     threads: NonZeroUsize,
-    kernel: RowBlockKernel,
-) -> Result<Matrix, DimensionMismatch> {
+    kernel: K,
+) -> Result<Matrix, DimensionMismatch>
+where
+    K: Fn(&Matrix, &Matrix, usize, &mut [f64]) + Sync,
+{
     let (m, _, p) = check_inner_dimensions((a.rows(), a.cols()), (b.rows(), b.cols()))?;
 
     // Zero-initialised, because some kernels accumulate into it.
@@ -90,6 +92,9 @@ pub(crate) fn multiply_by_row_blocks(
         // Nothing to compute; also avoids `chunks_mut(0)`, which panics.
         return Ok(c);
     }
+
+    // Every thread shares one kernel by reference.
+    let kernel = &kernel;
 
     thread::scope(|scope| {
         let mut remaining = c.as_mut_slice();
