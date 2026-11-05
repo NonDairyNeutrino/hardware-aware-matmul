@@ -20,3 +20,30 @@ jobs:
       run: cargo build --verbose
     - name: Run tests
       run: cargo test --verbose
+
+  # The crate promises Rust 1.73 (Cargo.toml `rust-version`); build with exactly
+  # that toolchain so new public API cannot silently need something newer.
+  msrv:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+    - uses: dtolnay/rust-toolchain@master
+      with:
+        toolchain: "1.73"
+    - name: Build with the minimum supported Rust version
+      run: cargo build --verbose
+
+  # The website runs the library as WebAssembly. Keep it compiling for wasm32.
+  wasm-check:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+    - uses: dtolnay/rust-toolchain@stable
+      with:
+        targets: wasm32-unknown-unknown
+    - name: Check the library for wasm32
+      run: cargo check --lib --verbose --target wasm32-unknown-unknown
