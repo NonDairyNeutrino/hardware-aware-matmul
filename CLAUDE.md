@@ -27,18 +27,18 @@ Animations: `manim -ql anim/<file>.py <SceneClass>` (output lands in `anim/media
 
 Levels: `naive` (0) → `threaded` (1) → `cache_friendly` (2) → `simd` (3) → `streaming` (4). Each module's doc comment is a chapter of the "story" and is `include_str!`'d from `docs/levels/*.md` (and `lib.rs` from `docs/introduction.md`), so **prose lives in Markdown, not in the `.rs` files**. Edit `docs/` to change module docs; its code blocks are doctests.
 
-**Core invariant:** every level returns bit-for-bit identical results, because each output element is summed in increasing-`k` order starting from zero. `tests/levels.rs` asserts exact equality across all levels. Any optimisation (reordering, blocking, vectorisation) must preserve per-element summation order — don't introduce reassociation, FMA changes, or split accumulators over `k`.
+**Core invariant:** every level returns bit-for-bit identical results, because each output element is summed in increasing-`k` order starting from zero. `tests/levels.rs` compares the raw bits (`to_bits`) of all five levels, on small-integer operands and on order-sensitive `rough_operands`, across several `BlockConfig` values. Any optimisation (reordering, blocking, vectorisation) must preserve per-element summation order — don't introduce reassociation, FMA changes, or split accumulators over `k`.
 
 Levels reuse each other rather than being independent (see `docs/design/architecture.md`):
-- `threaded.rs` owns the row-block partitioning + scoped-thread driver, which levels 2 and 3 reuse with a different kernel.
-- `cache_friendly.rs` owns `axpy` and the cache-block size constants, reused by `simd.rs` and `streaming`.
-- `simd.rs` holds the register-blocked micro-kernel that level 4 reuses; vectorisation comes from the auto-vectoriser, not intrinsics (hence no `unsafe`).
-- `streaming/` is split into partitioning vs kernel: `tile.rs` (`TileSource`/`TileSink` traits; `Matrix` implements `TileSource`; `MemorySink`), `file.rs` (`FileMatrix`, disk-backed, `cfg(any(unix, windows))`), `multiply.rs` (`StreamConfig`, `matmul_streaming`, work queue), and private `kernel.rs` (`accumulate_tile`, level 2/3's kernel on flat buffers). Peak buffer memory depends on tile shape × thread count, not matrix size.
+- `threaded.rs` owns `row_block_plan` (the row partition) and the scoped-thread driver, which levels 2 and 3 reuse with a different kernel passed as a closure.
+- `cache_friendly.rs` owns `axpy`, the default cache-block constants and `BlockConfig` (runtime cache-block sizes, also taken by `simd.rs` and `StreamConfig`).
+- `simd.rs` holds the register-blocked micro-kernel (level 4 does *not* use it: `streaming/kernel.rs` is level 2's `axpy` kernel on flat buffers); vectorisation comes from the auto-vectoriser, not intrinsics (hence no `unsafe`). The micro-tile `MR`×`NR` is a compile-time constant.
+- `streaming/` is split into partitioning vs kernel: `tile.rs` (`TileSource`/`TileSink` traits; `Matrix` implements `TileSource`; `MemorySink`), `file.rs` (`FileMatrix`, disk-backed, `cfg(any(unix, windows))`), `multiply.rs` (`StreamConfig`, `matmul_streaming`, `tile_plan`, work queue), and private `kernel.rs` (`accumulate_tile`, level 2/3's kernel on flat buffers). Peak buffer memory depends on tile shape × thread count, not matrix size.
 - `matrix.rs` (row-major `Matrix`) and `error.rs` (`MatmulError`, shared dimension check) are used by every level.
 
-## Known issue
+## Docs layout
 
-`lib.rs` declares `#[cfg(any(doc, doctest))] pub mod design / guide / reference;`, but `src/design.rs`, `src/guide.rs`, `src/reference.rs` do not exist yet, and `docs/reference/` is empty (only `design/architecture.md`, `guide/getting_started.md`, `guide/in_memory.md` exist). Normal `cargo build`/`cargo test` skip these, but `cargo doc` and `cargo test --doc` will fail to compile until they're added (they should just `#![doc = include_str!(...)]` the Markdown pages). The README and `architecture.md` also describe a "four implementations / level 3 = streaming" numbering and pages (`cost_model`, `concurrency`, `numerics`, etc.) that predate/exceed what is on disk; the source (five levels, `simd` = 3) is authoritative.
+`lib.rs` declares `#[cfg(any(doc, doctest))] pub mod design / guide;`, whose submodules (`src/design/`, `src/guide/`) just `#![doc = include_str!(...)]` the Markdown pages under `docs/`. Only `design/architecture.md`, `guide/getting_started.md` and `guide/in_memory.md` exist; pages the older prose referred to (`out_of_core`, `custom_io`, `tuning`, `errors`, `cost_model`, `numerics`, `reference/*`) were never written and their links were removed. The source (five levels, `simd` = 3, `streaming` = 4) is authoritative.
 
 ## Notes
 
