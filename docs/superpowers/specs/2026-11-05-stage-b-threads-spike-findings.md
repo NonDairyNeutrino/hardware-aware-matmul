@@ -10,7 +10,7 @@ are not covered here.
 **G1 and G2 pass.** The real `naive_matmul` levels 1 to 3 run on a rayon thread
 pool in a browser and return, bit for bit, the answer native Rust computes. The
 fallback design (JavaScript splitting rows across plain Web Workers) is not
-needed for these levels. The `Runner` trait is merged into the core crate.
+needed for these levels. The `Runner` trait is part of the core crate (levels 1 to 3).
 
 ## Environment
 
@@ -31,13 +31,13 @@ needed for these levels. The `Runner` trait is merged into the core crate.
 - `wasm-bindgen --target web`. Only `cargo build` and the CLI are used; no `wasm-pack`.
 - The compiler warns `unstable feature specified for -Ctarget-feature: atomics`; this is expected.
 - Without a bundler the `no-bundler` feature of `wasm-bindgen-rayon` is required. Without it each pool worker requests the package directory (`GET /pkg/`) and the pool never starts.
-- The page must be cross-origin isolated (`Cross-Origin-Opener-Policy: same-origin`, `Cross-Origin-Embedder-Policy: require-corp`); `web/dev/serve.py` sets both.
+- The page must be cross-origin isolated. The gates use `Cross-Origin-Opener-Policy: same-origin` and `Cross-Origin-Embedder-Policy: require-corp` (tested); `web/dev/serve.py` sets both. `coi-serviceworker` defaults to `credentialless`, which is untested here.
 
 ## G1: the pool starts and runs in parallel
 
 Pass. In a Web Worker with `initThreadPool(4)`: `crossOriginIsolated` was true, the
 pool had 4 threads, starting it took tens of milliseconds, and a parallel sum of
-5,000,000 squares returned the same value as an independent Python computation
+5,000,000 squares modulo 1,000,003 returned the same value as an independent Python computation
 (`2499487497200`).
 
 ## G2: the real crate with threads gives the native answer
@@ -45,7 +45,12 @@ pool had 4 threads, starting it took tens of milliseconds, and a parallel sum of
 Pass. Levels 0 to 3 at n = 256 and 512 with 1, 2 and 4 threads, plus
 `simd` with block 7x2 and `cache_friendly` with block 1x1 (22 cases), all return
 the hash that native Rust computes with the naive level for the same
-order-sensitive operands. Output of `./gate.sh g2 --no-build` from the run that
+order-sensitive operands. `threads` is the number of row blocks (jobs) handed to
+a fixed pool of 4 workers (`initThreadPool(4)`), so the speedup lines compare 1
+job with 4 jobs on 4 workers; level 0 runs once, with 1 thread. The pass
+criterion is the bits. Speed was only observed (see the speedup lines; scaling
+is modest and some cases are flat between 2 and 4 jobs); `gate.sh` prints it
+but does not assert it. Output of `./gate.sh g2 --no-build` from the run that
 produced this record:
 
 ```text
@@ -93,7 +98,11 @@ aborting under `panic=abort`). This is why levels 1 to 3 need a `Runner`.
 
 ## Consequences
 
-- Stage C and D can use the real crate in the browser for levels 1 to 3 through `RayonRunner`.
+- Stage C and D can use the real crate in the browser for levels 1 to 3 through `RayonRunner`, on a cross-origin-isolated page (tested in Firefox with server-set headers; whether GitHub Pages can provide isolation is gate G3).
 - The wrapper crate (`web/wasm`) is the seed of the site's wasm module; its build needs the pinned nightly, the matching CLI, and isolation headers.
 - Level 4 still has its own worker loop and needs the same treatment (gate G4).
+- Calls block the calling thread (rayon waits with `Atomics.wait`), so they must run in a Web Worker, never on the main thread.
+- `+simd128` is not enabled in the wasm build (only atomics and bulk-memory), so level 3 is scalar in the browser; enabling it and re-checking bit equality is untested.
+- Under `panic=abort` a panic in a job kills the module (gate G5, untested).
+- Recommendation for stage D: GO for levels 1 to 3, conditional on G3; level 4 pending G4.
 - Not yet tested: a production bundle on a GitHub Pages subpath with `coi-serviceworker` (G3); level 4 (G4); memory limits, panic behaviour in a worker, pool start-up cost across sizes and pool resizing (G5); browsers other than Firefox.
