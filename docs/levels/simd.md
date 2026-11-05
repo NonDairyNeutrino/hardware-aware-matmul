@@ -153,8 +153,7 @@ Rust also does not fuse a multiply and an add into a single FMA instruction on
 its own, even when the target has one, so each product is rounded before it is
 added, exactly as in the naive loop. A fused multiply-add rounds once instead of
 twice. It is faster and slightly more accurate, but it would change the bits,
-so this crate does not use it (`f64::mul_add` would be the way; see the
-[roadmap](crate::reference::limitations)). The test suite asserts exact
+so this crate does not use it (`f64::mul_add` would be the way). The test suite asserts exact
 equality with [`naive`](crate::naive) across shapes that stress every edge of
 the micro-tile.
 

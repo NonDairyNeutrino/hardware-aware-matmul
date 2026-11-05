@@ -129,8 +129,7 @@ peak buffer bytes  =  threads × (R·Q + R·D + D·Q) × 8
 independent of `m`, `n`, and `p`. [`StreamConfig::peak_buffer_bytes`] reports
 it before you start. The price is rereading: every element of `C` is written
 once, but `A` is read `⌈p/Q⌉` times and `B` is read `⌈m/R⌉` times. The whole
-trade-off is derived in the [cost model](crate::design::cost_model) and
-explained practically in [tuning](crate::guide::tuning).
+trade-off is controlled by [`StreamConfig::with_tile_shape`].
 
 # Example
 
@@ -153,8 +152,8 @@ assert_eq!(sink.into_matrix(), Matrix::new(2, 2, vec![58.0, 64.0, 139.0, 154.0])
 # Ok::<(), naive_matmul::MatmulError>(())
 ```
 
-For matrices on disk, see [Streaming from and to disk](crate::guide::out_of_core).
-For your own data sources, see [Custom sources and sinks](crate::guide::custom_io).
+For matrices on disk, see [`FileMatrix`](crate::streaming::FileMatrix); for
+your own data sources, implement [`TileSource`] and [`TileSink`].
 
 # Edge cases
 
@@ -198,8 +197,7 @@ same bits as [`naive`](crate::naive).
 - **More machinery.** A tile abstraction, a plan, per-worker buffers, and an
   error-propagation protocol: that is the cost of the generality.
 
-For what remains undone, see [Limitations and roadmap](crate::reference::limitations).
-
 [`TileSource`]: crate::streaming::TileSource
 [`TileSink`]: crate::streaming::TileSink
 [`StreamConfig::peak_buffer_bytes`]: crate::streaming::StreamConfig::peak_buffer_bytes
+[`StreamConfig::with_tile_shape`]: crate::streaming::StreamConfig::with_tile_shape

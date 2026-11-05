@@ -105,8 +105,7 @@ exact equality with [`naive`](crate::naive) across shapes and thread counts.
 - **Still three whole matrices in memory.** Neither blocking nor threading
   changes how much memory the problem needs.
 - **Not a BLAS.** There is no register-blocked micro-kernel, no packing of `B`,
-  and no SIMD intrinsics, only the two changes above. See
-  [Limitations and roadmap](crate::reference::limitations).
+  and no SIMD intrinsics, only the two changes above.
 - **Every thread streams all of `B`.** Each thread reads all of `B` from main
   memory for its own rows. The blocking keeps that reading efficient, but the
   total traffic scales with the number of threads.

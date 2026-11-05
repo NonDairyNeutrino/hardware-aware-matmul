@@ -41,8 +41,7 @@ assert_eq!(c, Matrix::new(2, 2, vec![58.0, 64.0, 139.0, 154.0]));
   why it is the reference for the other levels.
 - **It defines the summation order.** Each `C[i][j]` is accumulated in
   increasing `k`, starting from zero. Every later level preserves that order,
-  so every level returns *exactly the same bits*. See
-  [Numerical behavior](crate::design::numerics).
+  so every level returns *exactly the same bits*.
 - **The accumulator lives in a register.** `sum` is a local variable, so the
   inner loop does not touch `C` at all.
 

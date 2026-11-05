@@ -91,8 +91,7 @@ assert_eq!(c0, c4);
   [`TileSink`](crate::streaming::TileSink).
 
 It is deliberately *not* a high-performance BLAS replacement: no packing of `B`,
-no explicit SIMD intrinsics or run-time dispatch, no fused multiply-add. See
-[Limitations and roadmap](crate::reference::limitations) for what is missing.
+no explicit SIMD intrinsics or run-time dispatch, no fused multiply-add. Each level's chapter says what it leaves undone.
 
 # Where to go next
 
@@ -100,12 +99,7 @@ no explicit SIMD intrinsics or run-time dispatch, no fused multiply-add. See
 |--------------------------------------------------|---------------------------------------------------|
 | Build, test, and run the demos                   | [`guide::getting_started`](crate::guide::getting_started) |
 | Multiply matrices that fit in memory             | [`guide::in_memory`](crate::guide::in_memory)     |
-| Multiply matrices larger than RAM                | [`guide::out_of_core`](crate::guide::out_of_core) |
-| Plug in your own storage or consume results as they appear | [`guide::custom_io`](crate::guide::custom_io) |
-| Pick tile sizes and thread counts                | [`guide::tuning`](crate::guide::tuning)           |
-| Handle failures                                  | [`guide::errors`](crate::guide::errors)           |
 | Understand the whole design                      | [`design`], starting at [`design::architecture`](crate::design::architecture) |
-| Look up the file format, tests, limits, or terms | [`reference`]                                     |
 
 # Crate layout
 
@@ -118,7 +112,7 @@ no explicit SIMD intrinsics or run-time dispatch, no fused multiply-add. See
 | [`simd`]               | Level 3                                                               |
 | [`streaming`]          | Level 4, with submodules `tile` (sources and sinks), `file` (disk-backed matrices), and `multiply` |
 | [`error`]              | [`MatmulError`] and [`DimensionMismatch`]                             |
-| [`guide`], [`design`], [`reference`] | The prose pages (visible in `cargo doc`)                |
+| [`guide`], [`design`]  | The prose pages (visible in `cargo doc`)                              |
 
 The code is written in one consistent imperative style, with explicit `for`
 loops rather than iterator-adaptor chains, so each level reads like the loop

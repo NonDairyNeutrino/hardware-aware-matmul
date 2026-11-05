@@ -21,8 +21,6 @@ and, unless marked otherwise, run. To run only the documentation examples:
 cargo test --doc
 ```
 
-See [Testing](crate::reference::testing).
-
 # Read the documentation
 
 This documentation is built by `cargo doc`:
@@ -108,6 +106,6 @@ the elements in row-major order. The threaded levels take a thread count as a
 
 - Choosing among the levels for matrices in memory:
   [Multiplying in-memory matrices](crate::guide::in_memory).
-- Matrices too big for RAM:
-  [Streaming from and to disk](crate::guide::out_of_core).
+- Matrices too big for RAM: [`streaming`](crate::streaming) with
+  [`FileMatrix`](crate::streaming::FileMatrix).
 - Understanding the design: [Architecture](crate::design::architecture).

@@ -79,8 +79,7 @@ tiles (clamped to the matrix size), so for matrices up to 256 in every
 dimension there is exactly one tile and **one worker does all the work**
 however many threads you ask for. To spread a small product over more threads
 at that level, use [`matmul_streaming`](crate::streaming::matmul_streaming)
-with a smaller [`with_tile_shape`](crate::streaming::StreamConfig::with_tile_shape);
-see [Choosing tile sizes and threads](crate::guide::tuning).
+with a smaller [`with_tile_shape`](crate::streaming::StreamConfig::with_tile_shape).
 
 # When not to use these
 
