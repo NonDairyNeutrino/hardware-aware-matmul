@@ -30,7 +30,7 @@ instruction set:
 
 | Instruction set | Register width | `f64` lanes |
 |-----------------|----------------|-------------|
-| SSE2 (baseline `x86_64`), NEON (`aarch64`) | 128 bits | 2 |
+| SSE2 (baseline `x86_64`), NEON (`aarch64`), SIMD128 (WebAssembly, when enabled) | 128 bits | 2 |
 | AVX, AVX2       | 256 bits       | 4 |
 | AVX-512         | 512 bits       | 8 |
 
@@ -134,7 +134,7 @@ the `compare` binary prints it, so you can see which you are measuring.
 ```rust
 use naive_matmul::simd;
 
-let isa = simd::target_vector_isa();   // e.g. "SSE2", "AVX2", "NEON"
+let isa = simd::target_vector_isa();   // e.g. "SSE2", "AVX2", "NEON", "WASM SIMD128"
 let (mr, nr) = simd::micro_tile_shape();
 assert!(!isa.is_empty());
 assert!(mr > 0 && nr > 0);

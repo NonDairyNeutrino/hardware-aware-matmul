@@ -44,6 +44,8 @@ pub fn target_vector_isa() -> &'static str {
         "SSE2"
     } else if cfg!(target_feature = "neon") {
         "NEON"
+    } else if cfg!(target_feature = "simd128") {
+        "WASM SIMD128"
     } else {
         "none (scalar code)"
     }
