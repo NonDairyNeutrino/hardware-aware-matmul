@@ -239,7 +239,11 @@ pub struct TilePlan {
 /// product under `config`, without multiplying anything.
 ///
 /// It is built from the same code the multiplication uses, so it is exactly
-/// the tiling that will run. An empty product (`m` or `p` zero) has no tiles.
+/// the tiling that will run. An empty product (`m` or `p` zero) has no tiles
+/// and no depth slices, and `n == 0` has tiles but no depth slices.
+///
+/// It allocates one [`OutputTile`] per tile, so keep the tile count (about
+/// `ceil(m / tile_rows) * ceil(p / tile_cols)`) modest.
 ///
 /// # Examples
 ///
