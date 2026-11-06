@@ -1,5 +1,7 @@
 # Stage B findings, part one: gates G1 and G2
 
+> Superseded for gates G3, G4 and G5 by `2026-11-05-stage-b-threads-spike-findings-part-two.md`: level 4 now takes a runner, and the production build under a Pages subpath was tested.
+
 Spec: `docs/superpowers/specs/2026-11-05-stage-b-threads-spike-design.md`.
 Plan: `docs/superpowers/plans/2026-11-05-stage-b-spike-part-one.md`.
 Gates G3 (production build on a Pages subpath), G4 (level 4) and G5 (limits)
