@@ -65,6 +65,9 @@ jobs:
         cargo test
         cargo test --features threads
 
+    - name: Test the results assembler
+      run: python3 -I web/dev/test_results.py
+
     - name: Generate the expected hashes for the gate page
       working-directory: web/wasm
       run: |
