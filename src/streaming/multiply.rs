@@ -369,7 +369,10 @@ where
 ///
 /// # Panics
 ///
-/// Propagates a panic from any worker thread.
+/// Panics if a source or sink panics on a worker thread. The original payload
+/// is not preserved: the panic comes from [`std::thread::scope`] with the
+/// generic message "a scoped thread panicked". Use
+/// [`matmul_streaming_with_runner`] with a runner that rethrows to keep it.
 ///
 /// # Examples
 ///
@@ -417,8 +420,12 @@ where
 ///
 /// # Panics
 ///
-/// A panic in a source or sink reaches the caller as the runner decides: with
-/// [`StdRunner`] it is a panic from this function.
+/// A panic in a source or sink reaches the caller as the runner decides. With
+/// [`StdRunner`] it is a panic from this function carrying only the generic
+/// message "a scoped thread panicked", not the original payload. A runner
+/// that runs the jobs inline, or on a pool that rethrows (such as rayon on a
+/// target that unwinds), rethrows the original. On a `panic=abort` target it
+/// aborts.
 pub fn matmul_streaming_with_runner<A, B, C, R>(
     a: &A,
     b: &B,
