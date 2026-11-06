@@ -29,13 +29,13 @@ on a stated machine, and reproducible by any reader through a playground.
 - **Timed region:** the multiplication only. The operands are built once per `n`
   beforehand and the result is hashed afterwards, outside the timer. (Inside the
   browser the timer is `performance.now()` around the call; natively `Instant`.)
-- **Repeats:** one discarded warm-up, then 5 timed runs; the median, minimum and
-  maximum are recorded. GFLOP/s is `2 n^3 / median`.
+- **Repeats:** one discarded warm-up, then at least 5 timed runs (the committed run uses 9 after 2 warm-ups, so that the median survives a few slow outliers); the median, minimum and
+  maximum are recorded, and the interquartile range is the measure of noise to show, since one slow outlier dominates max minus min. GFLOP/s is `2 n^3 / median`.
 - **Integrity check (the project's thesis, as data):** every measured run also records
   the FNV hash of the result's bits. For one `n`, **every level, thread count, native
   and browser run must give the same hash**. The assembler refuses to write
   `results.json` otherwise.
-- **Environments recorded:** CPU model, logical cores, OS, `rustc -V`, the Firefox
+- **Environments recorded:** CPU model, logical cores, OS, `rustc -V` (recorded per build: the pinned nightly for the native and threaded builds, stable for the lite build), the wasm-bindgen CLI version and wasm target features, physical cores, the CPU governor, AC power and the starting load average, the Firefox
   version, the git commit, the build flags and the date. Native and in-browser results
   are separate sections of the file; in the browser the **lite** (single-threaded) and
   **threaded** (pool of `min(cores, 8)`) builds are separate too.
@@ -103,8 +103,8 @@ hash, and uses the Bench API above. Pages must be served over HTTPS (the Pages s
 
 - Timing noise: run on an otherwise idle machine, record the environment, keep the
   median of five.
-- A very slow level 0 in the browser at `n = 1024`: the reference run's per-case
-  timeouts are generous and the run is offline.
+- A very slow level 0 in the browser at `n = 1024`: each browser build has one overall
+  timeout, generous because the run is offline (the per-request timeouts belong to the playground, plan P2c).
 - Results describe one machine; the Results page and the Discussion say so.
 - `results.json` is committed data that changes only when someone re-runs the reference
   run; its commit message records why.
