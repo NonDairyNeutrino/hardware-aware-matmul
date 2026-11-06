@@ -10,7 +10,14 @@ cd "$(dirname "$0")"
 SITE=$PWD
 WASM=$SITE/../wasm
 
-if [ "${1:-}" != "--no-build" ]; then
+if [ "${1:-}" = "--no-build" ]; then
+  if [ "$(cat "$WASM/pkg/.features" 2>/dev/null || echo unknown)" != "threads" ]; then
+    echo "REFUSING: pkg/ was not built for the bundler; run ./gate-c2.sh without --no-build"; exit 1
+  fi
+  if [ ! -f "$WASM/pkg-lite/naive_matmul_web.js" ]; then
+    echo "REFUSING: pkg-lite/ is missing; run ./gate-c2.sh without --no-build"; exit 1
+  fi
+else
   (cd "$WASM" && ./build-lite.sh && FEATURES=threads ./build.sh)
 fi
 
