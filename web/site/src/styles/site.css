@@ -61,9 +61,9 @@ code { font: 0.9em var(--mono); background: var(--code-bg); padding: 0.1em 0.3em
 pre { margin: 0 0 1.25rem; padding: 0.9rem 1rem; background: var(--code-bg); border: 1px solid var(--border); border-radius: 6px; overflow-x: auto; font: 0.875rem/1.5 var(--mono); }
 pre code { background: none; padding: 0; font: inherit; }
 /* Shiki emits both themes as variables; pick by the system theme. */
-.astro-code, .astro-code span { color: var(--shiki-light); background-color: var(--shiki-light-bg); }
+.astro-code, .astro-code span { color: var(--shiki-light); }
 @media (prefers-color-scheme: dark) {
-  .astro-code, .astro-code span { color: var(--shiki-dark); background-color: var(--shiki-dark-bg); }
+  .astro-code, .astro-code span { color: var(--shiki-dark); }
 }
 .astro-code { border: 1px solid var(--border); }
 
@@ -98,6 +98,7 @@ figcaption { margin-top: 0.4rem; font-size: 0.9rem; color: var(--muted); }
 .owner-5 { fill: var(--owner-5); }
 .owner-6 { fill: var(--owner-6); }
 .owner-7 { fill: var(--owner-7); }
+pre, table { scrollbar-color: var(--border) transparent; }
 step-through { display: block; margin: 1.5rem 0; padding: 1rem; border: 1px solid var(--border); border-radius: 6px; }
 .st-fields { display: flex; flex-wrap: wrap; gap: 0.5rem 1rem; margin-bottom: 0.75rem; }
 .st-fields label { font-size: 0.9rem; }
