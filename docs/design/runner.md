@@ -1,8 +1,9 @@
-# Running the row blocks on your own executor
+# Running the jobs on your own executor
 
 Levels 1 to 3 split the output rows into blocks (see
-[`row_block_plan`](crate::threaded::row_block_plan)) and compute each block as
-an independent job. By default every job gets a scoped standard-library thread.
+[`row_block_plan`](crate::threaded::row_block_plan)) and level 4 splits its
+work into workers; each block or worker is an independent job. By default every
+job gets a scoped standard-library thread.
 A [`Runner`] replaces that step, so the same kernels can run on a thread pool, in
 a test, or on a target that has no operating-system threads.
 
