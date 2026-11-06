@@ -35,8 +35,9 @@ fn ranges(ranges: impl Iterator<Item = std::ops::Range<usize>>) -> String {
 /// Levels 0 to 3 give `{"kind":"rows","blocks":[[start,end],...]}` from
 /// [`row_block_plan`] (level 0 is one block, whatever `threads` is). Level 4 gives
 /// `{"kind":"tiles","tiles":[{"rows":[a,b],"cols":[a,b]},...],"depth":[[a,b],...],
-/// "workers":w}` from [`tile_plan`] with the given tile shape; the tile arguments
-/// are ignored by the other levels.
+/// "workers":w}` from [`tile_plan`] with the given tile shape; `workers` is the
+/// number of workers the level starts (the thread count, capped at the number of
+/// tiles). The tile arguments are ignored by the other levels.
 #[allow(clippy::too_many_arguments)]
 pub fn partition_plan_json(
     level: u32,
@@ -75,9 +76,10 @@ pub fn partition_plan_json(
                     )
                 })
                 .collect();
+            let running = threads.min(plan.tiles.len());
             let depth = ranges(plan.depth_slices.into_iter());
             Ok(format!(
-                "{{\"kind\":\"tiles\",\"tiles\":[{}],\"depth\":{depth},\"workers\":{threads}}}",
+                "{{\"kind\":\"tiles\",\"tiles\":[{}],\"depth\":{depth},\"workers\":{running}}}",
                 tiles.join(",")
             ))
         }
@@ -146,6 +148,12 @@ mod tests {
                 r#""depth":[[0,4],[4,6]],"workers":2}"#
             )
         );
+    }
+
+    #[test]
+    fn level_four_starts_no_more_workers_than_tiles() {
+        let json = partition_plan_json(4, 4, 4, 4, 8, 4, 4, 4).unwrap();
+        assert!(json.contains(r#""workers":1"#), "{json}");
     }
 
     #[test]
