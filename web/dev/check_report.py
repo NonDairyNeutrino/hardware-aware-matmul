@@ -64,12 +64,17 @@ def check_stepthrough(report):
     if elements[2]["b_blocks"] != 4:
         problems.append("level 2 drew %r cache blocks over B, expected 4" % elements[2]["b_blocks"])
     # Level 3: micro-tile lines inside two 4-row blocks of an 8-column output.
+    if elements[3]["env"].get("micro_tile") != [4, 4]:
+        problems.append("level 3 micro-tile is %r; the lite build's 4x4 is what keeps the grid-line check from being vacuous"
+                        % (elements[3]["env"].get("micro_tile"),))
     mr, nr = elements[3]["env"]["micro_tile"]
     want = 2 * (len(range(mr, 4, mr)) + len(range(nr, 8, nr)))
     if elements[3]["micro_lines"] != want:
         problems.append("level 3 drew %r micro-tile lines, expected %d for %dx%d" % (elements[3]["micro_lines"], want, mr, nr))
     four = elements[4]
-    if four["plan"].get("kind") != "tiles" or len(four["plan"].get("tiles", [])) != 4:
+    want_tiles = [{"rows": [0, 4], "cols": [0, 4]}, {"rows": [0, 4], "cols": [4, 8]},
+                  {"rows": [4, 8], "cols": [0, 4]}, {"rows": [4, 8], "cols": [4, 8]}]
+    if four["plan"].get("kind") != "tiles" or four["plan"].get("tiles") != want_tiles:
         problems.append("level 4 plan is %r" % four["plan"])
     elif four["plan"]["depth"] != [[0, 3], [3, 6]] or four["plan"]["workers"] != 2:
         problems.append("level 4 depth/workers are %r / %r" % (four["plan"]["depth"], four["plan"]["workers"]))
