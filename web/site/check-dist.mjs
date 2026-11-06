@@ -8,12 +8,14 @@
 //     a page with a demo it should not have, or a chapter without a demo that loads
 //     any script at all;
 //   - an unlinked intra-doc shortcut left as literal "[code]" text;
+//   - a landing page that is not headed by the site title and subtitle with the abstract
+//     under them;
 //   - a video the pages reference that was not copied into dist/media/.
 // Run it with `npm run check` after `npm run build`. Exits 1 on any problem.
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { base, chapters, demos } from './site.config.mjs';
+import { base, chapters, demos, siteSubtitle, siteTitle } from './site.config.mjs';
 
 const dist = fileURLToPath(new URL('./dist/', import.meta.url));
 const problems = [];
@@ -63,6 +65,12 @@ for (const chapter of chapters) {
   const html = readFileSync(file, 'utf8');
   const h1 = (html.match(/<h1[ >]/g) ?? []).length;
   if (h1 !== 1) problems.push(`${chapter.route || '(home)'}: ${h1} <h1> elements, expected 1`);
+  if (chapter.route === '') {
+    const heading = /<h1[^>]*>([^<]*)<\/h1>/.exec(html)?.[1];
+    if (heading !== siteTitle) problems.push(`(home): the <h1> is ${JSON.stringify(heading)}, expected the site title`);
+    if (!html.includes(`>${siteSubtitle}<`)) problems.push('(home): the subtitle is missing');
+    if (!/<h2[^>]*>Abstract<\/h2>/.test(html)) problems.push('(home): the abstract is missing');
+  }
   const where = chapter.route || '(home)';
   if (html.includes('coi-serviceworker')) problems.push(`${where}: loads the service worker; chapters must not`);
   for (const script of reachableScripts(html)) {
