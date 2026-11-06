@@ -21,7 +21,7 @@ export function cleanRustFence(value) {
 
 /** "levels/naive" for ".../docs/levels/naive.md", or null if the file is not under docs/. */
 export function chapterId(path) {
-  const match = /[\\/]docs[\\/](.+)\.md$/.exec(path ?? '');
+  const match = /^.*[\\/]docs[\\/](.+)\.md$/.exec(path ?? '');
   return match ? match[1].replaceAll('\\', '/') : null;
 }
 

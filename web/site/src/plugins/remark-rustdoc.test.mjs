@@ -96,4 +96,5 @@ test('chapterId finds the path under docs/', () => {
   assert.equal(chapterId('/repo/docs/levels/naive.md'), 'levels/naive');
   assert.equal(chapterId('/docs/introduction.md'), 'introduction');
   assert.equal(chapterId('/elsewhere/x.md'), null);
+  assert.equal(chapterId('/home/u/docs/proj/docs/levels/naive.md'), 'levels/naive');
 });
