@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-A teaching-oriented Rust crate (`naive_matmul`, no dependencies, `#![forbid(unsafe_code)]`, MSRV 1.73) implementing dense `f64` matrix multiplication as five levels of increasing performance. The repo directory is `matmul_levels.rs`; the crate name is `naive_matmul`. `anim/` holds unrelated-to-build Manim (Python) animations explaining the levels. `web/` is browser tooling, excluded from the published crate. `web/wasm` is a separate crate (own empty `[workspace]`, tracked `Cargo.lock`, nightly pinned in its `rust-toolchain.toml`) that wraps the levels for WebAssembly with a rayon-backed `RayonRunner`; `web/dev/` holds a stdlib-only dev server, a headless-Firefox page runner, the gate report checker and `node.sh`. `web/site` is the Astro site; Node runs only in Docker, through `web/dev/node.sh` (image `node:latest` unless `NODE_IMAGE` is set). For now it holds the stage B gate page, not the real site.
+A teaching-oriented Rust crate (`naive_matmul`, no dependencies, `#![forbid(unsafe_code)]`, MSRV 1.73) implementing dense `f64` matrix multiplication as five levels of increasing performance. The repo directory is `matmul_levels.rs`; the crate name is `naive_matmul`. `anim/` holds unrelated-to-build Manim (Python) animations explaining the levels. `web/` is browser tooling, excluded from the published crate. `web/wasm` is a separate crate (own empty `[workspace]`, tracked `Cargo.lock`, nightly pinned in its `rust-toolchain.toml`) that wraps the levels for WebAssembly with a rayon-backed `RayonRunner`; `web/dev/` holds a stdlib-only dev server, a headless-Firefox page runner, the gate report checker and `node.sh`. `web/site` is the Astro site; Node runs only in Docker, through `web/dev/node.sh` (image `node:latest` unless `NODE_IMAGE` is set). It renders the chapters from `docs/` (the remark plugin in `web/site/src/plugins/` strips rustdoc-hidden lines and rewrites intra-doc links through the table in `web/site/site.config.mjs`; a link not in the table fails the build) and keeps the stage B gate page at `/gate/`.
 
 ## Commands
 
@@ -21,10 +21,14 @@ RUSTFLAGS="-C target-cpu=native" cargo run --release   # let level 3 auto-vector
 
 ```sh
 # web/wasm only (pinned nightly; the core crate stays on stable / 1.73)
-cd web/wasm && cargo test                       # native tests of the shared case generator
+cd web/wasm && cargo test                       # native tests of the shared case generator (add --features threads for the rayon tests)
+./build-lite.sh                                 # stable, single-threaded build into pkg-lite/ (no nightly, no threads)
 export WASM_BINDGEN="$HOME/.cargo/bin/wasm-bindgen"   # CLI version must equal the =0.2.130 pin
-./gate.sh g1|g2|probe|g5 [--no-build]           # build, then run a gate in headless Firefox; --no-build reuses pkg/
+./gate.sh g1|g2|probe|g5|lite [--no-build]      # build, then run a gate in headless Firefox; --no-build reuses pkg/ (pkg-lite/ for lite)
 (cd ../site && ./gate-g3.sh [--no-build])       # Astro production build (Node in Docker) served under /matmul_levels.rs/ with no isolation headers; coi-serviceworker supplies them
+web/dev/node.sh site npm test                   # the prose plugin's unit tests
+web/dev/node.sh site npm run build              # the site into web/site/dist (needs FEATURES=threads ./build.sh first, for the gate page)
+web/dev/node.sh site npm run check              # checks the built site (no crate::, one <h1>, chapters never load the service worker)
 ```
 
 Always benchmark with `--release`. The docs deliberately contain no benchmark numbers.
@@ -52,4 +56,4 @@ Levels reuse each other rather than being independent (see `docs/design/architec
 ## Notes
 
 - Trunk branch is `trunk`; `Cargo.lock` is gitignored.
-- `docs/superpowers/` holds specs, plans and findings for the website work. It is not product documentation (excluded from the package), so don't glob `docs/**`. Nightly and wasm dependencies live only in `web/wasm`; the core crate stays dependency-free, `forbid(unsafe_code)` and MSRV 1.73.
+- `docs/superpowers/` holds specs, plans and findings for the website work. It is not product documentation (excluded from the package), so don't glob `docs/**`. Astro caches rendered docs in `web/site/node_modules/.astro` keyed by the Markdown, not by the plugin, so `npm run build` clears it first (a plugin change would otherwise be silently ignored). Nightly and wasm dependencies live only in `web/wasm`; the core crate stays dependency-free, `forbid(unsafe_code)` and MSRV 1.73.
