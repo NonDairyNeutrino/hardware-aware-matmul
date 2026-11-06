@@ -38,6 +38,55 @@ pub fn bit_hash(matrix: &Matrix) -> String {
     format!("{hash:016x}")
 }
 
+/// The largest matrix edge the wasm wrapper accepts.
+pub const MAX_N: usize = 2048;
+
+/// The output-tile shape (rows, columns, depth) level 4 uses in the gate cases.
+pub const GATE_TILE: (usize, usize, usize) = (64, 64, 64);
+
+/// Multiplies `a` by `b` at `level` (0 = naive, 1 = threaded, 2 = cache_friendly,
+/// 3 = simd, 4 = streaming with the output tiles of the given `tile` shape).
+///
+/// Levels 1 to 4 run their work on `runner`; `tile_k` and `tile_j` are the cache
+/// blocks of levels 2 to 4. Every argument is validated, so a bad one is an error and
+/// never a panic.
+#[allow(clippy::too_many_arguments)]
+pub fn multiply<R: Runner + ?Sized>(
+    level: u32,
+    a: &Matrix,
+    b: &Matrix,
+    threads: usize,
+    tile_k: usize,
+    tile_j: usize,
+    tile: (usize, usize, usize),
+    runner: &R,
+) -> Result<Matrix, String> {
+    let threads = NonZeroUsize::new(threads).ok_or("threads must be at least 1")?;
+    let tile_k = NonZeroUsize::new(tile_k).ok_or("tile_k must be at least 1")?;
+    let tile_j = NonZeroUsize::new(tile_j).ok_or("tile_j must be at least 1")?;
+    if tile.0 == 0 || tile.1 == 0 || tile.2 == 0 {
+        return Err("the tile shape must be at least 1 in every dimension".to_string());
+    }
+    let block = BlockConfig::new(tile_k, tile_j);
+    match level {
+        0 => naive::matmul(a, b).map_err(|e| e.to_string()),
+        1 => threaded::matmul_with_runner(a, b, threads, runner).map_err(|e| e.to_string()),
+        2 => cache_friendly::matmul_with_runner(a, b, threads, &block, runner)
+            .map_err(|e| e.to_string()),
+        3 => simd::matmul_with_runner(a, b, threads, &block, runner).map_err(|e| e.to_string()),
+        4 => {
+            let config = StreamConfig::new(threads)
+                .with_tile_shape(tile.0, tile.1, tile.2)
+                .with_block_config(block);
+            let sink = MemorySink::new(a.rows(), b.cols());
+            streaming::matmul_streaming_with_runner(a, b, &sink, &config, runner)
+                .map_err(|e| e.to_string())?;
+            Ok(sink.into_matrix())
+        }
+        other => Err(format!("level must be 0 to 4, got {other}")),
+    }
+}
+
 /// Multiplies two `n × n` rough matrices at `level` (0 = naive, 1 = threaded,
 /// 2 = cache_friendly, 3 = simd, 4 = streaming with 64 × 64 × 64 tiles) and
 /// returns the result's bit hash.
@@ -51,32 +100,61 @@ pub fn run_hash<R: Runner + ?Sized>(
     tile_j: usize,
     runner: &R,
 ) -> Result<String, String> {
-    let threads = NonZeroUsize::new(threads).ok_or("threads must be at least 1")?;
-    let tile_k = NonZeroUsize::new(tile_k).ok_or("tile_k must be at least 1")?;
-    let tile_j = NonZeroUsize::new(tile_j).ok_or("tile_j must be at least 1")?;
-    if n == 0 || n > 2048 {
-        return Err(format!("n must be in 1..=2048, got {n}"));
+    if n == 0 || n > MAX_N {
+        return Err(format!("n must be in 1..={MAX_N}, got {n}"));
     }
-    let block = BlockConfig::new(tile_k, tile_j);
     let (a, b) = rough_operands(n, n, n);
-    let c = match level {
-        0 => naive::matmul(&a, &b).map_err(|e| e.to_string())?,
-        1 => threaded::matmul_with_runner(&a, &b, threads, runner).map_err(|e| e.to_string())?,
-        2 => cache_friendly::matmul_with_runner(&a, &b, threads, &block, runner)
-            .map_err(|e| e.to_string())?,
-        3 => simd::matmul_with_runner(&a, &b, threads, &block, runner).map_err(|e| e.to_string())?,
-        4 => {
-            let config = StreamConfig::new(threads)
-                .with_tile_shape(64, 64, 64)
-                .with_block_config(block);
-            let sink = MemorySink::new(n, n);
-            streaming::matmul_streaming_with_runner(&a, &b, &sink, &config, runner)
-                .map_err(|e| e.to_string())?;
-            sink.into_matrix()
-        }
-        other => return Err(format!("level must be 0 to 4, got {other}")),
-    };
+    let c = multiply(level, &a, &b, threads, tile_k, tile_j, GATE_TILE, runner)?;
     Ok(bit_hash(&c))
+}
+
+/// Prepared operands and the last result, for timing the multiplication alone.
+///
+/// A benchmark builds the operands once (`prepare`), times as many `multiply` calls as
+/// it likes, and hashes the stored result afterwards (`hash`), so neither the operand
+/// generation nor the hashing sits inside the timed region.
+#[derive(Default)]
+pub struct Bench {
+    operands: Option<(Matrix, Matrix)>,
+    result: Option<Matrix>,
+}
+
+impl Bench {
+    /// An empty bench: call [`Bench::prepare`] before multiplying.
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Builds the `n × n` rough operands (`n` in `1..=MAX_N`) and drops any earlier
+    /// result.
+    pub fn prepare(&mut self, n: usize) -> Result<(), String> {
+        if n == 0 || n > MAX_N {
+            return Err(format!("n must be in 1..={MAX_N}, got {n}"));
+        }
+        self.result = None;
+        self.operands = Some(rough_operands(n, n, n));
+        Ok(())
+    }
+
+    /// Multiplies the prepared operands and stores the result.
+    pub fn multiply<R: Runner + ?Sized>(
+        &mut self,
+        level: u32,
+        threads: usize,
+        tile_k: usize,
+        tile_j: usize,
+        tile: (usize, usize, usize),
+        runner: &R,
+    ) -> Result<(), String> {
+        let (a, b) = self.operands.as_ref().ok_or("call prepare before multiply")?;
+        self.result = Some(multiply(level, a, b, threads, tile_k, tile_j, tile, runner)?);
+        Ok(())
+    }
+
+    /// The bit hash of the stored result.
+    pub fn hash(&self) -> Result<String, String> {
+        self.result.as_ref().map(bit_hash).ok_or_else(|| "call multiply before hash".to_string())
+    }
 }
 
 #[cfg(test)]
@@ -117,6 +195,48 @@ mod tests {
         assert!(run_hash(9, 8, 1, 32, 64, &StdRunner).is_err());
         assert!(run_hash(1, 0, 1, 32, 64, &StdRunner).is_err());
         assert!(run_hash(1, 4096, 1, 32, 64, &StdRunner).is_err());
+    }
+
+    #[test]
+    fn bench_gives_the_same_hash_as_run_hash_for_every_level() {
+        let mut bench = Bench::new();
+        bench.prepare(48).unwrap();
+        for level in 0..=4 {
+            for threads in [1, 3] {
+                bench.multiply(level, threads, 32, 64, GATE_TILE, &StdRunner).unwrap();
+                let expected = run_hash(level, 48, threads, 32, 64, &StdRunner).unwrap();
+                assert_eq!(bench.hash().unwrap(), expected, "level {level}, {threads} threads");
+            }
+        }
+    }
+
+    #[test]
+    fn the_level_four_tile_shape_does_not_change_the_hash() {
+        let mut bench = Bench::new();
+        bench.prepare(40).unwrap();
+        bench.multiply(0, 1, 32, 64, GATE_TILE, &StdRunner).unwrap();
+        let expected = bench.hash().unwrap();
+        for tile in [(1, 1, 1), (7, 5, 3), (128, 128, 128)] {
+            bench.multiply(4, 2, 32, 64, tile, &StdRunner).unwrap();
+            assert_eq!(bench.hash().unwrap(), expected, "tile {tile:?}");
+        }
+    }
+
+    #[test]
+    fn bench_rejects_misuse_instead_of_panicking() {
+        let mut bench = Bench::new();
+        assert!(bench.multiply(1, 1, 32, 64, GATE_TILE, &StdRunner).is_err(), "before prepare");
+        assert!(bench.hash().is_err(), "before multiply");
+        assert!(bench.prepare(0).is_err());
+        assert!(bench.prepare(MAX_N + 1).is_err());
+        bench.prepare(8).unwrap();
+        assert!(bench.hash().is_err(), "prepare drops the old result");
+        assert!(bench.multiply(1, 0, 32, 64, GATE_TILE, &StdRunner).is_err());
+        assert!(bench.multiply(2, 1, 0, 64, GATE_TILE, &StdRunner).is_err());
+        assert!(bench.multiply(3, 1, 32, 0, GATE_TILE, &StdRunner).is_err());
+        assert!(bench.multiply(4, 1, 32, 64, (0, 64, 64), &StdRunner).is_err());
+        assert!(bench.multiply(4, 1, 32, 64, (64, 64, 0), &StdRunner).is_err());
+        assert!(bench.multiply(5, 1, 32, 64, GATE_TILE, &StdRunner).is_err());
     }
 
     #[test]
