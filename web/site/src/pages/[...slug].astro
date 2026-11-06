@@ -1,0 +1,23 @@
+---
+import { getCollection, render } from 'astro:content';
+import Page from '../layouts/Page.astro';
+import { chapters } from '../../site.config.mjs';
+
+export async function getStaticPaths() {
+  const entries = await getCollection('chapters');
+  return chapters.map((chapter, index) => {
+    const entry = entries.find((e) => e.id === chapter.id);
+    if (!entry) throw new Error(`chapter ${chapter.id} not found in docs/`);
+    return {
+      params: { slug: chapter.route || undefined },
+      props: { entry, chapter, previous: chapters[index - 1] ?? null, next: chapters[index + 1] ?? null },
+    };
+  });
+}
+
+const { entry, chapter, previous, next } = Astro.props;
+const { Content } = await render(entry);
+---
+<Page title={chapter.title} previous={previous} next={next}>
+  <Content />
+</Page>

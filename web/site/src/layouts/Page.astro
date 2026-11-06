@@ -1,0 +1,53 @@
+---
+import '../styles/site.css';
+import { chapters, repoUrl, siteTitle } from '../../site.config.mjs';
+
+interface Props {
+  title: string;
+  previous?: { title: string; route: string } | null;
+  next?: { title: string; route: string } | null;
+}
+const { title, previous = null, next = null } = Astro.props;
+const base = import.meta.env.BASE_URL;
+const here = Astro.url.pathname;
+const pageTitle = title === 'Introduction' ? siteTitle : `${title} · ${siteTitle}`;
+---
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <title>{pageTitle}</title>
+  </head>
+  <body>
+    <a class="skip" href="#content">Skip to the content</a>
+    <header class="site-header">
+      <a class="site-title" href={base}>{siteTitle}</a>
+      <nav aria-label="Chapters">
+        <ul>
+          {chapters.map((chapter) => (
+            <li>
+              <a href={base + chapter.route} aria-current={here === base + chapter.route ? 'page' : undefined}>
+                {chapter.title}
+              </a>
+            </li>
+          ))}
+        </ul>
+      </nav>
+    </header>
+    <main id="content">
+      <article>
+        <h1>{title}</h1>
+        <slot />
+      </article>
+      <nav class="pager" aria-label="Previous and next chapter">
+        {previous ? <a rel="prev" href={base + previous.route}>← {previous.title}</a> : <span />}
+        {next ? <a rel="next" href={base + next.route}>{next.title} →</a> : <span />}
+      </nav>
+    </main>
+    <footer class="site-footer">
+      <a href={repoUrl}>Source on GitHub</a>
+    </footer>
+  </body>
+</html>

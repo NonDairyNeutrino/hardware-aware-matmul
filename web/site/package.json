@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "prebuild": "mkdir -p public && cp node_modules/coi-serviceworker/coi-serviceworker.js public/coi-serviceworker.js",
+    "prebuild": "rm -rf node_modules/.astro .astro && mkdir -p public && cp node_modules/coi-serviceworker/coi-serviceworker.js public/coi-serviceworker.js",
     "build": "astro build",
     "test": "node --test src/plugins/"
   },

@@ -1,0 +1,44 @@
+// Everything about the site that is not in docs/: the chapters have no frontmatter
+// (rustdoc would show it as text), so their titles, order and routes live here.
+
+// GitHub Pages serves this repository at /matmul_levels.rs/.
+export const base = '/matmul_levels.rs/';
+export const siteTitle = 'Matrix multiplication, level by level';
+export const repoUrl = 'https://github.com/NonDairyNeutrino/matmul_levels.rs';
+
+// Chapters rendered from docs/ (id = path under docs/, no extension), in reading order.
+// `route` is relative to `base`; the introduction is the home page.
+export const chapters = [
+  { id: 'introduction', title: 'Introduction', route: '' },
+  { id: 'levels/naive', title: 'Level 0: the naive loop', route: 'levels/naive/' },
+  { id: 'levels/threaded', title: 'Level 1: threads', route: 'levels/threaded/' },
+  { id: 'levels/cache_friendly', title: 'Level 2: cache blocking', route: 'levels/cache_friendly/' },
+  { id: 'levels/simd', title: 'Level 3: registers and SIMD', route: 'levels/simd/' },
+  { id: 'levels/streaming', title: 'Level 4: streaming', route: 'levels/streaming/' },
+];
+
+// Every intra-doc link target in the chapters must be listed (without the "crate::"
+// prefix). A string is a route under `base`; null shows the text as plain code (no
+// published API docs yet). Anything not listed fails the build.
+export const links = {
+  // Chapters.
+  naive: 'levels/naive/',
+  threaded: 'levels/threaded/',
+  cache_friendly: 'levels/cache_friendly/',
+  simd: 'levels/simd/',
+  streaming: 'levels/streaming/',
+  // API items and rustdoc-only pages.
+  ...Object.fromEntries([
+    'streaming::TileSource', 'streaming::TileSink', 'streaming::FileMatrix',
+    'threaded::row_block_plan', 'streaming::StreamConfig::with_tile_shape',
+    'streaming::StreamConfig::peak_buffer_bytes', 'simd::target_vector_isa',
+    'simd::micro_tile_shape', 'naive::matmul', 'guide::in_memory', 'guide::getting_started',
+    'design::architecture', 'Matrix', 'MatmulError',
+    'TileSource', 'TileSink', 'StreamConfig::peak_buffer_bytes', 'StreamConfig::with_tile_shape',
+    'target_vector_isa', 'micro_tile_shape', 'matrix', 'matmul', 'guide', 'design', 'error',
+    'DimensionMismatch',
+  ].map((key) => [key, null])),
+};
+
+// Figures and demos inserted after a heading of a chapter (by heading text).
+export const insertions = [];

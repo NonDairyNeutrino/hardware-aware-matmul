@@ -1,0 +1,85 @@
+/* A clean article layout: one readable column, light and dark themes that follow the
+   system, code that scrolls instead of wrapping. */
+:root {
+  color-scheme: light dark;
+  --bg: #fbfbf8;
+  --fg: #1d1d1b;
+  --muted: #5d5d56;
+  --accent: #1d5fbf;
+  --border: #dcdcd2;
+  --code-bg: #f1f1ea;
+  --measure: 44rem;
+  --gutter: 1rem;
+  --font: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --mono: ui-monospace, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #14151a;
+    --fg: #e8e8e3;
+    --muted: #a3a39b;
+    --accent: #7db0ff;
+    --border: #2d2f38;
+    --code-bg: #1c1e26;
+  }
+}
+
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font: 1.0625rem/1.65 var(--font);
+}
+a { color: var(--accent); text-underline-offset: 0.15em; }
+a:hover { text-decoration-thickness: 2px; }
+:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+
+.skip { position: absolute; left: -999px; top: 0; padding: 0.5rem 1rem; background: var(--bg); }
+.skip:focus { left: var(--gutter); z-index: 10; }
+
+.site-header, main, .site-footer {
+  width: min(var(--measure), 100% - 2 * var(--gutter));
+  margin-inline: auto;
+}
+.site-header { padding-block: 1.25rem 0.5rem; border-bottom: 1px solid var(--border); }
+.site-title { display: inline-block; font-weight: 700; font-size: 1.15rem; color: var(--fg); text-decoration: none; }
+.site-header nav ul { display: flex; flex-wrap: wrap; gap: 0.25rem 1rem; margin: 0.5rem 0 0; padding: 0; list-style: none; font-size: 0.95rem; }
+.site-header nav a { color: var(--muted); text-decoration: none; padding-block: 0.25rem; }
+.site-header nav a:hover, .site-header nav a[aria-current='page'] { color: var(--fg); text-decoration: underline; }
+
+main { padding-block: 2rem 3rem; }
+article > h1 { font-size: 2rem; line-height: 1.2; margin: 0 0 1.5rem; }
+article h2 { font-size: 1.45rem; line-height: 1.3; margin: 2.5rem 0 0.75rem; }
+article h3 { font-size: 1.15rem; margin: 1.75rem 0 0.5rem; }
+article p, article ul, article ol { margin: 0 0 1rem; }
+article li { margin-bottom: 0.25rem; }
+blockquote { margin: 1rem 0; padding: 0.25rem 1rem; border-left: 4px solid var(--border); color: var(--muted); }
+
+code { font: 0.9em var(--mono); background: var(--code-bg); padding: 0.1em 0.3em; border-radius: 4px; }
+pre { margin: 0 0 1.25rem; padding: 0.9rem 1rem; background: var(--code-bg); border: 1px solid var(--border); border-radius: 6px; overflow-x: auto; font: 0.875rem/1.5 var(--mono); }
+pre code { background: none; padding: 0; font: inherit; }
+/* Shiki emits both themes as variables; pick by the system theme. */
+.astro-code, .astro-code span { color: var(--shiki-light); background-color: var(--shiki-light-bg); }
+@media (prefers-color-scheme: dark) {
+  .astro-code, .astro-code span { color: var(--shiki-dark); background-color: var(--shiki-dark-bg); }
+}
+.astro-code { border: 1px solid var(--border); }
+
+table { display: block; max-width: 100%; margin: 0 0 1.25rem; overflow-x: auto; border-collapse: collapse; font-size: 0.95rem; }
+th, td { padding: 0.4rem 0.75rem; border: 1px solid var(--border); text-align: left; vertical-align: top; }
+th { background: var(--code-bg); }
+
+figure.video { margin: 1.25rem 0; }
+figure.video video { display: block; width: 100%; height: auto; border: 1px solid var(--border); border-radius: 6px; background: #000; }
+figcaption { margin-top: 0.4rem; font-size: 0.9rem; color: var(--muted); }
+
+.pager { display: flex; justify-content: space-between; gap: 1rem; margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--border); }
+.pager a { max-width: 48%; }
+.pager a[rel='next'] { text-align: right; margin-left: auto; }
+
+.site-footer { padding-block: 1rem 2.5rem; color: var(--muted); font-size: 0.9rem; }
+.site-footer a { color: var(--muted); }
+
+@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
