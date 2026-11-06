@@ -47,6 +47,12 @@ jobs:
         FEATURES: threads
       run: ./build.sh
 
+    - name: Generate the expected hashes for the gate page
+      working-directory: web/wasm
+      run: |
+        mkdir -p ../site/public
+        cargo run --release --example expected > ../site/public/expected.json
+
     - uses: actions/setup-node@v4
       with:
         # The local Docker image is node:latest (v26 when this was written).
