@@ -50,6 +50,16 @@ jobs:
         FEATURES: threads
       run: ./build.sh
 
+    - name: Build the lite wasm module (stable and single-threaded, for the step-through)
+      working-directory: web/wasm
+      run: ./build-lite.sh
+
+    - name: Test the wasm wrapper natively (without and with the threads feature)
+      working-directory: web/wasm
+      run: |
+        cargo test
+        cargo test --features threads
+
     - name: Generate the expected hashes for the gate page
       working-directory: web/wasm
       run: |
