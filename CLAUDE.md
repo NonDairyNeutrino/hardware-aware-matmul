@@ -25,6 +25,8 @@ cd web/wasm && cargo test                       # native tests of the shared cas
 ./build-lite.sh                                 # stable, single-threaded build into pkg-lite/ (no nightly, no threads)
 export WASM_BINDGEN="$HOME/.cargo/bin/wasm-bindgen"   # CLI version must equal the =0.2.130 pin
 ./gate.sh g1|g2|probe|g5|lite [--no-build]      # build, then run a gate in headless Firefox; --no-build reuses pkg/ (pkg-lite/ for lite)
+cargo run --release --example bench -- --sizes 512,1024   # the native half of the reference run (JSON on stdout; web/dev/bench-reference.sh runs everything)
+./bench-browser.sh lite|threads OUT.json                  # one browser build of the reference run (needs pkg-lite/ or pkg/)
 (cd ../site && ./gate-c2.sh [--no-build])       # the step-through element from the production build, on a page with no isolation and no service worker
 (cd ../site && ./gate-g3.sh [--no-build])       # Astro production build (Node in Docker) served under /hardware-aware-matmul/ with no isolation headers; coi-serviceworker supplies them
 ```
