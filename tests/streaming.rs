@@ -208,6 +208,15 @@ fn a_panic_in_a_source_reaches_the_caller_of_an_inline_runner() {
     let _ = matmul_streaming_with_runner(&PanickingSource, &b, &sink, &config, &Inline);
 }
 
+#[test]
+#[should_panic(expected = "a scoped thread panicked")]
+fn a_panic_in_a_source_reaches_the_caller_of_matmul_streaming() {
+    let b = Matrix::zeros(8, 8);
+    let sink = MemorySink::new(8, 8);
+    let config = StreamConfig::new(nz(2)).with_tile_shape(2, 2, 2);
+    let _ = matmul_streaming(&PanickingSource, &b, &sink, &config);
+}
+
 #[cfg(any(unix, windows))]
 mod file_backed {
     use std::path::PathBuf;
