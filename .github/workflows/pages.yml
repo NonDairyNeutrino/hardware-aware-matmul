@@ -68,6 +68,9 @@ jobs:
     - name: Test the results assembler
       run: python3 -I web/dev/test_results.py
 
+    - name: Check the committed results
+      run: python3 -I web/dev/results.py --check web/site/src/data/results.json
+
     - name: Generate the expected hashes for the gate page
       working-directory: web/wasm
       run: |
