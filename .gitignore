@@ -204,4 +204,6 @@ node_modules/
 .astro/
 web/wasm/pkg/
 web/wasm/www/expected.json
+web/site/public/expected.json
+web/site/public/coi-serviceworker.js
 !web/wasm/Cargo.lock

@@ -5,6 +5,7 @@
 #   g2     29 cases (levels 0 to 4) must hash exactly like native Rust
 #   probe  informational: records that StdRunner traps in the browser
 #   g5     informational: records limits (pool start-up, re-init, panic, memory)
+# The Astro-build gate (g3) is web/site/gate-g3.sh.
 # env: WASM_BINDGEN (path to the CLI), PORT (default 8765), TIMEOUT (seconds)
 # --no-build reuses pkg/, but refuses if pkg/ is missing, was built for the
 # bundler, or is older than the sources.

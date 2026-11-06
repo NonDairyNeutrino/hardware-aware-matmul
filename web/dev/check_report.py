@@ -4,6 +4,8 @@ Usage: python3 -I check_report.py GATE REPORT.json
 Exits 0 on pass, 1 on failure. Gates:
   g1     the thread pool starts and a parallel sum is right
   g2     every case's hash equals the native hash (levels 0 to 4)
+  g3     g2, run from the Astro production build under /matmul_levels.rs/ with
+         isolation supplied by the service worker rather than server headers
   probe  informational: records whether StdRunner works in the browser
   g5     informational: records limits (pool start-up, re-init, panic, memory)
 """
@@ -33,7 +35,7 @@ def main(gate, path):
     if gate == "g1" and report.get("sum") != "2499487497200":
         problems.append("wrong parallel sum: %r" % report.get("sum"))
 
-    if gate == "g2":
+    if gate in ("g2", "g3"):
         if len(cases) != G2_CASES:
             problems.append("expected %d cases, got %d" % (G2_CASES, len(cases)))
         for c in cases:
@@ -51,6 +53,12 @@ def main(gate, path):
             for level in SPEEDUP_LEVELS:
                 print("speedup level %d n 512: 1 -> 4 threads = %.2fx (indicative only)"
                       % (level, ms(level, 512, 1) / ms(level, 512, 4)))
+
+    if gate == "g3":
+        if report.get("base") != "/matmul_levels.rs/":
+            problems.append("wrong base path: %r" % report.get("base"))
+        if not report.get("loads", 0) >= 1:
+            problems.append("the page never reloaded: isolation did not come from the service worker")
 
     if gate == "g5":
         if not probes:

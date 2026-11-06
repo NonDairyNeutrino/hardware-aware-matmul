@@ -1,0 +1,13 @@
+{
+  "name": "matmul-levels-site",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "prebuild": "mkdir -p public && cp node_modules/coi-serviceworker/coi-serviceworker.js public/coi-serviceworker.js",
+    "build": "astro build"
+  },
+  "dependencies": {
+    "astro": "7.4.7",
+    "coi-serviceworker": "0.1.7"
+  }
+}
