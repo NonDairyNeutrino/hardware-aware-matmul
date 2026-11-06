@@ -10,15 +10,20 @@ export const repoUrl = 'https://github.com/NonDairyNeutrino/hardware-aware-matmu
 // The site is laid out as a paper: abstract (the home page), introduction, methods (the
 // levels), and later results, discussion and conclusion. Pages rendered from docs/ (id =
 // path under docs/, no extension), in reading order. `route` is relative to `base`.
+// `section` groups pages in the navigation: a section with several pages is shown as a
+// labelled group (see `sectionTitles`), a section with one page as a plain link.
 export const chapters = [
-  { id: 'paper/abstract', title: 'Abstract', route: '' },
-  { id: 'introduction', title: 'Introduction', route: 'introduction/' },
-  { id: 'levels/naive', title: 'Level 0: the naive loop', route: 'levels/naive/' },
-  { id: 'levels/threaded', title: 'Level 1: threads', route: 'levels/threaded/' },
-  { id: 'levels/cache_friendly', title: 'Level 2: cache blocking', route: 'levels/cache_friendly/' },
-  { id: 'levels/simd', title: 'Level 3: registers and SIMD', route: 'levels/simd/' },
-  { id: 'levels/streaming', title: 'Level 4: streaming', route: 'levels/streaming/' },
+  { id: 'paper/abstract', title: 'Abstract', route: '', section: 'abstract' },
+  { id: 'introduction', title: 'Introduction', route: 'introduction/', section: 'introduction' },
+  { id: 'levels/naive', title: 'Level 0: the naive loop', route: 'levels/naive/', section: 'methods' },
+  { id: 'levels/threaded', title: 'Level 1: threads', route: 'levels/threaded/', section: 'methods' },
+  { id: 'levels/cache_friendly', title: 'Level 2: cache blocking', route: 'levels/cache_friendly/', section: 'methods' },
+  { id: 'levels/simd', title: 'Level 3: registers and SIMD', route: 'levels/simd/', section: 'methods' },
+  { id: 'levels/streaming', title: 'Level 4: streaming', route: 'levels/streaming/', section: 'methods' },
 ];
+
+// Labels for the sections that group several pages.
+export const sectionTitles = { methods: 'Methods' };
 
 // Every intra-doc link target in the chapters must be listed (without the "crate::"
 // prefix). A string is a route under `base`; null shows the text as plain code (no

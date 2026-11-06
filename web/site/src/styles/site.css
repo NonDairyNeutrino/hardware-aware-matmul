@@ -48,6 +48,9 @@ a:hover { text-decoration-thickness: 2px; }
 .site-header nav ul { display: flex; flex-wrap: wrap; gap: 0.25rem 1rem; margin: 0.5rem 0 0; padding: 0; list-style: none; font-size: 0.95rem; }
 .site-header nav a { color: var(--muted); text-decoration: none; padding-block: 0.25rem; }
 .site-header nav a:hover, .site-header nav a[aria-current='page'] { color: var(--fg); text-decoration: underline; }
+.site-header nav li.group { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.25rem 0.75rem; }
+.site-header nav .group-label { color: var(--fg); font-weight: 600; }
+.site-header nav li.group ul { margin: 0; }
 .subtitle { margin-top: -0.5rem; color: var(--muted); font-size: 1.15rem; }
 
 main { padding-block: 2rem 3rem; }

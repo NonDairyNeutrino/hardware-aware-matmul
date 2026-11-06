@@ -1,7 +1,7 @@
 ---
 import '../styles/site.css';
 import StepThroughLoader from '../components/StepThroughLoader.astro';
-import { chapters, repoUrl, siteSubtitle, siteTitle } from '../../site.config.mjs';
+import { chapters, repoUrl, sectionTitles, siteSubtitle, siteTitle } from '../../site.config.mjs';
 
 interface Props {
   title: string;
@@ -17,6 +17,13 @@ const here = Astro.url.pathname;
 // page by its own title.
 const isHome = here === base;
 const pageTitle = isHome ? `${siteTitle}: ${siteSubtitle}` : `${title} · ${siteTitle}`;
+// Consecutive pages of one section form one navigation entry.
+const entries = chapters.reduce((groups, chapter) => {
+  const last = groups[groups.length - 1];
+  if (last && last.section === chapter.section) last.items.push(chapter);
+  else groups.push({ section: chapter.section, items: [chapter] });
+  return groups;
+}, [] as { section: string; items: typeof chapters }[]);
 ---
 <!doctype html>
 <html lang="en">
@@ -32,13 +39,28 @@ const pageTitle = isHome ? `${siteTitle}: ${siteSubtitle}` : `${title} · ${site
       <a class="site-title" href={base}>{siteTitle}</a>
       <nav aria-label="Chapters">
         <ul>
-          {chapters.map((chapter) => (
-            <li>
-              <a href={base + chapter.route} aria-current={here === base + chapter.route ? 'page' : undefined}>
-                {chapter.title}
-              </a>
-            </li>
-          ))}
+          {entries.map((entry) =>
+            entry.items.length === 1 ? (
+              <li>
+                <a href={base + entry.items[0].route} aria-current={here === base + entry.items[0].route ? 'page' : undefined}>
+                  {entry.items[0].title}
+                </a>
+              </li>
+            ) : (
+              <li class="group">
+                <span class="group-label">{sectionTitles[entry.section] ?? entry.section}</span>
+                <ul>
+                  {entry.items.map((chapter) => (
+                    <li>
+                      <a href={base + chapter.route} aria-current={here === base + chapter.route ? 'page' : undefined}>
+                        {chapter.title}
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              </li>
+            ),
+          )}
         </ul>
       </nav>
     </header>
