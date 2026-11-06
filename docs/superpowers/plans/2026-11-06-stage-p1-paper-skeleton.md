@@ -10,7 +10,7 @@
 
 **Tech Stack:** Astro 7.4.7 (existing), the remark plugin (existing, unchanged), Node from the `node:latest` Docker image.
 
-**Spec:** `docs/superpowers/specs/2026-11-06-paper-structure-design.md` (plan P1 of P1 to P3).
+**Spec:** `docs/superpowers/specs/2026-11-06-paper-structure-design.md` (plan P1 of P1 to P3). **Branch base:** stacked on `pages-push-trigger` (the push-trigger commits), so `CLAUDE.md` already describes that trigger.
 
 ## Global Constraints
 
@@ -37,14 +37,14 @@ The code in this plan was built and run end to end on this machine before the pl
 
 ### Task 1: The abstract is the landing page and the introduction moves to `/introduction/`
 
-The home page was the Introduction. It becomes the **abstract**, a new Markdown page, `docs/paper/abstract.md` (about 150 words, qualitative: it makes no claim about measurements, which do not exist yet), rendered by the existing prose pipeline: the content collection's pattern list gains exactly `paper/*.md`, and `site.config.mjs` lists the abstract first (route `''`) and gives the Introduction its own route, `introduction/`. The landing page is headed by the site title, with the abstract's own heading (demoted by the pipeline to a second-level heading) under it; every other page is headed by its own title.
+The home page was the Introduction. It becomes the **abstract**, a new Markdown page, `docs/paper/abstract.md` (about 150 words, qualitative: it makes no claim about measurements, which do not exist yet), rendered by the existing prose pipeline: the content collection's pattern list gains exactly `paper/*.md`, and `site.config.mjs` lists the abstract first (route `''`) and gives the Introduction its own route, `introduction/`. The landing page is headed by the site title, with the subtitle under it and then the abstract's own heading (demoted by the pipeline to a second-level heading); every other page is headed by its own title. The browser title of the landing page is "title: subtitle".
 
 **Files:**
 - Create: `docs/paper/abstract.md`
-- Modify: `web/site/src/content.config.ts`, `web/site/site.config.mjs`, `web/site/src/layouts/Page.astro`
+- Modify: `web/site/src/content.config.ts`, `web/site/site.config.mjs`, `web/site/src/layouts/Page.astro`, `web/site/src/styles/site.css`
 
 **Interfaces:**
-- Produces: the page id `paper/abstract` (route `''`), the Introduction at route `introduction/`; `Page.astro` shows the site title as the `<h1>` on the home page only.
+- Produces: the page id `paper/abstract` (route `''`), the Introduction at route `introduction/`; `Page.astro` shows the site title as the `<h1>` and the subtitle under it on the home page only.
 
 - [ ] **Step 1: Write the abstract**
 
@@ -55,15 +55,16 @@ Create `docs/paper/abstract.md`:
 # Abstract
 
 Dense matrix multiplication is the standard example of code whose speed depends far
-more on how it is written than on what it computes. This project implements the same
-`f64` product five ways in safe, dependency-free Rust, each level changing one idea:
-the textbook triple loop; splitting the output rows across threads; reordering the
-loops and blocking for the cache; keeping a block of the output in vector registers;
-and streaming tiles of the matrices through small buffers so that they need not fit in
-memory at all. Every level returns bit-for-bit identical results, so any difference in
-speed comes only from how the work is organised. Each level is explained as a method,
-with an interactive diagram, driven by the real code compiled to WebAssembly, that
-shows how the level divides the work.
+more on how it is written than on what it computes. This project is not about faster
+algorithms: every level performs exactly the same multiply-adds, in the same order, and
+returns bit-for-bit identical results. What changes is how well the code uses the
+hardware. Starting from the textbook triple loop, each level adds one idea, in safe,
+dependency-free Rust: splitting the output rows across threads; reordering the loops and
+blocking for the cache; keeping a block of the output in vector registers; and streaming
+tiles of the matrices through small buffers so that they need not fit in memory at all.
+Matrix multiplication is only the worked example; the ideas apply wherever code moves a
+lot of data. Each level is presented as a method, with an interactive diagram, driven by
+the real code compiled to WebAssembly, that shows how the level divides the work.
 ````
 
 
@@ -101,7 +102,7 @@ const chapters = defineCollection({
 In `web/site/site.config.mjs`, replace:
 
 ````text
-export const repoUrl = 'https://github.com/NonDairyNeutrino/matmul_levels.rs';
+export const repoUrl = 'https://github.com/NonDairyNeutrino/hardware-aware-matmul';
 
 // Chapters rendered from docs/ (id = path under docs/, no extension), in reading order.
 // `route` is relative to `base`; the introduction is the home page.
@@ -114,7 +115,7 @@ export const chapters = [
 with:
 
 ````text
-export const repoUrl = 'https://github.com/NonDairyNeutrino/matmul_levels.rs';
+export const repoUrl = 'https://github.com/NonDairyNeutrino/hardware-aware-matmul';
 
 // The site is laid out as a paper: abstract (the home page), introduction, methods (the
 // levels), and later results, discussion and conclusion. Pages rendered from docs/ (id =
@@ -126,14 +127,14 @@ export const chapters = [
   { id: 'levels/threaded', title: 'Level 1: threads', route: 'levels/threaded/' },
 ````
 
-- [ ] **Step 4: Head the landing page with the site title**
+- [ ] **Step 4: Head the landing page with the site title and subtitle**
 
 In `web/site/src/layouts/Page.astro`, replace:
 
 ````text
 const base = import.meta.env.BASE_URL;
 const here = Astro.url.pathname;
-const pageTitle = title === 'Introduction' ? siteTitle : `${title} · ${siteTitle}`;
+const pageTitle = title === 'Introduction' ? `${siteTitle}: ${siteSubtitle}` : `${title} · ${siteTitle}`;
 ---
 <!doctype html>
 ````
@@ -143,9 +144,10 @@ with:
 ````text
 const base = import.meta.env.BASE_URL;
 const here = Astro.url.pathname;
-// The landing page (the abstract) is headed by the site title; every other page by its own.
+// The landing page (the abstract) is headed by the site title and its subtitle; every other
+// page by its own title.
 const isHome = here === base;
-const pageTitle = isHome ? siteTitle : `${title} · ${siteTitle}`;
+const pageTitle = isHome ? `${siteTitle}: ${siteSubtitle}` : `${title} · ${siteTitle}`;
 ---
 <!doctype html>
 ````
@@ -166,8 +168,30 @@ with:
     <main id="content">
       <article>
         <h1>{isHome ? siteTitle : title}</h1>
+        {isHome && <p class="subtitle">{siteSubtitle}</p>}
         <slot />
       </article>
+````
+
+- [ ] **Step 4b: Style the subtitle**
+
+In `web/site/src/styles/site.css`, replace:
+
+````text
+.site-header nav a { color: var(--muted); text-decoration: none; padding-block: 0.25rem; }
+.site-header nav a:hover, .site-header nav a[aria-current='page'] { color: var(--fg); text-decoration: underline; }
+
+main { padding-block: 2rem 3rem; }
+````
+
+with:
+
+````text
+.site-header nav a { color: var(--muted); text-decoration: none; padding-block: 0.25rem; }
+.site-header nav a:hover, .site-header nav a[aria-current='page'] { color: var(--fg); text-decoration: underline; }
+.subtitle { margin-top: -0.5rem; color: var(--muted); font-size: 1.15rem; }
+
+main { padding-block: 2rem 3rem; }
 ````
 
 - [ ] **Step 5: Build and check**
@@ -176,17 +200,17 @@ with:
 web/dev/node.sh site npm run build 2>&1 | grep -E "ERROR|rror|page\(s\)"
 web/dev/node.sh site npm run check 2>&1 | grep -E "check-dist|^ -"
 ls web/site/dist/introduction
-grep -o '<h1[^>]*>[^<]*</h1>' web/site/dist/index.html web/site/dist/introduction/index.html
+grep -o '<h1[^>]*>[^<]*</h1>\|<p class="subtitle">[^<]*</p>\|<title>[^<]*</title>' web/site/dist/index.html web/site/dist/introduction/index.html
 ```
 
-Expected: `9 page(s) built` (the abstract, the introduction, five levels and the two gate pages) and no error; `check-dist: PASS (9 pages)`; `web/site/dist/introduction` holds `index.html`; and the headings `<h1>Matrix multiplication, level by level</h1>` for the home page and `<h1>Introduction</h1>` for the introduction.
+Expected: `9 page(s) built` (the abstract, the introduction, five levels and the two gate pages) and no error; `check-dist: PASS (9 pages)`; `web/site/dist/introduction` holds `index.html`; and for the home page `<h1>Mechanical sympathy</h1>`, `<p class="subtitle">Five levels of matrix multiplication in Rust</p>` and the title `Mechanical sympathy: Five levels of matrix multiplication in Rust`, with `<h1>Introduction</h1>` for the introduction page.
 
 If the build says it cannot find `paper/abstract` (or an unresolvable link), stop and report BLOCKED with the exact message.
 
 - [ ] **Step 6: Commit**
 
 ```bash
-git add docs/paper/abstract.md web/site/src/content.config.ts web/site/site.config.mjs web/site/src/layouts/Page.astro
+git add docs/paper/abstract.md web/site/src/content.config.ts web/site/site.config.mjs web/site/src/layouts/Page.astro web/site/src/styles/site.css
 git commit -m "make the abstract the landing page and move the introduction to its own page"
 ```
 
@@ -253,7 +277,7 @@ In `web/site/src/layouts/Page.astro`, replace:
 ````text
 import '../styles/site.css';
 import StepThroughLoader from '../components/StepThroughLoader.astro';
-import { chapters, repoUrl, siteTitle } from '../../site.config.mjs';
+import { chapters, repoUrl, siteSubtitle, siteTitle } from '../../site.config.mjs';
 
 interface Props {
 ````
@@ -263,7 +287,7 @@ with:
 ````text
 import '../styles/site.css';
 import StepThroughLoader from '../components/StepThroughLoader.astro';
-import { chapters, repoUrl, sectionTitles, siteTitle } from '../../site.config.mjs';
+import { chapters, repoUrl, sectionTitles, siteSubtitle, siteTitle } from '../../site.config.mjs';
 
 interface Props {
 ````
@@ -272,7 +296,7 @@ In `web/site/src/layouts/Page.astro`, replace:
 
 ````text
 const isHome = here === base;
-const pageTitle = isHome ? siteTitle : `${title} · ${siteTitle}`;
+const pageTitle = isHome ? `${siteTitle}: ${siteSubtitle}` : `${title} · ${siteTitle}`;
 ---
 <!doctype html>
 ````
@@ -281,7 +305,7 @@ with:
 
 ````text
 const isHome = here === base;
-const pageTitle = isHome ? siteTitle : `${title} · ${siteTitle}`;
+const pageTitle = isHome ? `${siteTitle}: ${siteSubtitle}` : `${title} · ${siteTitle}`;
 // Consecutive pages of one section form one navigation entry.
 const entries = chapters.reduce((groups, chapter) => {
   const last = groups[groups.length - 1];
@@ -347,8 +371,7 @@ In `web/site/src/styles/site.css`, replace:
 ````text
 .site-header nav a { color: var(--muted); text-decoration: none; padding-block: 0.25rem; }
 .site-header nav a:hover, .site-header nav a[aria-current='page'] { color: var(--fg); text-decoration: underline; }
-
-main { padding-block: 2rem 3rem; }
+.subtitle { margin-top: -0.5rem; color: var(--muted); font-size: 1.15rem; }
 ````
 
 with:
@@ -359,8 +382,7 @@ with:
 .site-header nav li.group { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.25rem 0.75rem; }
 .site-header nav .group-label { color: var(--fg); font-weight: 600; }
 .site-header nav li.group ul { margin: 0; }
-
-main { padding-block: 2rem 3rem; }
+.subtitle { margin-top: -0.5rem; color: var(--muted); font-size: 1.15rem; }
 ````
 
 - [ ] **Step 4: Build and check**
@@ -376,15 +398,15 @@ Expected: `9 page(s) built`, `check-dist: PASS (9 pages)`, the group label `Meth
 
 - [ ] **Step 5: Look at it (not gated, but do it)**
 
-Serve `web/site/dist` under `/matmul_levels.rs/` and screenshot the home page at a desktop and a phone width, then read the PNGs:
+Serve `web/site/dist` under `/hardware-aware-matmul/` and screenshot the home page at a desktop and a phone width, then read the PNGs:
 
 ```bash
-REPO=$PWD; SC=$(mktemp -d); ln -s "$REPO/web/site/dist" "$SC/matmul_levels.rs"
+REPO=$PWD; SC=$(mktemp -d); ln -s "$REPO/web/site/dist" "$SC/hardware-aware-matmul"
 ss -ltnp | grep 8871 && echo "port busy: stop"
 cd "$SC"; NO_ISOLATION=1 REPORT=/dev/null python3 -I "$REPO/web/dev/serve.py" 8871 > /dev/null 2>&1 & SRV=$!; cd "$REPO"
 sleep 1; PROFILE=$(mktemp -d)
-timeout 90 firefox --headless --no-remote --profile "$PROFILE" --screenshot "$SC/home.png" --window-size=1000,900 http://127.0.0.1:8871/matmul_levels.rs/
-timeout 90 firefox --headless --no-remote --profile "$PROFILE" --screenshot "$SC/phone.png" --window-size=390,900 http://127.0.0.1:8871/matmul_levels.rs/
+timeout 90 firefox --headless --no-remote --profile "$PROFILE" --screenshot "$SC/home.png" --window-size=1000,900 http://127.0.0.1:8871/hardware-aware-matmul/
+timeout 90 firefox --headless --no-remote --profile "$PROFILE" --screenshot "$SC/phone.png" --window-size=390,900 http://127.0.0.1:8871/hardware-aware-matmul/
 kill $SRV; rm -rf "$PROFILE"; ss -ltnp | grep 8871 || echo "port free"
 ```
 
@@ -401,7 +423,7 @@ git commit -m "group the methods in the navigation"
 
 ### Task 3: Check the landing page's heading and abstract
 
-`check-dist.mjs` already requires exactly one `<h1>` per page. It now also requires the landing page's `<h1>` to be the site title and the abstract (a second-level heading `Abstract`) to be present, so a configuration change that quietly turns the landing page into something else fails the build gate.
+`check-dist.mjs` already requires exactly one `<h1>` per page. It now also requires the landing page's `<h1>` to be the site title, the subtitle to be present, and the abstract (a second-level heading `Abstract`) to be present, so a configuration change that quietly turns the landing page into something else fails the build gate.
 
 **Files:**
 - Modify: `web/site/check-dist.mjs`
@@ -423,7 +445,8 @@ with:
 ````text
 //     any script at all;
 //   - an unlinked intra-doc shortcut left as literal "[code]" text;
-//   - a landing page that is not headed by the site title with the abstract under it;
+//   - a landing page that is not headed by the site title and subtitle with the abstract
+//     under them;
 //   - a video the pages reference that was not copied into dist/media/.
 // Run it with `npm run check` after `npm run build`. Exits 1 on any problem.
 ````
@@ -443,7 +466,7 @@ with:
 ````text
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { base, chapters, demos, siteTitle } from './site.config.mjs';
+import { base, chapters, demos, siteSubtitle, siteTitle } from './site.config.mjs';
 
 const dist = fileURLToPath(new URL('./dist/', import.meta.url));
 ````
@@ -465,6 +488,7 @@ with:
   if (chapter.route === '') {
     const heading = /<h1[^>]*>([^<]*)<\/h1>/.exec(html)?.[1];
     if (heading !== siteTitle) problems.push(`(home): the <h1> is ${JSON.stringify(heading)}, expected the site title`);
+    if (!html.includes(`>${siteSubtitle}<`)) problems.push('(home): the subtitle is missing');
     if (!/<h2[^>]*>Abstract<\/h2>/.test(html)) problems.push('(home): the abstract is missing');
   }
   const where = chapter.route || '(home)';
@@ -488,9 +512,13 @@ sed -i 's|<h2 id="abstract">Abstract</h2>||' web/site/dist/index.html
 web/dev/node.sh site npm run check 2>&1 | grep -E "check-dist|^ -"
 #    expect: check-dist: FAIL and the line  - (home): the abstract is missing
 # 2. make the landing page's heading something else
-sed -i 's|<h1>Matrix multiplication, level by level</h1>|<h1>Introduction</h1>|' web/site/dist/index.html
+sed -i 's|<h1>Mechanical sympathy</h1>|<h1>Introduction</h1>|' web/site/dist/index.html
 web/dev/node.sh site npm run check 2>&1 | grep -E "check-dist|^ -"
 #    expect: check-dist: FAIL and a line ending  expected the site title
+# 3. remove the subtitle
+sed -i 's|<p class="subtitle">Five levels of matrix multiplication in Rust</p>||' web/site/dist/index.html
+web/dev/node.sh site npm run check 2>&1 | grep -E "check-dist|^ -"
+#    expect: check-dist: FAIL and the line  - (home): the subtitle is missing
 ```
 
 After restoring `dist` the check must print `check-dist: PASS (9 pages)` again.
@@ -517,7 +545,7 @@ In `CLAUDE.md`, replace:
 ````text
 ## What this is
 
-A teaching-oriented Rust crate (`naive_matmul`, no dependencies, `#![forbid(unsafe_code)]`, MSRV 1.73) implementing dense `f64` matrix multiplication as five levels of increasing performance. The repo directory is `matmul_levels.rs`; the crate name is `naive_matmul`. `anim/` holds unrelated-to-build Manim (Python) animations explaining the levels. `web/` is browser tooling, excluded from the published crate. `web/wasm` is a separate crate (own empty `[workspace]`, tracked `Cargo.lock`, nightly pinned in its `rust-toolchain.toml`) that wraps the levels for WebAssembly with a rayon-backed `RayonRunner` (without the `threads` feature it is a stable single-threaded `InlineRunner` build, the "lite" build); `web/dev/` holds a stdlib-only dev server, a headless-Firefox page runner, the gate report checker and `node.sh`. `web/site` is the Astro site; Node runs only in Docker, through `web/dev/node.sh` (image `node:latest` unless `NODE_IMAGE` is set). It renders the chapters from `docs/` (the remark plugin in `web/site/src/plugins/` strips rustdoc-hidden lines and rewrites intra-doc links through the table in `web/site/site.config.mjs`; a link not in the table fails the build), keeps the stage B gate page at `/gate/` (and the step-through gate page at `/gate/step-through/`), and embeds a `<step-through>` custom element (`web/site/src/components/`, placed by the `demos` list in `site.config.mjs`) in chapters 1 to 4 that draws the real work partition from the wrapper's `partition_plan` and `env_info` on the lite module, so chapters need no threads and no service worker. `.github/workflows/pages.yml` builds the site on manual dispatch and on pull requests (no push trigger until the playground lands); the owner must set Settings > Pages > Source = GitHub Actions once, and `WASM_BINDGEN_VERSION` there must track the `=0.2.130` pin in `web/wasm/Cargo.toml`.
+A teaching-oriented Rust crate (`hardware_aware_matmul`, no dependencies, `#![forbid(unsafe_code)]`, MSRV 1.73) implementing dense `f64` matrix multiplication as five levels of increasing performance. The repo directory is `hardware-aware-matmul`; the crate name is `hardware_aware_matmul`. `anim/` holds unrelated-to-build Manim (Python) animations explaining the levels. `web/` is browser tooling, excluded from the published crate. `web/wasm` is a separate crate (own empty `[workspace]`, tracked `Cargo.lock`, nightly pinned in its `rust-toolchain.toml`) that wraps the levels for WebAssembly with a rayon-backed `RayonRunner` (without the `threads` feature it is a stable single-threaded `InlineRunner` build, the "lite" build); `web/dev/` holds a stdlib-only dev server, a headless-Firefox page runner, the gate report checker and `node.sh`. `web/site` is the Astro site; Node runs only in Docker, through `web/dev/node.sh` (image `node:latest` unless `NODE_IMAGE` is set). It renders the chapters from `docs/` (the remark plugin in `web/site/src/plugins/` strips rustdoc-hidden lines and rewrites intra-doc links through the table in `web/site/site.config.mjs`; a link not in the table fails the build), keeps the stage B gate page at `/gate/` (and the step-through gate page at `/gate/step-through/`), and embeds a `<step-through>` custom element (`web/site/src/components/`, placed by the `demos` list in `site.config.mjs`) in chapters 1 to 4 that draws the real work partition from the wrapper's `partition_plan` and `env_info` on the lite module, so chapters need no threads and no service worker. `.github/workflows/pages.yml` builds the site on manual dispatch, on every push to `trunk` (which deploys it, unless the push only touches `docs/superpowers/`) and on pull requests (build only); the owner must set Settings > Pages > Source = GitHub Actions once, and `WASM_BINDGEN_VERSION` there must track the `=0.2.130` pin in `web/wasm/Cargo.toml`.
 
 ## Commands
 ````
@@ -527,7 +555,7 @@ with:
 ````text
 ## What this is
 
-A teaching-oriented Rust crate (`naive_matmul`, no dependencies, `#![forbid(unsafe_code)]`, MSRV 1.73) implementing dense `f64` matrix multiplication as five levels of increasing performance. The repo directory is `matmul_levels.rs`; the crate name is `naive_matmul`. `anim/` holds unrelated-to-build Manim (Python) animations explaining the levels. `web/` is browser tooling, excluded from the published crate. `web/wasm` is a separate crate (own empty `[workspace]`, tracked `Cargo.lock`, nightly pinned in its `rust-toolchain.toml`) that wraps the levels for WebAssembly with a rayon-backed `RayonRunner` (without the `threads` feature it is a stable single-threaded `InlineRunner` build, the "lite" build); `web/dev/` holds a stdlib-only dev server, a headless-Firefox page runner, the gate report checker and `node.sh`. `web/site` is the Astro site; Node runs only in Docker, through `web/dev/node.sh` (image `node:latest` unless `NODE_IMAGE` is set). The site is laid out as a paper: abstract (`docs/paper/abstract.md`, the landing page), introduction, methods (the levels), and later results, discussion and conclusion (`docs/superpowers/specs/2026-11-06-paper-structure-design.md`); `chapters` and `sectionTitles` in `site.config.mjs` give the order and the navigation groups. It renders those pages from `docs/` (the remark plugin in `web/site/src/plugins/` strips rustdoc-hidden lines and rewrites intra-doc links through the table in `web/site/site.config.mjs`; a link not in the table fails the build), keeps the stage B gate page at `/gate/` (and the step-through gate page at `/gate/step-through/`), and embeds a `<step-through>` custom element (`web/site/src/components/`, placed by the `demos` list in `site.config.mjs`) in chapters 1 to 4 that draws the real work partition from the wrapper's `partition_plan` and `env_info` on the lite module, so chapters need no threads and no service worker. `.github/workflows/pages.yml` builds the site on manual dispatch and on pull requests (no push trigger until the playground lands); the owner must set Settings > Pages > Source = GitHub Actions once, and `WASM_BINDGEN_VERSION` there must track the `=0.2.130` pin in `web/wasm/Cargo.toml`.
+A teaching-oriented Rust crate (`hardware_aware_matmul`, no dependencies, `#![forbid(unsafe_code)]`, MSRV 1.73) implementing dense `f64` matrix multiplication as five levels of increasing performance. The repo directory is `hardware-aware-matmul`; the crate name is `hardware_aware_matmul`. `anim/` holds unrelated-to-build Manim (Python) animations explaining the levels. `web/` is browser tooling, excluded from the published crate. `web/wasm` is a separate crate (own empty `[workspace]`, tracked `Cargo.lock`, nightly pinned in its `rust-toolchain.toml`) that wraps the levels for WebAssembly with a rayon-backed `RayonRunner` (without the `threads` feature it is a stable single-threaded `InlineRunner` build, the "lite" build); `web/dev/` holds a stdlib-only dev server, a headless-Firefox page runner, the gate report checker and `node.sh`. `web/site` is the Astro site; Node runs only in Docker, through `web/dev/node.sh` (image `node:latest` unless `NODE_IMAGE` is set). The site is laid out as a paper: abstract (`docs/paper/abstract.md`, the landing page), introduction, methods (the levels), and later results, discussion and conclusion (`docs/superpowers/specs/2026-11-06-paper-structure-design.md`); `chapters` and `sectionTitles` in `site.config.mjs` give the order and the navigation groups. It renders those pages from `docs/` (the remark plugin in `web/site/src/plugins/` strips rustdoc-hidden lines and rewrites intra-doc links through the table in `web/site/site.config.mjs`; a link not in the table fails the build), keeps the stage B gate page at `/gate/` (and the step-through gate page at `/gate/step-through/`), and embeds a `<step-through>` custom element (`web/site/src/components/`, placed by the `demos` list in `site.config.mjs`) in chapters 1 to 4 that draws the real work partition from the wrapper's `partition_plan` and `env_info` on the lite module, so chapters need no threads and no service worker. `.github/workflows/pages.yml` builds the site on manual dispatch, on every push to `trunk` (which deploys it, unless the push only touches `docs/superpowers/`) and on pull requests (build only); the owner must set Settings > Pages > Source = GitHub Actions once, and `WASM_BINDGEN_VERSION` there must track the `=0.2.130` pin in `web/wasm/Cargo.toml`.
 
 ## Commands
 ````
@@ -567,4 +595,4 @@ git commit -m "describe the paper structure in CLAUDE.md"
 
 ## After this plan
 
-If every task passes, the site opens on an abstract, the introduction is its own page, and the five levels are grouped as the Methods, with the checker guarding the landing page. It is publishable as it stands: run the `Pages` workflow from `trunk` (and decide the repository name before that, because the site address is built from it). Next: **P2**, the reference-run script and `results.json`, the number placeholders in the prose plugin, the Results page and the playground.
+If every task passes, the site opens on an abstract, the introduction is its own page, and the five levels are grouped as the Methods, with the checker guarding the landing page. It is publishable as it stands: this branch is stacked on `pages-push-trigger`, so once both are merged (that one first) every push to `trunk` deploys the site automatically. Next: **P2**, the reference-run script and `results.json`, the number placeholders in the prose plugin, the Results page and the playground.
