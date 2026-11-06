@@ -1,7 +1,9 @@
 """Tiny static server for the browser gates (standard library only).
 
 Serves the current directory with the cross-origin-isolation headers that
-SharedArrayBuffer needs, and records the page's POST /report body to $REPORT.
+SharedArrayBuffer needs (unless $NO_ISOLATION is set, to imitate a host such as
+GitHub Pages that cannot send them), and records the page's POST /report body
+to $REPORT.
 Usage: python3 -I serve.py PORT   (run from the directory to serve)
 """
 import http.server
@@ -11,8 +13,9 @@ import sys
 
 class Handler(http.server.SimpleHTTPRequestHandler):
     def end_headers(self):
-        self.send_header("Cross-Origin-Opener-Policy", "same-origin")
-        self.send_header("Cross-Origin-Embedder-Policy", "require-corp")
+        if not os.environ.get("NO_ISOLATION"):
+            self.send_header("Cross-Origin-Opener-Policy", "same-origin")
+            self.send_header("Cross-Origin-Embedder-Policy", "require-corp")
         self.send_header("Cache-Control", "no-store")
         super().end_headers()
 
