@@ -61,6 +61,16 @@ test('placeholders in code spans and fences stay literal', async () => {
   assert.equal(out.split('{{ms simd}}').length - 1, 2);
 });
 
+test('an insertion can follow the paragraph after its heading', async () => {
+  const insertions = [{ chapter: 'levels/naive', afterHeading: 'Two', blocksAfter: 1, html: '<p>TABLE</p>' }];
+  const out = await render('# One\n\n# Two\n\nIntro.\n\nMore.\n', { insertions });
+  assert.ok(out.indexOf('Intro.') < out.indexOf('TABLE') && out.indexOf('TABLE') < out.indexOf('More.'), out);
+  await assert.rejects(
+    render('# Two\n\nIntro.\n', { insertions: [{ ...insertions[0], blocksAfter: 5 }] }),
+    /fewer than 5 blocks/,
+  );
+});
+
 test('a placeholder that does not resolve fails the build, naming the file', async () => {
   await assert.rejects(render('Took {{ms simd n=999}}.', { results }), /naive\.md: unresolvable placeholder "\{\{ms simd n=999\}\}"/);
 });

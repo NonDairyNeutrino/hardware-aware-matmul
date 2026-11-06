@@ -40,7 +40,9 @@ function plainText(node) {
  * @param {Record<string, string|null>} options.links
  *        intra-doc link target (without the "crate::" prefix) -> route under `base`,
  *        or null to show the text as plain code
- * @param {{chapter: string, afterHeading: string, html: string}[]} [options.insertions]
+ * @param {{chapter: string, afterHeading: string, html: string, blocksAfter?: number}[]} [options.insertions]
+ *        `blocksAfter` (default 0) skips that many blocks after the heading, so a table can
+ *        follow the paragraph that introduces it rather than the heading itself
  * @param {object|null} [options.results]  the parsed results.json, for placeholders
  */
 export default function remarkRustdoc({ base = '/', links = {}, insertions = [], results = null } = {}) {
@@ -79,7 +81,11 @@ export default function remarkRustdoc({ base = '/', links = {}, insertions = [],
       if (index === -1) {
         throw new Error(`${where}: no heading "${insertion.afterHeading}" to insert after`);
       }
-      tree.children.splice(index + 1, 0, { type: 'html', value: insertion.html });
+      const at = index + 1 + (insertion.blocksAfter ?? 0);
+      if (at > tree.children.length) {
+        throw new Error(`${where}: "${insertion.afterHeading}" has fewer than ${insertion.blocksAfter} blocks after it`);
+      }
+      tree.children.splice(at, 0, { type: 'html', value: insertion.html });
     }
 
     visit(tree, 'heading', (node) => {
