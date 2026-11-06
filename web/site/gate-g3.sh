@@ -29,6 +29,7 @@ fi
 
 [ -d node_modules ] || ../dev/node.sh site npm ci --no-audit --no-fund
 ../dev/node.sh site npm run build
+../dev/node.sh site npm run check
 
 ROOT=$(mktemp -d)
 trap 'rm -rf "$ROOT"' EXIT
