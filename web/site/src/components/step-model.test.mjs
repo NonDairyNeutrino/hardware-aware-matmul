@@ -81,3 +81,11 @@ test('captions describe the plan that is drawn', () => {
   assert.match(caption(4, tiles, 1, 4), /1 of 4 tiles done.*2 workers/);
   assert.match(caption(0, rows, 0, 3), /One thread/);
 });
+
+test('level 2 and 3 captions say the rows are shown one per step', () => {
+  for (const [level, step] of [[2, 2], [3, 1]]) {
+    const text = caption(level, rows, step, 3);
+    assert.match(text, /side by side/);
+    assert.match(text, /once per cache block/);
+  }
+});

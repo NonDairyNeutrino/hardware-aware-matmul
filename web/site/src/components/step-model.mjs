@@ -92,6 +92,13 @@ export function caption(level, plan, step, total) {
     );
   }
   const threads = plan.blocks.length;
+  if (level >= 2) {
+    return (
+      `Step ${step} of ${total}: the ${threads} thread${threads === 1 ? '' : 's'} advance side by side. ` +
+      'This animation finishes one row per step for clarity; the real kernel sweeps every row of ' +
+      'its block once per cache block of B, so a row is only final after the last block.'
+    );
+  }
   return (
     `Step ${step} of ${total}: each of the ${threads} thread${threads === 1 ? '' : 's'} has ` +
     `finished ${step} row${step === 1 ? '' : 's'} of its block (a block with fewer rows finishes early).`
