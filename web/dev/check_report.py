@@ -63,6 +63,9 @@ def main(gate, path):
             problems.append("wrong base path: %r" % report.get("base"))
         if not report.get("loads", 0) >= 1:
             problems.append("the page never reloaded: isolation did not come from the service worker")
+        scopes = report.get("sw_scopes")
+        if not scopes or not all(s.endswith("/matmul_levels.rs/") for s in scopes):
+            problems.append("the service worker scope must be the site root /matmul_levels.rs/, got %r" % scopes)
 
     if gate == "g5":
         if not probes:

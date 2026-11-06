@@ -1,6 +1,7 @@
 ---
-// Stage B gate G3 page: runs the same worker as the plain gates, from a
-// production build. The real site replaces this page.
+// Stage B gate G3 page, kept at /gate/: runs the same worker as the plain gates
+// from a production build. The service worker is registered only by pages that
+// need threads (this one and, later, the playground), never by the chapters.
 const base = import.meta.env.BASE_URL;
 ---
 <html lang="en">
@@ -38,13 +39,17 @@ const base = import.meta.env.BASE_URL;
         status.textContent = 'isolated; running ' + gate;
         const expected = await (await fetch(`${base}expected.json`)).json();
         // The same worker the plain gates use; its wasm import resolves to web/wasm/pkg.
-        const worker = new Worker(new URL('../../../wasm/www/worker.js', import.meta.url), { type: 'module' });
+        const worker = new Worker(new URL('../../../../wasm/www/worker.js', import.meta.url), { type: 'module' });
         const result = await new Promise((resolve) => {
           worker.onmessage = (event) => resolve(event.data);
-          worker.onerror = (event) => resolve({ gate, ok: false, error: 'worker error: ' + event.message });
+          worker.onerror = (event) => resolve({ gate, ok: false, error: `worker error: ${event.message} (${event.filename}:${event.lineno}:${event.colno})` });
           worker.postMessage({ gate, threads: 4, expected });
         });
         result.base = base;
+        // The service worker's scope. It must cover the whole site: the worker script
+        // and wasm are served from /_astro/, and only responses inside the scope get
+        // the isolation headers.
+        result.sw_scopes = (await navigator.serviceWorker.getRegistrations()).map((r) => r.scope);
         result.loads = Number(sessionStorage.getItem('loads') || 0);
         await post(result);
         status.textContent = result.ok ? 'done' : 'failed';
