@@ -40,5 +40,23 @@ export const links = {
   ].map((key) => [key, null])),
 };
 
+const video = (file, caption) =>
+  `<figure class="video"><video controls playsinline preload="metadata" src="${base}media/${file}"></video>` +
+  `<figcaption>${caption}</figcaption></figure>`;
+
 // Figures and demos inserted after a heading of a chapter (by heading text).
-export const insertions = [];
+export const insertions = [
+  {
+    chapter: 'levels/naive',
+    afterHeading: 'The idea',
+    html: video('NaiveMatMul.mp4', 'The textbook triple loop, animated.'),
+  },
+  {
+    chapter: 'levels/threaded',
+    afterHeading: 'What changed from level 0',
+    html: video(
+      'ParallelNaiveMatMul.mp4',
+      'Three threads, one row of the output each: the one-row case of the row blocks described below.',
+    ),
+  },
+];

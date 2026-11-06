@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "prebuild": "rm -rf node_modules/.astro .astro && mkdir -p public && cp node_modules/coi-serviceworker/coi-serviceworker.js public/coi-serviceworker.js",
+    "prebuild": "rm -rf node_modules/.astro .astro && mkdir -p public/media && cp node_modules/coi-serviceworker/coi-serviceworker.js public/coi-serviceworker.js && cp ../../anim/media/videos/naive_matmul/480p15/NaiveMatMul.mp4 ../../anim/media/videos/naive_matmul_parallel/480p15/ParallelNaiveMatMul.mp4 public/media/",
     "build": "astro build",
     "test": "node --test src/plugins/",
     "check": "node check-dist.mjs"
