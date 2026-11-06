@@ -36,7 +36,7 @@ error types.
 | `error`                     | yes      | `MatmulError`, `DimensionMismatch`, and the shared shape check. |
 | `naive`                     | yes      | Level 0. |
 | `threaded`                  | yes      | Level 1, `row_block_plan`, and the row-block driver that levels 2 and 3 reuse. |
-| `runner`                    | yes      | `Runner` and `StdRunner`: where levels 1 to 3 run their row-block jobs. |
+| `runner`                    | yes      | `Runner` and `StdRunner`: where levels 1 to 4 run their jobs. |
 | `cache_friendly`            | yes      | Level 2, including `axpy`, `BlockConfig`, and the default cache-block constants used by levels 3 and 4. |
 | `simd`                      | yes      | Level 3: the register-blocked micro-kernel and `micro_tile_shape`. |
 | `streaming`                 | yes      | Level 4 and its submodules (below). |
