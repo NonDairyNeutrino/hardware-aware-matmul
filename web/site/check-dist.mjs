@@ -70,11 +70,15 @@ for (const chapter of chapters) {
       problems.push(`${where}: its script ${script} refers to the service worker; chapters must not`);
     }
   }
+  if (/navigator\.serviceWorker|\.serviceWorker\.register/i.test(html)) {
+    problems.push(`${where}: registers a service worker inline; chapters must not`);
+  }
   const wanted = demos.filter((d) => d.chapter === chapter.id).map((d) => d.level);
   const present = [...html.matchAll(/<step-through level="(\d)"/g)].map((m) => Number(m[1]));
   if (JSON.stringify(wanted) !== JSON.stringify(present)) {
     problems.push(`${where}: step-through demos for levels [${present}], site.config.mjs says [${wanted}]`);
   }
+  if (wanted.length > 0 && reachableScripts(html).length === 0) problems.push(`${where}: has a demo but loads no script`);
   if (wanted.length === 0 && /<script/.test(html)) problems.push(`${where}: has no demo but loads a script`);
 }
 
