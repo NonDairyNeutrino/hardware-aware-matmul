@@ -86,7 +86,7 @@ mod tests {
 
     #[test]
     fn every_level_has_the_naive_hash() {
-        for n in [1, 7, 33, 64] {
+        for n in [1, 7, 33, 64, 130] {
             let expected = run_hash(0, n, 1, 32, 64, &StdRunner).unwrap();
             for level in 1..=4 {
                 for threads in [1, 3] {
