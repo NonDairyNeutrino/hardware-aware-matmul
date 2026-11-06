@@ -18,10 +18,12 @@ case "$FEATURES" in
 esac
 TARGET_DIR=${CARGO_TARGET_DIR:-$PWD/target}
 
-# Atomics, shared memory and the TLS exports that wasm-bindgen-rayon needs. They
-# live here, not in .cargo/config.toml, so the stable single-threaded build and
-# native `cargo test` never see them. RUSTFLAGS replaces any other rustflags.
-RUSTFLAGS="-C target-feature=+atomics,+bulk-memory"
+# Atomics, shared memory and the TLS exports that wasm-bindgen-rayon needs, and 128-bit
+# SIMD (every current browser has it), which lets the level 3 micro-kernel be
+# auto-vectorised to wasm vector instructions. They live here, not in
+# .cargo/config.toml, so native `cargo test` never sees them. RUSTFLAGS replaces any
+# other rustflags.
+RUSTFLAGS="-C target-feature=+atomics,+bulk-memory,+simd128"
 RUSTFLAGS="$RUSTFLAGS -C link-arg=--shared-memory -C link-arg=--max-memory=1073741824"
 RUSTFLAGS="$RUSTFLAGS -C link-arg=--import-memory"
 RUSTFLAGS="$RUSTFLAGS -C link-arg=--export=__wasm_init_tls -C link-arg=--export=__tls_size"

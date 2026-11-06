@@ -9,7 +9,10 @@ cd "$(dirname "$0")"
 WASM_BINDGEN=${WASM_BINDGEN:-wasm-bindgen}
 TARGET_DIR="${CARGO_TARGET_DIR:-$PWD/target}-lite"
 # `+stable` overrides the nightly pinned for this directory by rust-toolchain.toml.
-cargo +stable build --release --target wasm32-unknown-unknown --target-dir "$TARGET_DIR"
+# 128-bit SIMD (every current browser has it) lets the level 3 micro-kernel be
+# auto-vectorised to wasm vector instructions. RUSTFLAGS replaces any other rustflags.
+RUSTFLAGS="-C target-feature=+simd128" \
+  cargo +stable build --release --target wasm32-unknown-unknown --target-dir "$TARGET_DIR"
 rm -rf pkg-lite
 "$WASM_BINDGEN" --target web --out-dir pkg-lite \
   "$TARGET_DIR/wasm32-unknown-unknown/release/hardware_aware_matmul_web.wasm"

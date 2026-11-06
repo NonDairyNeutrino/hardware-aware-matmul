@@ -37,8 +37,8 @@ def check_stepthrough(report):
         env = e["env"]
         ok_tile = isinstance(env.get("micro_tile"), list) and len(env["micro_tile"]) == 2 and all(
             isinstance(x, int) and x > 0 for x in env["micro_tile"])
-        if not (env.get("isa") and ok_tile and env.get("threads") is False):
-            problems.append("level %d: bad env %r (the lite build has no threads)" % (level, env))
+        if not (env.get("isa") == "WASM SIMD128" and ok_tile and env.get("threads") is False):
+            problems.append("level %d: bad env %r (the lite build has no threads and is built with simd128)" % (level, env))
     one = elements[1]
     # `row_block_plan`'s own documented example: 10 rows over 4 threads.
     if one["plan"] != rows([[0, 3], [3, 6], [6, 9], [9, 10]]):
