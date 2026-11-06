@@ -44,8 +44,22 @@ const video = (file, caption) =>
   `<figure class="video"><video controls playsinline preload="metadata" src="${base}media/${file}"></video>` +
   `<figcaption>${caption}</figcaption></figure>`;
 
+// Step-through demos (see src/components/step-through.js): the level they show and the
+// heading of the chapter they go under. Levels 1 to 4 have one; level 0 has no plan to show.
+export const demos = [
+  { chapter: 'levels/threaded', afterHeading: 'What it gets right', level: 1 },
+  { chapter: 'levels/cache_friendly', afterHeading: 'Change 2: cache blocking', level: 2 },
+  { chapter: 'levels/simd', afterHeading: 'The micro-kernel', level: 3 },
+  { chapter: 'levels/streaming', afterHeading: 'The algorithm', level: 4 },
+];
+
 // Figures and demos inserted after a heading of a chapter (by heading text).
 export const insertions = [
+  ...demos.map(({ chapter, afterHeading, level }) => ({
+    chapter,
+    afterHeading,
+    html: `<step-through level="${level}"></step-through>`,
+  })),
   {
     chapter: 'levels/naive',
     afterHeading: 'The idea',

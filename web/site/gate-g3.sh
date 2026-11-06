@@ -5,6 +5,7 @@
 # /matmul_levels.rs/gate/; the service worker is registered from the site root so
 # its scope covers /_astro/ (the worker and wasm). Passes only if all 29 cases hash
 # exactly like native Rust, the page reloaded, and the scope is /matmul_levels.rs/.
+# The site build also needs the lite module (the step-through), so both are built.
 # usage: gate-g3.sh [--no-build]
 # env: WASM_BINDGEN, NODE_IMAGE (default node:latest), PORT, TIMEOUT (seconds)
 set -euo pipefail
@@ -17,7 +18,7 @@ if [ "${1:-}" = "--no-build" ]; then
     echo "REFUSING: pkg/ was not built for the bundler; run ./gate-g3.sh without --no-build"; exit 1
   fi
 else
-  (cd "$WASM" && FEATURES=threads ./build.sh)
+  (cd "$WASM" && ./build-lite.sh && FEATURES=threads ./build.sh)
 fi
 
 mkdir -p "$WASM/target" "$SITE/public"

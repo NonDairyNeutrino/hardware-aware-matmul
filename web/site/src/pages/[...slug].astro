@@ -1,7 +1,7 @@
 ---
 import { getCollection, render } from 'astro:content';
 import Page from '../layouts/Page.astro';
-import { chapters } from '../../site.config.mjs';
+import { chapters, demos } from '../../site.config.mjs';
 
 export async function getStaticPaths() {
   const entries = await getCollection('chapters');
@@ -18,6 +18,6 @@ export async function getStaticPaths() {
 const { entry, chapter, previous, next } = Astro.props;
 const { Content } = await render(entry);
 ---
-<Page title={chapter.title} previous={previous} next={next}>
+<Page title={chapter.title} previous={previous} next={next} interactive={demos.some((d) => d.chapter === chapter.id)}>
   <Content />
 </Page>

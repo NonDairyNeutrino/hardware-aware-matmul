@@ -1,13 +1,16 @@
 ---
 import '../styles/site.css';
+import StepThroughLoader from '../components/StepThroughLoader.astro';
 import { chapters, repoUrl, siteTitle } from '../../site.config.mjs';
 
 interface Props {
   title: string;
   previous?: { title: string; route: string } | null;
   next?: { title: string; route: string } | null;
+  // The page has a step-through demo, so it loads the script that defines it.
+  interactive?: boolean;
 }
-const { title, previous = null, next = null } = Astro.props;
+const { title, previous = null, next = null, interactive = false } = Astro.props;
 const base = import.meta.env.BASE_URL;
 const here = Astro.url.pathname;
 const pageTitle = title === 'Introduction' ? siteTitle : `${title} · ${siteTitle}`;
@@ -46,6 +49,7 @@ const pageTitle = title === 'Introduction' ? siteTitle : `${title} · ${siteTitl
         {next ? <a rel="next" href={base + next.route}>{next.title} →</a> : <span />}
       </nav>
     </main>
+    {interactive && <StepThroughLoader />}
     <footer class="site-footer">
       <a href={repoUrl}>Source on GitHub</a>
     </footer>
