@@ -124,3 +124,32 @@ step-through:not([data-state]) { display: none; }
 @media (prefers-reduced-motion: no-preference) {
   .st-grid rect[data-row] { transition: opacity 0.2s; }
 }
+
+/* Results page: generated tables and charts */
+.results-figure { margin: 0 0 1.25rem; }
+.results-figure figcaption { margin-bottom: 0.4rem; font-size: 0.92rem; font-weight: 600; }
+.table-scroll { overflow-x: auto; }
+table.results { border-collapse: collapse; width: 100%; font-size: 0.92rem; font-variant-numeric: tabular-nums; }
+table.results th, table.results td { padding: 0.35rem 0.6rem; border-bottom: 1px solid var(--border); text-align: right; white-space: nowrap; }
+table.results th:first-child { text-align: left; }
+table.results td.noisy { color: var(--muted); font-style: italic; }
+.table-note { margin-top: -0.75rem; font-size: 0.85rem; color: var(--muted); }
+figure.chart { margin: 0 0 1.5rem; }
+figure.chart svg { width: 100%; height: auto; }
+figure.chart figcaption { font-size: 0.9rem; color: var(--muted); }
+.chart .grid { stroke: var(--border); stroke-width: 1; }
+.chart .tick, .chart .axis, .chart .legend { fill: var(--fg); font-size: 11px; }
+.chart .value { fill: var(--muted); font-size: 10px; }
+.chart .bar-native { fill: var(--owner-0); }
+.chart .bar-browser-lite { fill: var(--owner-1); }
+.chart .bar-browser-threads { fill: var(--owner-2); }
+.chart .line { fill: none; stroke-width: 2; }
+.chart polyline.line-1, .chart line.line-1 { stroke: var(--owner-0); }
+.chart polyline.line-2, .chart line.line-2 { stroke: var(--owner-1); }
+.chart polyline.line-3, .chart line.line-3 { stroke: var(--owner-2); }
+.chart polyline.line-4, .chart line.line-4 { stroke: var(--owner-3); }
+.chart circle.line-1 { fill: var(--owner-0); }
+.chart circle.line-2 { fill: var(--owner-1); }
+.chart circle.line-3 { fill: var(--owner-2); }
+.chart circle.line-4 { fill: var(--owner-3); }
+.chart .ideal { fill: none; stroke: var(--muted); stroke-width: 1.5; stroke-dasharray: 4 3; }

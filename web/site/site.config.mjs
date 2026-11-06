@@ -1,3 +1,6 @@
+import results from './src/data/results.json' with { type: 'json' };
+import { bestTable, scalingChart, scalingTable, throughputChart } from './src/results/render.mjs';
+
 // Everything about the site that is not in docs/: the chapters have no frontmatter
 // (rustdoc would show it as text), so their titles, order and routes live here.
 
@@ -5,6 +8,9 @@
 export const base = '/hardware-aware-matmul/';
 export const siteTitle = 'Mechanical sympathy';
 export const siteSubtitle = 'Five levels of matrix multiplication in Rust';
+// The reference run's data: the numbers of the Results page (placeholders in its prose,
+// and the tables and charts built from it) come from here and nowhere else.
+export { results };
 export const repoUrl = 'https://github.com/NonDairyNeutrino/hardware-aware-matmul';
 
 // The site is laid out as a paper: abstract (the home page), introduction, methods (the
@@ -20,6 +26,7 @@ export const chapters = [
   { id: 'levels/cache_friendly', title: 'Level 2: cache blocking', route: 'levels/cache_friendly/', section: 'methods' },
   { id: 'levels/simd', title: 'Level 3: registers and SIMD', route: 'levels/simd/', section: 'methods' },
   { id: 'levels/streaming', title: 'Level 4: streaming', route: 'levels/streaming/', section: 'methods' },
+  { id: 'paper/results', title: 'Results', route: 'results/', section: 'results' },
 ];
 
 // Labels for the sections that group several pages.
@@ -81,4 +88,15 @@ export const insertions = [
       'Three threads, one row of the output each: the one-row case of the row blocks described below.',
     ),
   },
+  // The Results page: tables and charts generated from the data, after the paragraph that
+  // introduces each.
+  { chapter: 'paper/results', afterHeading: 'Native', blocksAfter: 1,
+    html: bestTable(results, { environment: 'native' }) },
+  { chapter: 'paper/results', afterHeading: 'Thread scaling, native', blocksAfter: 1,
+    html: scalingTable(results, { environment: 'native' }) + scalingChart(results, { environment: 'native' }) },
+  { chapter: 'paper/results', afterHeading: 'In the browser', blocksAfter: 1,
+    html: bestTable(results, { environment: 'browser-lite' }) + bestTable(results, { environment: 'browser-threads' }) +
+      throughputChart(results, {}) },
+  { chapter: 'paper/results', afterHeading: 'Thread scaling in the browser', blocksAfter: 1,
+    html: scalingTable(results, { environment: 'browser-threads' }) + scalingChart(results, { environment: 'browser-threads' }) },
 ];
