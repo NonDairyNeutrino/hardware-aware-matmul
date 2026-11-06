@@ -2,7 +2,7 @@
 # Runs one browser gate headlessly and exits non-zero unless it passes.
 # usage: gate.sh g1|g2|probe [--no-build]
 #   g1     the thread pool starts and runs a parallel sum
-#   g2     22 cases (levels 0 to 3) must hash exactly like native Rust
+#   g2     29 cases (levels 0 to 4) must hash exactly like native Rust
 #   probe  informational: records that StdRunner traps in the browser
 # env: WASM_BINDGEN (path to the CLI), PORT (default 8765), TIMEOUT (seconds)
 # --no-build reuses pkg/, but refuses if pkg/ is missing, was built for the

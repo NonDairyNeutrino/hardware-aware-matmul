@@ -36,7 +36,7 @@ pub fn pool_threads() -> usize {
     rayon::current_num_threads()
 }
 
-/// Gate G2: the bit hash of a level's product, with its row blocks on the pool.
+/// Gate G2: the bit hash of a level's product (0 to 4), with its work on the pool.
 #[wasm_bindgen]
 pub fn run_case(
     level: u32,

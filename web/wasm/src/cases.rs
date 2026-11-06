@@ -7,6 +7,7 @@ use std::num::NonZeroUsize;
 
 use naive_matmul::cache_friendly::{self, BlockConfig};
 use naive_matmul::runner::Runner;
+use naive_matmul::streaming::{self, MemorySink, StreamConfig};
 use naive_matmul::{naive, simd, threaded, Matrix};
 
 /// Operands with entries of very different magnitudes, so nearly every partial
@@ -38,9 +39,10 @@ pub fn bit_hash(matrix: &Matrix) -> String {
 }
 
 /// Multiplies two `n × n` rough matrices at `level` (0 = naive, 1 = threaded,
-/// 2 = cache_friendly, 3 = simd) and returns the result's bit hash.
+/// 2 = cache_friendly, 3 = simd, 4 = streaming with 64 × 64 × 64 tiles) and
+/// returns the result's bit hash.
 ///
-/// Levels 1 to 3 run their row blocks on `runner`.
+/// Levels 1 to 4 run their work on `runner`.
 pub fn run_hash<R: Runner + ?Sized>(
     level: u32,
     n: usize,
@@ -58,13 +60,22 @@ pub fn run_hash<R: Runner + ?Sized>(
     let block = BlockConfig::new(tile_k, tile_j);
     let (a, b) = rough_operands(n, n, n);
     let c = match level {
-        0 => naive::matmul(&a, &b),
-        1 => threaded::matmul_with_runner(&a, &b, threads, runner),
-        2 => cache_friendly::matmul_with_runner(&a, &b, threads, &block, runner),
-        3 => simd::matmul_with_runner(&a, &b, threads, &block, runner),
-        other => return Err(format!("level must be 0 to 3, got {other}")),
-    }
-    .map_err(|e| e.to_string())?;
+        0 => naive::matmul(&a, &b).map_err(|e| e.to_string())?,
+        1 => threaded::matmul_with_runner(&a, &b, threads, runner).map_err(|e| e.to_string())?,
+        2 => cache_friendly::matmul_with_runner(&a, &b, threads, &block, runner)
+            .map_err(|e| e.to_string())?,
+        3 => simd::matmul_with_runner(&a, &b, threads, &block, runner).map_err(|e| e.to_string())?,
+        4 => {
+            let config = StreamConfig::new(threads)
+                .with_tile_shape(64, 64, 64)
+                .with_block_config(block);
+            let sink = MemorySink::new(n, n);
+            streaming::matmul_streaming_with_runner(&a, &b, &sink, &config, runner)
+                .map_err(|e| e.to_string())?;
+            sink.into_matrix()
+        }
+        other => return Err(format!("level must be 0 to 4, got {other}")),
+    };
     Ok(bit_hash(&c))
 }
 
@@ -77,7 +88,7 @@ mod tests {
     fn every_level_has_the_naive_hash() {
         for n in [1, 7, 33, 64] {
             let expected = run_hash(0, n, 1, 32, 64, &StdRunner).unwrap();
-            for level in 1..=3 {
+            for level in 1..=4 {
                 for threads in [1, 3] {
                     let got = run_hash(level, n, threads, 32, 64, &StdRunner).unwrap();
                     assert_eq!(got, expected, "level {level}, n {n}, {threads} threads");
@@ -90,7 +101,7 @@ mod tests {
     fn block_sizes_do_not_change_the_hash() {
         let expected = run_hash(0, 40, 1, 32, 64, &StdRunner).unwrap();
         for (tile_k, tile_j) in [(1, 1), (7, 2), (1000, 1000)] {
-            for level in [2, 3] {
+            for level in [2, 3, 4] {
                 let got = run_hash(level, 40, 2, tile_k, tile_j, &StdRunner).unwrap();
                 assert_eq!(got, expected, "level {level}, block {tile_k}x{tile_j}");
             }
@@ -102,6 +113,7 @@ mod tests {
         assert!(run_hash(1, 8, 0, 32, 64, &StdRunner).is_err());
         assert!(run_hash(2, 8, 1, 0, 64, &StdRunner).is_err());
         assert!(run_hash(3, 8, 1, 32, 0, &StdRunner).is_err());
+        assert!(run_hash(5, 8, 1, 32, 64, &StdRunner).is_err());
         assert!(run_hash(9, 8, 1, 32, 64, &StdRunner).is_err());
         assert!(run_hash(1, 0, 1, 32, 64, &StdRunner).is_err());
         assert!(run_hash(1, 4096, 1, 32, 64, &StdRunner).is_err());

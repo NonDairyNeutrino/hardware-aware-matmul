@@ -3,14 +3,14 @@
 Usage: python3 -I check_report.py GATE REPORT.json
 Exits 0 on pass, 1 on failure. Gates:
   g1     the thread pool starts and a parallel sum is right
-  g2     every case's hash equals the native hash (levels 0 to 3)
+  g2     every case's hash equals the native hash (levels 0 to 4)
   probe  informational: records whether StdRunner works in the browser
 """
 import json
 import sys
 
-G2_CASES = 22
-SPEEDUP_LEVELS = (1, 2, 3)
+G2_CASES = 29
+SPEEDUP_LEVELS = (1, 2, 3, 4)
 
 
 def main(gate, path):
