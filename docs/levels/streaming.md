@@ -71,8 +71,8 @@ PROCEDURE matmul_streaming(A, B, C, config)
     workers       ← MIN(config.threads, total_tiles)
 
     next_tile ← AtomicCounter(0);  failed ← AtomicFlag(false)
-    SPAWN `workers` threads running run_worker(...); JOIN them
-    re-raise any panic; RETURN the first error, or OK
+    RUN `workers` jobs of run_worker(...) on the runner (by default one scoped
+    thread each) and wait for all; RETURN the first error, or OK
 
 
 PROCEDURE run_worker(A, B, C, plan, next_tile, failed)
@@ -163,7 +163,7 @@ your own data sources, implement [`TileSource`] and [`TileSink`].
 | `n = 0`                       | Every output tile is zeros (the empty sum); written as such.|
 | Tile larger than the matrix   | Clamped; one tile covers the whole dimension.               |
 | Dimensions not divisible by tile | Edge tiles are smaller; buffers use only the needed prefix.|
-| More threads than tiles       | Only as many workers as tiles are spawned.                  |
+| More threads than tiles       | Only as many worker jobs as tiles run (scoped threads by default).|
 
 # Why it is correct
 
