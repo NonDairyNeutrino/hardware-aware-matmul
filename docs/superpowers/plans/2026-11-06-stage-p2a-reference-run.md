@@ -133,7 +133,7 @@ From `web/wasm`, with `export WASM_BINDGEN="$HOME/.cargo/bin/wasm-bindgen"` and 
 From `web/site` (a full build: both modules, the site, then the gate on the production build):
 
 ```bash
-./gate-c2.sh 2>&1 | grep -E "page|check-dist|GATE|FAIL|REFUS"    # 8 page(s) built, check-dist: PASS (8 pages), GATE STEPTHROUGH: PASS
+./gate-c2.sh 2>&1 | grep -E "page|check-dist|GATE|FAIL|REFUS"    # 9 page(s) built, check-dist: PASS (9 pages), GATE STEPTHROUGH: PASS
 ```
 
 Every gate compares the browser's results with the native hashes, so a `PASS` here shows that `simd128` changed no result bit. If a gate reports a hash mismatch, stop and report BLOCKED: that would mean the vectorisation changed the arithmetic.
