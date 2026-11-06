@@ -1,4 +1,4 @@
-//! Browser wrapper around `naive_matmul` (stage B spike).
+//! Browser wrapper around `hardware_aware_matmul` (stage B spike).
 //!
 //! Everything here runs inside a Web Worker. With the `threads` feature the thread
 //! pool comes from `wasm-bindgen-rayon` and [`RayonRunner`] hands the crate's jobs
@@ -8,7 +8,7 @@
 pub mod cases;
 pub mod plan;
 
-use naive_matmul::runner::{Runner, StdRunner};
+use hardware_aware_matmul::runner::{Runner, StdRunner};
 #[cfg(feature = "threads")]
 use rayon::prelude::*;
 use wasm_bindgen::prelude::*;

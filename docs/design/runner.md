@@ -23,8 +23,8 @@ every one.
 
 ```rust
 use std::num::NonZeroUsize;
-use naive_matmul::runner::Runner;
-use naive_matmul::{threaded, Matrix};
+use hardware_aware_matmul::runner::Runner;
+use hardware_aware_matmul::{threaded, Matrix};
 
 /// Runs every job on the calling thread, one after another.
 struct Inline;
@@ -42,7 +42,7 @@ let b = Matrix::new(3, 2, vec![7.0, 8.0, 9.0, 10.0, 11.0, 12.0]);
 let threads = NonZeroUsize::new(2).unwrap();
 let c = threaded::matmul_with_runner(&a, &b, threads, &Inline)?;
 assert_eq!(c, Matrix::new(2, 2, vec![58.0, 64.0, 139.0, 154.0]));
-# Ok::<(), naive_matmul::DimensionMismatch>(())
+# Ok::<(), hardware_aware_matmul::DimensionMismatch>(())
 ```
 
 Level 4 takes a runner too:

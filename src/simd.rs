@@ -31,7 +31,7 @@ pub(crate) const NR: usize = if cfg!(target_feature = "avx") { 8 } else { 4 };
 /// # Examples
 ///
 /// ```
-/// let isa = naive_matmul::simd::target_vector_isa();
+/// let isa = hardware_aware_matmul::simd::target_vector_isa();
 /// assert!(!isa.is_empty());
 /// ```
 pub fn target_vector_isa() -> &'static str {
@@ -256,13 +256,13 @@ fn multiply_row_block(a: &Matrix, b: &Matrix, first_row: usize, c_block: &mut [f
 ///
 /// ```
 /// use std::num::NonZeroUsize;
-/// use naive_matmul::{simd, Matrix};
+/// use hardware_aware_matmul::{simd, Matrix};
 ///
 /// let a = Matrix::new(2, 3, vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
 /// let b = Matrix::new(3, 2, vec![7.0, 8.0, 9.0, 10.0, 11.0, 12.0]);
 /// let c = simd::matmul(&a, &b, NonZeroUsize::new(2).unwrap())?;
 /// assert_eq!(c, Matrix::new(2, 2, vec![58.0, 64.0, 139.0, 154.0]));
-/// # Ok::<(), naive_matmul::DimensionMismatch>(())
+/// # Ok::<(), hardware_aware_matmul::DimensionMismatch>(())
 /// ```
 pub fn matmul(a: &Matrix, b: &Matrix, threads: NonZeroUsize) -> Result<Matrix, DimensionMismatch> {
     matmul_with_config(a, b, threads, &BlockConfig::default())
@@ -282,15 +282,15 @@ pub fn matmul(a: &Matrix, b: &Matrix, threads: NonZeroUsize) -> Result<Matrix, D
 ///
 /// ```
 /// use std::num::NonZeroUsize;
-/// use naive_matmul::cache_friendly::BlockConfig;
-/// use naive_matmul::{simd, Matrix};
+/// use hardware_aware_matmul::cache_friendly::BlockConfig;
+/// use hardware_aware_matmul::{simd, Matrix};
 ///
 /// let a = Matrix::new(2, 3, vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
 /// let b = Matrix::new(3, 2, vec![7.0, 8.0, 9.0, 10.0, 11.0, 12.0]);
 /// let one = NonZeroUsize::new(1).unwrap();
 /// let c = simd::matmul_with_config(&a, &b, one, &BlockConfig::new(one, one))?;
 /// assert_eq!(c, Matrix::new(2, 2, vec![58.0, 64.0, 139.0, 154.0]));
-/// # Ok::<(), naive_matmul::DimensionMismatch>(())
+/// # Ok::<(), hardware_aware_matmul::DimensionMismatch>(())
 /// ```
 pub fn matmul_with_config(
     a: &Matrix,

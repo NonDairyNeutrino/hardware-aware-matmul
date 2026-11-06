@@ -51,7 +51,7 @@ const DEFAULT_TILE: usize = 256;
 ///
 /// ```
 /// use std::num::NonZeroUsize;
-/// use naive_matmul::streaming::StreamConfig;
+/// use hardware_aware_matmul::streaming::StreamConfig;
 ///
 /// let config = StreamConfig::new(NonZeroUsize::new(4).unwrap())
 ///     .with_tile_shape(128, 128, 128);
@@ -106,8 +106,8 @@ impl StreamConfig {
     ///
     /// ```
     /// use std::num::NonZeroUsize;
-    /// use naive_matmul::cache_friendly::BlockConfig;
-    /// use naive_matmul::streaming::StreamConfig;
+    /// use hardware_aware_matmul::cache_friendly::BlockConfig;
+    /// use hardware_aware_matmul::streaming::StreamConfig;
     ///
     /// let one = NonZeroUsize::new(1).unwrap();
     /// let block = BlockConfig::new(NonZeroUsize::new(8).unwrap(), NonZeroUsize::new(16).unwrap());
@@ -250,7 +250,7 @@ pub struct TilePlan {
 ///
 /// ```
 /// use std::num::NonZeroUsize;
-/// use naive_matmul::streaming::{tile_plan, StreamConfig};
+/// use hardware_aware_matmul::streaming::{tile_plan, StreamConfig};
 ///
 /// let config = StreamConfig::new(NonZeroUsize::new(2).unwrap()).with_tile_shape(2, 3, 4);
 /// let plan = tile_plan(4, 6, 6, &config);
@@ -378,8 +378,8 @@ where
 ///
 /// ```
 /// use std::num::NonZeroUsize;
-/// use naive_matmul::Matrix;
-/// use naive_matmul::streaming::{matmul_streaming, MemorySink, StreamConfig};
+/// use hardware_aware_matmul::Matrix;
+/// use hardware_aware_matmul::streaming::{matmul_streaming, MemorySink, StreamConfig};
 ///
 /// let a = Matrix::new(2, 3, vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
 /// let b = Matrix::new(3, 2, vec![7.0, 8.0, 9.0, 10.0, 11.0, 12.0]);
@@ -390,7 +390,7 @@ where
 /// matmul_streaming(&a, &b, &sink, &config)?;
 ///
 /// assert_eq!(sink.into_matrix(), Matrix::new(2, 2, vec![58.0, 64.0, 139.0, 154.0]));
-/// # Ok::<(), naive_matmul::MatmulError>(())
+/// # Ok::<(), hardware_aware_matmul::MatmulError>(())
 /// ```
 pub fn matmul_streaming<A, B, C>(
     a: &A,
@@ -495,14 +495,14 @@ where
 ///
 /// ```
 /// use std::num::NonZeroUsize;
-/// use naive_matmul::Matrix;
-/// use naive_matmul::streaming::matmul;
+/// use hardware_aware_matmul::Matrix;
+/// use hardware_aware_matmul::streaming::matmul;
 ///
 /// let a = Matrix::new(2, 3, vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
 /// let b = Matrix::new(3, 2, vec![7.0, 8.0, 9.0, 10.0, 11.0, 12.0]);
 /// let c = matmul(&a, &b, NonZeroUsize::new(2).unwrap())?;
 /// assert_eq!(c, Matrix::new(2, 2, vec![58.0, 64.0, 139.0, 154.0]));
-/// # Ok::<(), naive_matmul::MatmulError>(())
+/// # Ok::<(), hardware_aware_matmul::MatmulError>(())
 /// ```
 pub fn matmul(a: &Matrix, b: &Matrix, threads: NonZeroUsize) -> Result<Matrix, MatmulError> {
     let (m, _, p) = check_inner_dimensions((a.rows(), a.cols()), (b.rows(), b.cols()))?;

@@ -5,10 +5,10 @@
 
 use std::num::NonZeroUsize;
 
-use naive_matmul::cache_friendly::{self, BlockConfig};
-use naive_matmul::runner::Runner;
-use naive_matmul::streaming::{self, MemorySink, StreamConfig};
-use naive_matmul::{naive, simd, threaded, Matrix};
+use hardware_aware_matmul::cache_friendly::{self, BlockConfig};
+use hardware_aware_matmul::runner::Runner;
+use hardware_aware_matmul::streaming::{self, MemorySink, StreamConfig};
+use hardware_aware_matmul::{naive, simd, threaded, Matrix};
 
 /// Operands with entries of very different magnitudes, so nearly every partial
 /// sum rounds and any change in summation order changes the bits. This is the
@@ -82,7 +82,7 @@ pub fn run_hash<R: Runner + ?Sized>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use naive_matmul::runner::StdRunner;
+    use hardware_aware_matmul::runner::StdRunner;
 
     #[test]
     fn every_level_has_the_naive_hash() {

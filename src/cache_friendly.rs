@@ -33,7 +33,7 @@ pub(crate) const TILE_J: usize = 64;
 ///
 /// ```
 /// use std::num::NonZeroUsize;
-/// use naive_matmul::cache_friendly::BlockConfig;
+/// use hardware_aware_matmul::cache_friendly::BlockConfig;
 ///
 /// let default = BlockConfig::default();
 /// assert_eq!((default.tile_k(), default.tile_j()), (32, 64));
@@ -140,13 +140,13 @@ fn multiply_row_block(a: &Matrix, b: &Matrix, first_row: usize, c_block: &mut [f
 ///
 /// ```
 /// use std::num::NonZeroUsize;
-/// use naive_matmul::{cache_friendly, Matrix};
+/// use hardware_aware_matmul::{cache_friendly, Matrix};
 ///
 /// let a = Matrix::new(2, 3, vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
 /// let b = Matrix::new(3, 2, vec![7.0, 8.0, 9.0, 10.0, 11.0, 12.0]);
 /// let c = cache_friendly::matmul(&a, &b, NonZeroUsize::new(2).unwrap())?;
 /// assert_eq!(c, Matrix::new(2, 2, vec![58.0, 64.0, 139.0, 154.0]));
-/// # Ok::<(), naive_matmul::DimensionMismatch>(())
+/// # Ok::<(), hardware_aware_matmul::DimensionMismatch>(())
 /// ```
 pub fn matmul(a: &Matrix, b: &Matrix, threads: NonZeroUsize) -> Result<Matrix, DimensionMismatch> {
     matmul_with_config(a, b, threads, &BlockConfig::default())
@@ -165,15 +165,15 @@ pub fn matmul(a: &Matrix, b: &Matrix, threads: NonZeroUsize) -> Result<Matrix, D
 ///
 /// ```
 /// use std::num::NonZeroUsize;
-/// use naive_matmul::cache_friendly::{matmul_with_config, BlockConfig};
-/// use naive_matmul::Matrix;
+/// use hardware_aware_matmul::cache_friendly::{matmul_with_config, BlockConfig};
+/// use hardware_aware_matmul::Matrix;
 ///
 /// let a = Matrix::new(2, 3, vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
 /// let b = Matrix::new(3, 2, vec![7.0, 8.0, 9.0, 10.0, 11.0, 12.0]);
 /// let one = NonZeroUsize::new(1).unwrap();
 /// let c = matmul_with_config(&a, &b, one, &BlockConfig::new(one, one))?;
 /// assert_eq!(c, Matrix::new(2, 2, vec![58.0, 64.0, 139.0, 154.0]));
-/// # Ok::<(), naive_matmul::DimensionMismatch>(())
+/// # Ok::<(), hardware_aware_matmul::DimensionMismatch>(())
 /// ```
 pub fn matmul_with_config(
     a: &Matrix,

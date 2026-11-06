@@ -74,16 +74,16 @@ Until it is published, depend on it by path:
 
 ```toml
 [dependencies]
-naive_matmul = { path = "../naive_matmul" }
+hardware_aware_matmul = { path = "../hardware_aware_matmul" }
 ```
 
 # Your first multiplication
 
 ```rust
 use std::num::NonZeroUsize;
-use naive_matmul::{cache_friendly, naive, Matrix};
+use hardware_aware_matmul::{cache_friendly, naive, Matrix};
 
-fn main() -> Result<(), naive_matmul::DimensionMismatch> {
+fn main() -> Result<(), hardware_aware_matmul::DimensionMismatch> {
     let a = Matrix::new(2, 3, vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
     let b = Matrix::new(3, 2, vec![7.0, 8.0, 9.0, 10.0, 11.0, 12.0]);
 

@@ -44,7 +44,7 @@ fn multiply_row_block(a: &Matrix, b: &Matrix, first_row: usize, c_block: &mut [f
 ///
 /// ```
 /// use std::num::NonZeroUsize;
-/// use naive_matmul::threaded::row_block_plan;
+/// use hardware_aware_matmul::threaded::row_block_plan;
 ///
 /// let plan = row_block_plan(10, NonZeroUsize::new(4).unwrap());
 /// assert_eq!(plan, vec![0..3, 3..6, 6..9, 9..10]);
@@ -131,13 +131,13 @@ where
 ///
 /// ```
 /// use std::num::NonZeroUsize;
-/// use naive_matmul::{threaded, Matrix};
+/// use hardware_aware_matmul::{threaded, Matrix};
 ///
 /// let a = Matrix::new(2, 3, vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
 /// let b = Matrix::new(3, 2, vec![7.0, 8.0, 9.0, 10.0, 11.0, 12.0]);
 /// let c = threaded::matmul(&a, &b, NonZeroUsize::new(2).unwrap())?;
 /// assert_eq!(c, Matrix::new(2, 2, vec![58.0, 64.0, 139.0, 154.0]));
-/// # Ok::<(), naive_matmul::DimensionMismatch>(())
+/// # Ok::<(), hardware_aware_matmul::DimensionMismatch>(())
 /// ```
 pub fn matmul(a: &Matrix, b: &Matrix, threads: NonZeroUsize) -> Result<Matrix, DimensionMismatch> {
     matmul_with_runner(a, b, threads, &StdRunner)

@@ -7,7 +7,7 @@ This page shows how to build matrices and how to pick one.
 level.
 
 ```rust
-use naive_matmul::Matrix;
+use hardware_aware_matmul::Matrix;
 
 // From row-major data:
 let m = Matrix::new(2, 3, vec![1.0, 2.0, 3.0,
@@ -47,7 +47,7 @@ All five return **bit-identical results**, so switching between them is safe.
 
 ```rust
 use std::num::NonZeroUsize;
-use naive_matmul::{cache_friendly, Matrix};
+use hardware_aware_matmul::{cache_friendly, Matrix};
 
 let a = Matrix::from_fn(100, 50, |i, j| (i + j) as f64);
 let b = Matrix::from_fn(50, 80, |i, j| (i * j) as f64);
@@ -55,7 +55,7 @@ let b = Matrix::from_fn(50, 80, |i, j| (i * j) as f64);
 let threads = std::thread::available_parallelism().unwrap_or(NonZeroUsize::MIN);
 let c = cache_friendly::matmul(&a, &b, threads)?;
 assert_eq!((c.rows(), c.cols()), (100, 80));
-# Ok::<(), naive_matmul::DimensionMismatch>(())
+# Ok::<(), hardware_aware_matmul::DimensionMismatch>(())
 ```
 
 # Errors

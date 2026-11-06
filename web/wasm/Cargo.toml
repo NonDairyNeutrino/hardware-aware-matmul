@@ -2,7 +2,7 @@
 name = "naive_matmul_web"
 version = "0.1.0"
 edition = "2021"
-description = "Browser wrapper around naive_matmul (stage B spike)"
+description = "Browser wrapper around hardware_aware_matmul (stage B spike)"
 publish = false
 
 [lib]
@@ -20,7 +20,7 @@ threads = ["dep:rayon", "dep:wasm-bindgen-rayon"]
 no-bundler = ["threads", "wasm-bindgen-rayon?/no-bundler"]
 
 [dependencies]
-naive_matmul = { path = "../.." }
+hardware_aware_matmul = { path = "../.." }
 rayon = { version = "1.8", optional = true }
 wasm-bindgen = "=0.2.130"
 wasm-bindgen-rayon = { version = "1.2", optional = true }

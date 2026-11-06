@@ -5,11 +5,11 @@
 use std::io;
 use std::num::NonZeroUsize;
 
-use naive_matmul::runner::Runner;
-use naive_matmul::streaming::{
+use hardware_aware_matmul::runner::Runner;
+use hardware_aware_matmul::streaming::{
     matmul, matmul_streaming, matmul_streaming_with_runner, MemorySink, StreamConfig, TileSource,
 };
-use naive_matmul::{DimensionMismatch, MatmulError, Matrix};
+use hardware_aware_matmul::{DimensionMismatch, MatmulError, Matrix};
 
 fn nz(n: usize) -> NonZeroUsize {
     NonZeroUsize::new(n).unwrap()
@@ -224,7 +224,7 @@ mod file_backed {
     use std::{env, fs, process};
 
     use super::*;
-    use naive_matmul::streaming::FileMatrix;
+    use hardware_aware_matmul::streaming::FileMatrix;
 
     /// A unique temporary path that is deleted when dropped.
     struct TempPath(PathBuf);
@@ -261,7 +261,7 @@ mod file_backed {
         m.read_tile(1, 2, 2, 2, &mut tile).unwrap();
         assert_eq!(tile, [12.0, 13.0, 22.0, 23.0]);
 
-        use naive_matmul::streaming::TileSink;
+        use hardware_aware_matmul::streaming::TileSink;
         m.write_tile(1, 2, 2, 2, &[-1.0, -2.0, -3.0, -4.0]).unwrap();
         m.read_tile(1, 2, 2, 2, &mut tile).unwrap();
         assert_eq!(tile, [-1.0, -2.0, -3.0, -4.0]);

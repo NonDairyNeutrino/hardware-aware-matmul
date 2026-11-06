@@ -11,11 +11,11 @@ use std::num::NonZeroUsize;
 
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-use naive_matmul::cache_friendly::BlockConfig;
-use naive_matmul::runner::{Runner, StdRunner};
-use naive_matmul::threaded::row_block_plan;
-use naive_matmul::streaming::StreamConfig;
-use naive_matmul::{cache_friendly, naive, simd, streaming, threaded, DimensionMismatch, MatmulError, Matrix};
+use hardware_aware_matmul::cache_friendly::BlockConfig;
+use hardware_aware_matmul::runner::{Runner, StdRunner};
+use hardware_aware_matmul::threaded::row_block_plan;
+use hardware_aware_matmul::streaming::StreamConfig;
+use hardware_aware_matmul::{cache_friendly, naive, simd, streaming, threaded, DimensionMismatch, MatmulError, Matrix};
 
 fn nz(n: usize) -> NonZeroUsize {
     NonZeroUsize::new(n).unwrap()

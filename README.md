@@ -1,4 +1,4 @@
-# naive_matmul
+# hardware_aware_matmul
 
 Dense matrix multiplication in Rust, presented as **five implementations of
 increasing performance**, each a small step beyond the one before, so the fast
@@ -30,7 +30,7 @@ dependencies.
 
 ```rust
 use std::num::NonZeroUsize;
-use naive_matmul::{cache_friendly, naive, simd, streaming, threaded, Matrix};
+use hardware_aware_matmul::{cache_friendly, naive, simd, streaming, threaded, Matrix};
 
 let a = Matrix::new(2, 3, vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
 let b = Matrix::new(3, 2, vec![7.0, 8.0, 9.0, 10.0, 11.0, 12.0]);
@@ -49,7 +49,7 @@ Multiplying matrices stored on disk (level 4):
 
 ```rust
 use std::num::NonZeroUsize;
-use naive_matmul::streaming::{matmul_streaming, FileMatrix, StreamConfig};
+use hardware_aware_matmul::streaming::{matmul_streaming, FileMatrix, StreamConfig};
 
 let n = 4096;
 let a = FileMatrix::create("a.bin", n, n)?;
@@ -99,8 +99,8 @@ and what it costs. Two further modules hold the other pages:
 
 | Module                    | Contents                                                              |
 |---------------------------|-----------------------------------------------------------------------|
-| `naive_matmul::guide`     | Getting started, and using the levels on in-memory matrices            |
-| `naive_matmul::design`    | How the levels build on each other                                     |
+| `hardware_aware_matmul::guide`     | Getting started, and using the levels on in-memory matrices            |
+| `hardware_aware_matmul::design`    | How the levels build on each other                                     |
 
 The Markdown sources are readable on their own; start at
 [`docs/introduction.md`](docs/introduction.md).

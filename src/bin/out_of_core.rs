@@ -1,4 +1,4 @@
-//! Out-of-core demo for the `naive_matmul` library.
+//! Out-of-core demo for the `hardware_aware_matmul` library.
 //!
 //! Creates two n×n matrices on disk, multiplies them into a third file while
 //! holding only a few small tiles in memory, and reports the memory saved.
@@ -14,7 +14,7 @@ use std::process;
 use std::thread;
 use std::time::Instant;
 
-use naive_matmul::streaming::{matmul_streaming, FileMatrix, StreamConfig, TileSource};
+use hardware_aware_matmul::streaming::{matmul_streaming, FileMatrix, StreamConfig, TileSource};
 
 fn run(
     a_path: &Path,

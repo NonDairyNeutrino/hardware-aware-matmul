@@ -61,7 +61,7 @@ All five levels on the same input:
 
 ```rust
 use std::num::NonZeroUsize;
-use naive_matmul::{cache_friendly, naive, simd, streaming, threaded, Matrix};
+use hardware_aware_matmul::{cache_friendly, naive, simd, streaming, threaded, Matrix};
 
 let a = Matrix::new(2, 3, vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
 let b = Matrix::new(3, 2, vec![7.0, 8.0, 9.0, 10.0, 11.0, 12.0]);

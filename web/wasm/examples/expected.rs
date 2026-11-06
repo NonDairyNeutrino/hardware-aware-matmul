@@ -1,7 +1,7 @@
 //! Prints the expected hash for each matrix size as JSON, computed natively with
 //! the naive level. The browser gates compare every level against these.
 
-use naive_matmul::runner::StdRunner;
+use hardware_aware_matmul::runner::StdRunner;
 use naive_matmul_web::cases::run_hash;
 
 fn main() {

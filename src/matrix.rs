@@ -24,7 +24,7 @@ impl Matrix {
     /// # Examples
     ///
     /// ```
-    /// use naive_matmul::Matrix;
+    /// use hardware_aware_matmul::Matrix;
     ///
     /// // | 1 2 3 |
     /// // | 4 5 6 |
@@ -48,7 +48,7 @@ impl Matrix {
     /// # Examples
     ///
     /// ```
-    /// use naive_matmul::Matrix;
+    /// use hardware_aware_matmul::Matrix;
     ///
     /// let identity = Matrix::from_fn(3, 3, |i, j| if i == j { 1.0 } else { 0.0 });
     /// assert_eq!(identity[(2, 2)], 1.0);

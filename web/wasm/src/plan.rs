@@ -8,9 +8,9 @@
 
 use std::num::NonZeroUsize;
 
-use naive_matmul::simd::{micro_tile_shape, target_vector_isa};
-use naive_matmul::streaming::{tile_plan, StreamConfig};
-use naive_matmul::threaded::row_block_plan;
+use hardware_aware_matmul::simd::{micro_tile_shape, target_vector_isa};
+use hardware_aware_matmul::streaming::{tile_plan, StreamConfig};
+use hardware_aware_matmul::threaded::row_block_plan;
 
 /// The largest `rows`, `inner`, `cols` and tile edge accepted, so the JSON stays small.
 pub const MAX_DIM: usize = 64;

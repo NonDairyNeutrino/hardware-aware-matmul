@@ -17,8 +17,8 @@ use std::num::NonZeroUsize;
 use std::thread;
 use std::time::{Duration, Instant};
 
-use naive_matmul::streaming::{matmul_streaming, MemorySink, StreamConfig};
-use naive_matmul::{cache_friendly, naive, simd, threaded, Matrix};
+use hardware_aware_matmul::streaming::{matmul_streaming, MemorySink, StreamConfig};
+use hardware_aware_matmul::{cache_friendly, naive, simd, threaded, Matrix};
 
 /// Runs `f` once and returns its result with the elapsed wall-clock time.
 fn time<T>(f: impl FnOnce() -> T) -> (T, Duration) {

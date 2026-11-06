@@ -1,13 +1,13 @@
 [package]
-name = "naive_matmul"
+name = "hardware_aware_matmul"
 version = "0.1.0"
 edition = "2021"
 rust-version = "1.73"
 default-run = "compare"
-description = "Streaming, multithreaded, cache-friendly dense matrix multiplication"
+description = "Dense matrix multiplication as a worked example of using the hardware well: threads, cache, SIMD and streaming"
 readme = "README.md"
 exclude = ["web/", "anim/", ".github/", "docs/superpowers/"]
 
 [lib]
-name = "naive_matmul"
+name = "hardware_aware_matmul"
 path = "src/lib.rs"
