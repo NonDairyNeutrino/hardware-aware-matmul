@@ -6,12 +6,12 @@ Part one (G1 and G2): `docs/superpowers/specs/2026-11-05-stage-b-threads-spike-f
 
 ## Verdict
 
-**G4, G5 and G3 are done, and G3 and G4 pass.** All five levels, including level 4,
-run on a rayon thread pool in Firefox and return the native answer bit for bit.
+**G4, G5 and G3 are done, and G3 and G4 pass.** Levels 1 to 4, including level 4,
+run on a rayon thread pool in Firefox, and all five levels return the native answer bit for bit.
 The same module works from an Astro production build served under
 `/matmul_levels.rs/` by a server that sends no cross-origin-isolation headers:
 `coi-serviceworker` supplied them, after one automatic page reload. G5 measured
-the limits below.
+the limits below, except the largest `n` per level, which is derived from the memory cap rather than measured.
 
 **Recommendation for stages C and D: GO**, with GitHub Pages as the host and
 `coi-serviceworker` for isolation. The fallback (a host that sets headers, such
@@ -39,11 +39,18 @@ browser, level 4 (64 x 64 x 64 tiles into a `MemorySink`) at n = 256 and 512 wit
 every case. The level 4 lines of the g2 output are part of the G3 output below
 (the same 29 cases, run from the production build).
 
+The spec asked for two tile shapes. The browser runs used one (64 x 64 x 64) and
+varied the cache blocks instead (32 x 64, and once 7 x 2). Other tile shapes
+with a runner are covered only by the native test
+`streaming_runners_never_change_the_bits` (16 x 24 x 20, 1 x 1 x 1 and
+1000-cubed tiles; 1, 3 and 8 threads; an inline runner and `StdRunner`).
+
 `threads` is the number of jobs (workers), handed to a fixed pool of 4, as for
 the other levels. A panic in a source or sink now reaches the caller of
 `matmul_streaming` as `StdRunner`'s generic "a scoped thread panicked" message
-rather than the original payload (a runner that runs jobs inline or on rayon
-rethrows the original).
+rather than the original payload (a runner that runs jobs inline rethrows
+the original, and so does rayon on a target that unwinds; the browser build is
+`panic=abort`, see G5).
 
 ## G5: measured limits
 
@@ -64,12 +71,14 @@ probe {"error": "unreachable executed", "kind": "memory", "mib": 1100, "outcome"
 GATE G5: PASS
 ```
 
+`GATE G5: PASS` means only that the page ran every probe and reported. G5 has no pass condition on the numbers, and a probe that errored or hung still prints PASS.
+
 What it shows:
 
-- **Pool start-up** took from about 30 ms to about half a second. Three runs of this gate gave 110/30/97, 56/120/209 and 37/110/517 ms for 1/4/8 threads: it varies a lot from run to run, and larger pools were slower in two of the three. Treat it as tens to hundreds of milliseconds, not a benchmark, and start the pool once per Worker, ahead of the first call.
+- **Pool start-up** took from about 30 ms to about half a second. The run pasted above gave 141/31/41 ms for 1/4/8 threads; four earlier runs of this gate (not pasted) gave 145/98/209, 110/30/97, 56/120/209 and 37/110/517 ms. It varies a lot from run to run. In all five runs the 8-thread pool started more slowly than the 4-thread pool, and the 1-thread pool was not reliably the fastest. Treat it as tens to hundreds of milliseconds, not a benchmark, and start the pool once per Worker, ahead of the first call.
 - **A pool cannot be resized.** A second `initThreadPool` with a different size fails with `unwrap_throw() on an Err value` (rayon's global pool is built once) and the pool stays at its first size. Changing the thread count in the UI therefore means a fresh Worker, or varying the number of jobs over a fixed pool.
-- **A panic in a pool job hangs the caller.** The job traps (`panic=abort`), the thread that called `run` waits forever, and no error reaches JavaScript. Every call must have a timeout and a way to terminate the Worker; the probe page does this with a 30 second timer and `worker.terminate()`.
-- **The 1 GiB memory cap is real.** Allocating and touching 1000 MiB worked; 1100 MiB aborted with `RuntimeError: unreachable executed`. The cap comes from `--max-memory=1073741824` in the build flags and could be raised at build time. For scale: three `n x n` `f64` matrices take `24 n^2` bytes, so levels 0 to 3 fit under about 1000 MiB up to roughly `n = 6,000` (derived, not measured), and level 4 with its in-memory sink somewhat less. Running time, not memory, limits `n` first in the browser.
+- **A panic in a pool job hangs the caller.** The probe's call had not returned after 30 seconds, and no error reached JavaScript. Under `panic=abort` the job traps, which presumably leaves the thread that called `run` waiting for a job that never finishes (the hang was observed; the mechanism was not inspected). Every call must have a timeout and a way to terminate the Worker; the probe page does this with a 30 second timer and `worker.terminate()`.
+- **The 1 GiB memory cap is real.** Allocating 1000 MiB and writing one byte in every 4 KiB of it worked; 1100 MiB aborted with `unreachable executed` (a wasm trap). The cap comes from `--max-memory=1073741824` in the build flags and could be raised at build time. For scale: three `n x n` `f64` matrices take `24 n^2` bytes, so levels 0 to 3 should fit under about 1000 MiB up to roughly `n = 6,000`, and level 4 with a `MemorySink` holds the same three matrices plus small tile buffers, so about the same. These figures are derived: the largest `n` for each level was not measured, and the wrapper rejects `n > 2048`. The `n = 512` timings above are already tens to hundreds of milliseconds, so running time is likely to limit `n` before memory does, but that was not measured at larger `n`.
 
 ## G3: the production build under a Pages-style subpath
 
@@ -139,10 +148,15 @@ How it was set up, and what the result means:
 - Browsers other than Firefox 159, and Firefox on other platforms.
 - `+simd128` in the wasm build (level 3 is scalar in the browser), and any build with a different pool size or memory cap.
 - The real site, the Benchmark and Tuner UI, cancellation, and a single-threaded fallback for pages that are not isolated (stage C and D design).
+- The largest `n` for each of levels 1 to 4 under the memory cap (the spec asked for it; only raw allocations and the formula above were checked), and any `n` above 2048.
+- Level 4 with tile shapes other than 64 x 64 x 64 in the browser.
+- Machines with fewer than 8 hardware threads, and pool sizes other than 1, 4 and 8.
+- Contexts where service workers are unavailable or blocked (for example some private-browsing modes). The page would stay non-isolated there, which is why stage D needs the single-threaded fallback.
+- Calling the module from the main thread. The advice to use a Worker rests on `Atomics.wait` being disallowed there, which was not exercised.
 
 ## Consequences for stages C and D
 
-- Use the real crate in the browser for all five levels, through `RayonRunner`, inside a Web Worker (rayon waits with `Atomics.wait`, which the main thread may not do).
+- Use the real crate in the browser for all five levels (levels 1 to 4 through `RayonRunner`; level 0 is single-threaded), inside a Web Worker (rayon waits with `Atomics.wait`, which the main thread may not do).
 - Host on GitHub Pages with `coi-serviceworker`. Expect one reload on a visitor's first visit, and tell them (the script's `quiet` option and a visible message help).
 - Treat the pool size as fixed per Worker; vary `threads` as a job count, or start a new Worker to change the pool.
 - Wrap every call in a timeout and terminate the Worker on expiry; a panic in a job cannot be caught.
