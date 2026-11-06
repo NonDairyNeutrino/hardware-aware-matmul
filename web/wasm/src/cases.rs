@@ -112,7 +112,9 @@ pub fn run_hash<R: Runner + ?Sized>(
 ///
 /// A benchmark builds the operands once (`prepare`), times as many `multiply` calls as
 /// it likes, and hashes the stored result afterwards (`hash`), so neither the operand
-/// generation nor the hashing sits inside the timed region.
+/// generation nor the hashing sits inside the timed region. The timed call does include
+/// storing the result (allocating the new result matrix and dropping the old one), the
+/// same for every level.
 #[derive(Default)]
 pub struct Bench {
     operands: Option<(Matrix, Matrix)>,
@@ -136,7 +138,8 @@ impl Bench {
         Ok(())
     }
 
-    /// Multiplies the prepared operands and stores the result.
+    /// Multiplies the prepared operands and stores the result. The previous result is
+    /// dropped first, so a failed call leaves no result and [`Bench::hash`] then fails.
     pub fn multiply<R: Runner + ?Sized>(
         &mut self,
         level: u32,
@@ -146,6 +149,7 @@ impl Bench {
         tile: (usize, usize, usize),
         runner: &R,
     ) -> Result<(), String> {
+        self.result = None;
         let (a, b) = self.operands.as_ref().ok_or("call prepare before multiply")?;
         self.result = Some(multiply(level, a, b, threads, tile_k, tile_j, tile, runner)?);
         Ok(())
@@ -237,6 +241,16 @@ mod tests {
         assert!(bench.multiply(4, 1, 32, 64, (0, 64, 64), &StdRunner).is_err());
         assert!(bench.multiply(4, 1, 32, 64, (64, 64, 0), &StdRunner).is_err());
         assert!(bench.multiply(5, 1, 32, 64, GATE_TILE, &StdRunner).is_err());
+    }
+
+    #[test]
+    fn a_failed_multiply_leaves_no_stale_result() {
+        let mut bench = Bench::new();
+        bench.prepare(8).unwrap();
+        bench.multiply(1, 1, 32, 64, GATE_TILE, &StdRunner).unwrap();
+        assert!(bench.hash().is_ok());
+        assert!(bench.multiply(1, 0, 32, 64, GATE_TILE, &StdRunner).is_err());
+        assert!(bench.hash().is_err(), "the failed call must not leave the old result");
     }
 
     #[test]
