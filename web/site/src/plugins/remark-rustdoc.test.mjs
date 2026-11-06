@@ -1,0 +1,99 @@
+import assert from 'node:assert/strict';
+import { test } from 'node:test';
+import remarkParse from 'remark-parse';
+import remarkStringify from 'remark-stringify';
+import { unified } from 'unified';
+import remarkRustdoc, { chapterId, cleanRustFence } from './remark-rustdoc.mjs';
+
+const links = {
+  naive: 'levels/naive/',
+  threaded: 'levels/threaded/',
+  'streaming::TileSource': null,
+  TileSource: null,
+  matmul: null,
+};
+
+async function render(markdown, options = {}, path = '/repo/docs/levels/naive.md') {
+  const processor = unified()
+    .use(remarkParse)
+    .use(remarkRustdoc, { base: '/site/', links, ...options })
+    .use(remarkStringify);
+  return String(await processor.process({ value: markdown, path }));
+}
+
+test('removes rustdoc-hidden lines and unescapes ## inside rust fences only', () => {
+  const rust = ['let x = 1;', '# Ok::<(), E>(())', '#', '## shown', '#[derive(Debug)]', '  # indented hidden'].join('\n');
+  assert.equal(cleanRustFence(rust), ['let x = 1;', '# shown', '#[derive(Debug)]'].join('\n'));
+});
+
+test('leaves other fences alone', async () => {
+  const out = await render('```sh\n# a comment\ncargo test\n```\n\n```rust\n# hidden\nfn main() {}\n```\n');
+  assert.match(out, /# a comment/);
+  assert.doesNotMatch(out, /hidden/);
+  assert.match(out, /fn main/);
+});
+
+test('demotes headings one level', async () => {
+  const out = await render('# One\n\n## Two\n');
+  assert.match(out, /^## One$/m);
+  assert.match(out, /^### Two$/m);
+});
+
+test('rewrites inline crate:: links to routes under the base, and null to plain text', async () => {
+  const out = await render('See [the naive level](crate::naive) and [the trait](crate::streaming::TileSource).\n');
+  assert.match(out, /\[the naive level\]\(\/site\/levels\/naive\/\)/);
+  assert.doesNotMatch(out, /crate::/);
+  assert.match(out, /the trait/);
+  assert.doesNotMatch(out, /\]\(.*TileSource/);
+});
+
+test('resolves reference-style links and removes their definitions', async () => {
+  const out = await render('Use [`TileSource`] or [`threaded`].\n\n[`TileSource`]: crate::streaming::TileSource\n[`threaded`]: crate::threaded\n');
+  assert.match(out, /\[`threaded`\]\(\/site\/levels\/threaded\/\)/);
+  assert.match(out, /`TileSource`/);
+  assert.doesNotMatch(out, /crate::/);
+  assert.doesNotMatch(out, /^\[`/m);
+});
+
+test('resolves shortcut references that have no definition, in paragraphs and tables', async () => {
+  const out = await render('The [`naive`] level, then [`matmul`].\n\n| a |\n|---|\n| [`threaded`] |\n');
+  assert.match(out, /\[`naive`\]\(\/site\/levels\/naive\/\)/);
+  assert.match(out, /\[`threaded`\]\(\/site\/levels\/threaded\/\)/);
+  assert.match(out, /`matmul`/);
+  assert.doesNotMatch(out, /\[`matmul`\]/);
+});
+
+test('links a shortcut that is followed by a colon in running text', async () => {
+  const out = await render('1. [`naive`]: the algorithm, and why it is slow.\n');
+  assert.match(out, /\[`naive`\]\(\/site\/levels\/naive\/\): the algorithm/);
+});
+
+test('does not touch ordinary links or brackets', async () => {
+  const out = await render('Visit [Rust](https://rust-lang.org), see [1], and `[x]`.\n');
+  assert.match(out, /\[Rust\]\(https:\/\/rust-lang\.org\)/);
+  assert.match(out, /\[1\]/);
+});
+
+test('an unlisted link fails the build with a message naming it', async () => {
+  await assert.rejects(render('[x](crate::mystery::Thing)\n'), /unresolvable doc link "crate::mystery::Thing"/);
+  await assert.rejects(render('A [`Mystery`] shortcut.\n'), /unresolvable doc link "Mystery"/);
+});
+
+test('inserts html after the named heading, for the named chapter only', async () => {
+  const insertions = [{ chapter: 'levels/naive', afterHeading: 'The idea', html: '<figure>FIG</figure>' }];
+  const naive = await render('# The idea\n\nText.\n', { insertions });
+  assert.match(naive, /## The idea\n\n<figure>FIG<\/figure>\n\nText\./);
+  const other = await render('# The idea\n\nText.\n', { insertions }, '/repo/docs/levels/threaded.md');
+  assert.doesNotMatch(other, /FIG/);
+});
+
+test('an insertion whose heading is missing fails the build', async () => {
+  const insertions = [{ chapter: 'levels/naive', afterHeading: 'No such heading', html: '<p/>' }];
+  await assert.rejects(render('# The idea\n', { insertions }), /no heading "No such heading"/);
+});
+
+test('chapterId finds the path under docs/', () => {
+  assert.equal(chapterId('/repo/docs/levels/naive.md'), 'levels/naive');
+  assert.equal(chapterId('/docs/introduction.md'), 'introduction');
+  assert.equal(chapterId('/elsewhere/x.md'), null);
+});
