@@ -1,0 +1,81 @@
+name: Pages
+
+# Builds the site (the wasm modules and the Astro project) and deploys it to GitHub
+# Pages. One manual step for the repository owner: Settings > Pages > Source =
+# "GitHub Actions". It runs on request and on pull requests (build only, no deploy).
+# Add a `push` trigger for `trunk` when the site is ready to publish.
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [ "trunk" ]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+env:
+  CARGO_TERM_COLOR: always
+  # Must equal the `wasm-bindgen` pin in web/wasm/Cargo.toml.
+  WASM_BINDGEN_VERSION: "0.2.130"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Install the Rust toolchains (the pinned nightly for the threaded build, stable for the rest)
+      run: rustup toolchain install stable nightly-2025-11-15 --profile minimal -c rust-src -t wasm32-unknown-unknown
+
+    - name: Cache the wasm-bindgen CLI
+      id: wasm-bindgen
+      uses: actions/cache@v4
+      with:
+        path: ~/.cargo/bin/wasm-bindgen
+        key: wasm-bindgen-cli-${{ env.WASM_BINDGEN_VERSION }}
+
+    - name: Install the wasm-bindgen CLI
+      if: steps.wasm-bindgen.outputs.cache-hit != 'true'
+      run: cargo install wasm-bindgen-cli --version =${{ env.WASM_BINDGEN_VERSION }} --locked
+
+    - name: Build the threaded wasm module (bundler mode)
+      working-directory: web/wasm
+      env:
+        FEATURES: threads
+      run: ./build.sh
+
+    - uses: actions/setup-node@v4
+      with:
+        # The local Docker image is node:latest (v26 when this was written).
+        node-version: 26
+        cache: npm
+        cache-dependency-path: web/site/package-lock.json
+
+    - name: Install, test, build and check the site
+      working-directory: web/site
+      run: |
+        npm ci
+        npm test
+        npm run build
+        npm run check
+
+    - uses: actions/upload-pages-artifact@v3
+      with:
+        path: web/site/dist
+
+  deploy:
+    if: github.event_name != 'pull_request'
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+    - id: deployment
+      uses: actions/deploy-pages@v4
