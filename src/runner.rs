@@ -3,9 +3,10 @@
 /// Runs a batch of jobs to completion.
 ///
 /// Levels 1 to 3 split the output rows into blocks and hand one job per block
-/// to a `Runner`; level 4 hands it one job per worker. A job borrows from the caller (`'env`), so `run` must not
-/// return until every job has finished. Jobs are independent: they may run in
-/// any order, on any threads, or one after another on the calling thread.
+/// to a `Runner`; level 4 hands it one job per worker. A job borrows from the
+/// caller (`'env`), so `run` must not return until every job has finished.
+/// Jobs are independent: they may run in any order, on any threads, or one
+/// after another on the calling thread.
 ///
 /// The `threads` argument of the `matmul` functions is an upper bound on the
 /// number of jobs, not a promise of parallelism: the runner decides how many
