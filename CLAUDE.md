@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-A teaching-oriented Rust crate (`naive_matmul`, no dependencies, `#![forbid(unsafe_code)]`, MSRV 1.73) implementing dense `f64` matrix multiplication as five levels of increasing performance. The repo directory is `matmul_levels.rs`; the crate name is `naive_matmul`. `anim/` holds unrelated-to-build Manim (Python) animations explaining the levels. `web/` is browser tooling, excluded from the published crate. `web/wasm` is a separate crate (own empty `[workspace]`, tracked `Cargo.lock`, nightly pinned in its `rust-toolchain.toml`) that wraps the levels for WebAssembly with a rayon-backed `RayonRunner`; `web/dev/` holds a stdlib-only dev server and a headless-Firefox page runner.
+A teaching-oriented Rust crate (`naive_matmul`, no dependencies, `#![forbid(unsafe_code)]`, MSRV 1.73) implementing dense `f64` matrix multiplication as five levels of increasing performance. The repo directory is `matmul_levels.rs`; the crate name is `naive_matmul`. `anim/` holds unrelated-to-build Manim (Python) animations explaining the levels. `web/` is browser tooling, excluded from the published crate. `web/wasm` is a separate crate (own empty `[workspace]`, tracked `Cargo.lock`, nightly pinned in its `rust-toolchain.toml`) that wraps the levels for WebAssembly with a rayon-backed `RayonRunner`; `web/dev/` holds a stdlib-only dev server, a headless-Firefox page runner, the gate report checker and `node.sh`. `web/site` is the Astro site; Node runs only in Docker, through `web/dev/node.sh` (image `node:latest` unless `NODE_IMAGE` is set). For now it holds the stage B gate page, not the real site.
 
 ## Commands
 
@@ -23,7 +23,8 @@ RUSTFLAGS="-C target-cpu=native" cargo run --release   # let level 3 auto-vector
 # web/wasm only (pinned nightly; the core crate stays on stable / 1.73)
 cd web/wasm && cargo test                       # native tests of the shared case generator
 export WASM_BINDGEN="$HOME/.cargo/bin/wasm-bindgen"   # CLI version must equal the =0.2.130 pin
-./gate.sh g1|g2|probe [--no-build]              # build, then run a gate in headless Firefox; --no-build reuses pkg/
+./gate.sh g1|g2|probe|g5 [--no-build]           # build, then run a gate in headless Firefox; --no-build reuses pkg/
+(cd ../site && ./gate-g3.sh [--no-build])       # Astro production build (Node in Docker) served under /matmul_levels.rs/ with no isolation headers; coi-serviceworker supplies them
 ```
 
 Always benchmark with `--release`. The docs deliberately contain no benchmark numbers.
