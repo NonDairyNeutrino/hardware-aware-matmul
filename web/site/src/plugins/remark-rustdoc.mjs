@@ -7,8 +7,12 @@
 //   - intra-doc links (`crate::x`, and `[`x`]` shortcuts) are rewritten through an
 //     explicit table, and anything not in the table FAILS the build;
 //   - figures and demos are inserted after named headings, so the Markdown stays
-//     free of site markup.
+//     free of site markup;
+//   - `{{metric subject selectors}}` placeholders in text are replaced by numbers from
+//     the reference run's data (see ../results/lookup.mjs), so no measured number is ever
+//     typed in prose, and a placeholder that does not resolve FAILS the build.
 import { visit } from 'unist-util-visit';
+import { hasPlaceholder, substitute } from '../results/lookup.mjs';
 
 /** rustdoc hides lines that start with "# " (or are exactly "#") and unescapes "##". */
 export function cleanRustFence(value) {
@@ -37,8 +41,9 @@ function plainText(node) {
  *        intra-doc link target (without the "crate::" prefix) -> route under `base`,
  *        or null to show the text as plain code
  * @param {{chapter: string, afterHeading: string, html: string}[]} [options.insertions]
+ * @param {object|null} [options.results]  the parsed results.json, for placeholders
  */
-export default function remarkRustdoc({ base = '/', links = {}, insertions = [] } = {}) {
+export default function remarkRustdoc({ base = '/', links = {}, insertions = [], results = null } = {}) {
   return (tree, file) => {
     const where = file.path ?? 'unknown file';
 
@@ -53,6 +58,16 @@ export default function remarkRustdoc({ base = '/', links = {}, insertions = [] 
 
     visit(tree, 'code', (node) => {
       if (node.lang === 'rust') node.value = cleanRustFence(node.value);
+    });
+
+    // Placeholders in running text (not in code spans or fences, which stay literal).
+    visit(tree, 'text', (node) => {
+      if (!hasPlaceholder(node.value)) return;
+      try {
+        node.value = substitute(node.value, results);
+      } catch (error) {
+        throw new Error(`${where}: ${error.message}`);
+      }
     });
 
     // Figures and demos go in before the headings are demoted (matching is by text).

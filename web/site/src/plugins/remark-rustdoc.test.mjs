@@ -33,6 +33,42 @@ test('leaves other fences alone', async () => {
   assert.match(out, /fn main/);
 });
 
+const results = {
+  generated: '2026-11-06T00:00:00Z',
+  environment: { cpu: 'Test CPU' },
+  parameters: { sizes: [64], threads: { native: [1, 2] } },
+  runs: [
+    { environment: 'native', level: 0, n: 64, threads: 1, median_ms: 1000, gflops: 1, times_ms: [990, 1000, 1010] },
+    { environment: 'native', level: 3, n: 64, threads: 2, median_ms: 250, gflops: 4, times_ms: [245, 250, 255] },
+  ],
+};
+
+test('replaces placeholders in paragraphs, emphasis, headings and table cells', async () => {
+  const out = await render(
+    '# Level {{ms simd}}\n\nIt took **{{ms simd}}** on a {{env cpu}}, _{{speedup simd/naive}}_ faster.\n\n| a | b |\n|---|---|\n| {{gflops simd}} | x |\n',
+    { results },
+  );
+  assert.match(out, /Level 250 ms/);
+  assert.match(out, /\*\*250 ms\*\*/);
+  assert.match(out, /Test CPU/);
+  assert.match(out, /4\.0×/);
+  assert.match(out, /4\.0 GFLOP\/s/);
+  assert.doesNotMatch(out, /\{\{/);
+});
+
+test('placeholders in code spans and fences stay literal', async () => {
+  const out = await render('Use `{{ms simd}}` like so:\n\n```text\n{{ms simd}}\n```\n', { results });
+  assert.equal(out.split('{{ms simd}}').length - 1, 2);
+});
+
+test('a placeholder that does not resolve fails the build, naming the file', async () => {
+  await assert.rejects(render('Took {{ms simd n=999}}.', { results }), /naive\.md: unresolvable placeholder "\{\{ms simd n=999\}\}"/);
+});
+
+test('a placeholder with no results data fails the build', async () => {
+  await assert.rejects(render('Took {{ms simd}}.'), /no results data/);
+});
+
 test('demotes headings one level', async () => {
   const out = await render('# One\n\n## Two\n');
   assert.match(out, /^## One$/m);
