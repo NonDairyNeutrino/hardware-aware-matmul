@@ -2,10 +2,15 @@ name: Pages
 
 # Builds the site (the wasm modules and the Astro project) and deploys it to GitHub
 # Pages. One manual step for the repository owner: Settings > Pages > Source =
-# "GitHub Actions". It runs on request and on pull requests (build only, no deploy).
-# Add a `push` trigger for `trunk` when the site is ready to publish.
+# "GitHub Actions". It runs on request, on every push to `trunk` (which deploys the
+# site, except for pushes that only touch the plans and specs under docs/superpowers/),
+# and on pull requests (build only, no deploy).
 on:
   workflow_dispatch:
+  push:
+    branches: [ "trunk" ]
+    paths-ignore:
+      - "docs/superpowers/**"
   pull_request:
     branches: [ "trunk" ]
 
