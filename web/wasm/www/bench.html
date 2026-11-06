@@ -1,0 +1,27 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>bench</title>
+<script type="module">
+  // ?build=lite|threads&sizes=512,1024&threads=1,2,4,8&repeats=5&warmup=1
+  const q = new URLSearchParams(location.search);
+  const list = (name, fallback) => (q.get(name) || fallback).split(',').map(Number);
+  const build = q.get('build');
+  const cores = navigator.hardwareConcurrency;
+  const pool = Math.min(cores, 8);
+  const params = {
+    sizes: list('sizes', '512,1024'),
+    threads: list('threads', '1').filter((t) => build !== 'threads' || t <= pool),
+    repeats: Number(q.get('repeats') || 5),
+    warmup: Number(q.get('warmup') || 1),
+    pool,
+  };
+  if (build !== 'lite' && build !== 'threads') throw new Error('build must be lite or threads');
+  const worker = new Worker(build === 'lite' ? './bench-lite-worker.js' : './bench-threads-worker.js', { type: 'module' });
+  const result = await new Promise((resolve) => {
+    worker.onmessage = (event) => resolve(event.data);
+    worker.onerror = (event) => resolve({ kind: 'browser-' + build, ok: false, error: 'worker error: ' + event.message });
+    worker.postMessage(params);
+  });
+  await fetch('/report', { method: 'POST', body: JSON.stringify(result) });
+  document.title = result.ok ? 'done' : 'failed';
+</script>
