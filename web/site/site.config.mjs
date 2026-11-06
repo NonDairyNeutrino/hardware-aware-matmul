@@ -1,10 +1,11 @@
 // Everything about the site that is not in docs/: the chapters have no frontmatter
 // (rustdoc would show it as text), so their titles, order and routes live here.
 
-// GitHub Pages serves this repository at /matmul_levels.rs/.
-export const base = '/matmul_levels.rs/';
-export const siteTitle = 'Matrix multiplication, level by level';
-export const repoUrl = 'https://github.com/NonDairyNeutrino/matmul_levels.rs';
+// GitHub Pages serves this repository at /hardware-aware-matmul/.
+export const base = '/hardware-aware-matmul/';
+export const siteTitle = 'Mechanical sympathy';
+export const siteSubtitle = 'Five levels of matrix multiplication in Rust';
+export const repoUrl = 'https://github.com/NonDairyNeutrino/hardware-aware-matmul';
 
 // Chapters rendered from docs/ (id = path under docs/, no extension), in reading order.
 // `route` is relative to `base`; the introduction is the home page.

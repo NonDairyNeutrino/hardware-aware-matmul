@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Gate C2: the step-through element, from an Astro production build under
-# /matmul_levels.rs/ on a page with NO isolation headers and NO service worker, in
+# /hardware-aware-matmul/ on a page with NO isolation headers and NO service worker, in
 # headless Firefox. The page at /gate/step-through/ mounts levels 1 to 4 on the lite
 # wasm module, reports the plans and what was drawn; check_report.py compares them
 # with what the core crate's own examples say they must be.
@@ -34,8 +34,8 @@ fi
 
 ROOT=$(mktemp -d)
 trap 'rm -rf "$ROOT"' EXIT
-ln -s "$SITE/dist" "$ROOT/matmul_levels.rs"
+ln -s "$SITE/dist" "$ROOT/hardware-aware-matmul"
 export NO_ISOLATION=1 REPORT="$WASM/target/c2-report.json" LOG="$WASM/target/c2-server.log"
 rm -f "$LOG"
-../dev/run_page.sh "$ROOT" "matmul_levels.rs/gate/step-through/" "${TIMEOUT:-120}" || { echo "FAIL: the page never reported (see $LOG)"; exit 1; }
+../dev/run_page.sh "$ROOT" "hardware-aware-matmul/gate/step-through/" "${TIMEOUT:-120}" || { echo "FAIL: the page never reported (see $LOG)"; exit 1; }
 python3 -I ../dev/check_report.py stepthrough "$REPORT"

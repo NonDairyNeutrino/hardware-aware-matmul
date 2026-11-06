@@ -1,7 +1,7 @@
 ---
 import '../styles/site.css';
 import StepThroughLoader from '../components/StepThroughLoader.astro';
-import { chapters, repoUrl, siteTitle } from '../../site.config.mjs';
+import { chapters, repoUrl, siteSubtitle, siteTitle } from '../../site.config.mjs';
 
 interface Props {
   title: string;
@@ -13,7 +13,7 @@ interface Props {
 const { title, previous = null, next = null, interactive = false } = Astro.props;
 const base = import.meta.env.BASE_URL;
 const here = Astro.url.pathname;
-const pageTitle = title === 'Introduction' ? siteTitle : `${title} · ${siteTitle}`;
+const pageTitle = title === 'Introduction' ? `${siteTitle}: ${siteSubtitle}` : `${title} · ${siteTitle}`;
 ---
 <!doctype html>
 <html lang="en">

@@ -1,5 +1,5 @@
 {
-  "name": "matmul-levels-site",
+  "name": "hardware-aware-matmul-site",
   "private": true,
   "type": "module",
   "scripts": {

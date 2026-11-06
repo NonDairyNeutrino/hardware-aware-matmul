@@ -4,7 +4,7 @@ Usage: python3 -I check_report.py GATE REPORT.json
 Exits 0 on pass, 1 on failure. Gates:
   g1     the thread pool starts and a parallel sum is right
   g2     every case's hash equals the native hash (levels 0 to 4)
-  g3     g2, run from the Astro production build under /matmul_levels.rs/ with
+  g3     g2, run from the Astro production build under /hardware-aware-matmul/ with
          isolation supplied by the service worker rather than server headers
   probe  informational: records whether StdRunner works in the browser
   lite   g2's cases on the stable single-threaded build, on a page that is NOT isolated
@@ -26,7 +26,7 @@ def rows(blocks):
 def check_stepthrough(report):
     """Compares what the step-through page drew with what the core crate's plans say."""
     problems = []
-    if report.get("base") != "/matmul_levels.rs/":
+    if report.get("base") != "/hardware-aware-matmul/":
         problems.append("wrong base path: %r" % report.get("base"))
     if report.get("sw_scopes") != []:
         problems.append("a service worker was registered (%r); the demo must not need one" % report.get("sw_scopes"))
@@ -125,13 +125,13 @@ def main(gate, path):
                       % (level, ms(level, 512, 1) / ms(level, 512, 4)))
 
     if gate == "g3":
-        if report.get("base") != "/matmul_levels.rs/":
+        if report.get("base") != "/hardware-aware-matmul/":
             problems.append("wrong base path: %r" % report.get("base"))
         if not report.get("loads", 0) >= 1:
             problems.append("the page never reloaded: isolation did not come from the service worker")
         scopes = report.get("sw_scopes")
-        if not scopes or not all(s.endswith("/matmul_levels.rs/") for s in scopes):
-            problems.append("the service worker scope must be the site root /matmul_levels.rs/, got %r" % scopes)
+        if not scopes or not all(s.endswith("/hardware-aware-matmul/") for s in scopes):
+            problems.append("the service worker scope must be the site root /hardware-aware-matmul/, got %r" % scopes)
 
     if gate == "stepthrough":
         problems.extend(check_stepthrough(report))
