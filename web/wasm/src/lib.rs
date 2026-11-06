@@ -11,6 +11,8 @@ pub mod plan;
 use hardware_aware_matmul::runner::{Runner, StdRunner};
 #[cfg(feature = "threads")]
 use rayon::prelude::*;
+use std::cell::RefCell;
+
 use wasm_bindgen::prelude::*;
 
 #[cfg(feature = "threads")]
@@ -89,6 +91,66 @@ pub fn partition_plan(
 ) -> Result<String, JsError> {
     plan::partition_plan_json(level, rows, inner, cols, threads, tile_rows, tile_cols, tile_depth)
         .map_err(|e| JsError::new(&e))
+}
+
+thread_local! {
+    /// The prepared operands and last result of the benchmark API below. Only the calling
+    /// thread touches it; the rayon workers of the threaded build never do.
+    static BENCH: RefCell<cases::Bench> = RefCell::new(cases::Bench::new());
+}
+
+/// The runner the benchmark API uses: the rayon pool in the threaded build, the calling
+/// thread in the lite build.
+#[cfg(feature = "threads")]
+fn bench_runner() -> RayonRunner {
+    RayonRunner
+}
+
+#[cfg(not(feature = "threads"))]
+fn bench_runner() -> InlineRunner {
+    InlineRunner
+}
+
+/// Benchmark API, step 1: builds the `n × n` operands (`n` in 1 to 2048) so that the
+/// timed calls do not include generating them.
+#[wasm_bindgen]
+pub fn bench_prepare(n: usize) -> Result<(), JsError> {
+    BENCH.with(|bench| bench.borrow_mut().prepare(n)).map_err(|e| JsError::new(&e))
+}
+
+/// Benchmark API, step 2: multiplies the prepared operands at `level` (0 to 4) and keeps
+/// the result. This is the call a page times. `tile_k`/`tile_j` are the cache blocks of
+/// levels 2 to 4 and the three `tile_*` sizes the output tile of level 4.
+#[wasm_bindgen]
+pub fn bench_multiply(
+    level: u32,
+    threads: usize,
+    tile_k: usize,
+    tile_j: usize,
+    tile_rows: usize,
+    tile_cols: usize,
+    tile_depth: usize,
+) -> Result<(), JsError> {
+    let runner = bench_runner();
+    BENCH
+        .with(|bench| {
+            bench.borrow_mut().multiply(
+                level,
+                threads,
+                tile_k,
+                tile_j,
+                (tile_rows, tile_cols, tile_depth),
+                &runner,
+            )
+        })
+        .map_err(|e| JsError::new(&e))
+}
+
+/// Benchmark API, step 3: the bit hash of the last result, so a page can check that every
+/// level gave the same answer without hashing inside the timed region.
+#[wasm_bindgen]
+pub fn bench_hash() -> Result<String, JsError> {
+    BENCH.with(|bench| bench.borrow().hash()).map_err(|e| JsError::new(&e))
 }
 
 /// The build's vector instruction set, micro-tile shape and whether it has threads,
