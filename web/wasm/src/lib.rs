@@ -6,6 +6,7 @@
 //! another on the calling thread.
 
 pub mod cases;
+pub mod plan;
 
 use naive_matmul::runner::{Runner, StdRunner};
 #[cfg(feature = "threads")]
@@ -67,6 +68,34 @@ pub fn run_case(
     tile_j: usize,
 ) -> Result<String, JsError> {
     cases::run_hash(level, n, threads, tile_k, tile_j, &RayonRunner).map_err(|e| JsError::new(&e))
+}
+
+/// The partition of a small product at `level` (0 to 4), as JSON: row blocks for
+/// levels 0 to 3, output tiles in claim order for level 4. See [`plan`].
+///
+/// Display sizes only: `rows`, `inner`, `cols` and the tile edges are at most 64
+/// and `threads` at most 8. Bad arguments return an error.
+#[wasm_bindgen]
+#[allow(clippy::too_many_arguments)]
+pub fn partition_plan(
+    level: u32,
+    rows: usize,
+    inner: usize,
+    cols: usize,
+    threads: usize,
+    tile_rows: usize,
+    tile_cols: usize,
+    tile_depth: usize,
+) -> Result<String, JsError> {
+    plan::partition_plan_json(level, rows, inner, cols, threads, tile_rows, tile_cols, tile_depth)
+        .map_err(|e| JsError::new(&e))
+}
+
+/// The build's vector instruction set, micro-tile shape and whether it has threads,
+/// as JSON.
+#[wasm_bindgen]
+pub fn env_info() -> String {
+    plan::env_info_json()
 }
 
 /// Gate G5 probe: allocates and touches `mib` MiB of memory.
