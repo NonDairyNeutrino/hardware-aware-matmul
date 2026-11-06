@@ -13,11 +13,14 @@ crate-type = ["cdylib", "rlib"]
 [workspace]
 
 [features]
-# Needed when the page loads the wasm module without a bundler.
-no-bundler = ["wasm-bindgen-rayon/no-bundler"]
+# `threads` is the nightly build with a rayon pool. Without it the crate builds on
+# stable Rust and runs every level on the calling thread (`InlineRunner`).
+threads = ["dep:rayon", "dep:wasm-bindgen-rayon"]
+# Needed when the page loads the threaded module without a bundler.
+no-bundler = ["threads", "wasm-bindgen-rayon?/no-bundler"]
 
 [dependencies]
 naive_matmul = { path = "../.." }
-rayon = "1.8"
+rayon = { version = "1.8", optional = true }
 wasm-bindgen = "=0.2.130"
-wasm-bindgen-rayon = "1.2"
+wasm-bindgen-rayon = { version = "1.2", optional = true }

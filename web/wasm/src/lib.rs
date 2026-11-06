@@ -1,19 +1,37 @@
 //! Browser wrapper around `naive_matmul` (stage B spike).
 //!
-//! Everything here runs inside a Web Worker. The thread pool comes from
-//! `wasm-bindgen-rayon`; [`RayonRunner`] hands the crate's row-block jobs to it.
+//! Everything here runs inside a Web Worker. With the `threads` feature the thread
+//! pool comes from `wasm-bindgen-rayon` and [`RayonRunner`] hands the crate's jobs
+//! to it. Without it (the stable build) [`InlineRunner`] runs them one after
+//! another on the calling thread.
 
 pub mod cases;
 
 use naive_matmul::runner::{Runner, StdRunner};
+#[cfg(feature = "threads")]
 use rayon::prelude::*;
 use wasm_bindgen::prelude::*;
 
+#[cfg(feature = "threads")]
 pub use wasm_bindgen_rayon::init_thread_pool;
 
+/// Runs every job on the calling thread, one after another. The runner of the
+/// stable build, which has no threads.
+pub struct InlineRunner;
+
+impl Runner for InlineRunner {
+    fn run<'env>(&self, jobs: Vec<Box<dyn FnOnce() + Send + 'env>>) {
+        for job in jobs {
+            job();
+        }
+    }
+}
+
 /// Runs each job on the rayon pool.
+#[cfg(feature = "threads")]
 pub struct RayonRunner;
 
+#[cfg(feature = "threads")]
 impl Runner for RayonRunner {
     fn run<'env>(&self, jobs: Vec<Box<dyn FnOnce() + Send + 'env>>) {
         rayon::scope(|scope| {
@@ -25,18 +43,21 @@ impl Runner for RayonRunner {
 }
 
 /// Gate G1 probe: a parallel sum that needs a working pool.
+#[cfg(feature = "threads")]
 #[wasm_bindgen]
 pub fn sum_squares(n: u32) -> u64 {
     (0..u64::from(n)).into_par_iter().map(|x| x * x % 1_000_003).sum()
 }
 
 /// Gate G1 probe: the number of threads in the rayon pool.
+#[cfg(feature = "threads")]
 #[wasm_bindgen]
 pub fn pool_threads() -> usize {
     rayon::current_num_threads()
 }
 
 /// Gate G2: the bit hash of a level's product (0 to 4), with its work on the pool.
+#[cfg(feature = "threads")]
 #[wasm_bindgen]
 pub fn run_case(
     level: u32,
@@ -65,10 +86,25 @@ pub fn memory_probe(mib: usize) -> Result<u64, JsError> {
 }
 
 /// Gate G5 probe: a job on the pool panics. With `panic=abort` this traps.
+#[cfg(feature = "threads")]
 #[wasm_bindgen]
 pub fn panic_probe() {
     let jobs: Vec<Box<dyn FnOnce() + Send>> = vec![Box::new(|| panic!("probe panic"))];
     RayonRunner.run(jobs);
+}
+
+/// The same case with every level run on the calling thread. The stable build's
+/// `run_case`: `threads` is still the number of jobs, run one after another.
+#[cfg(not(feature = "threads"))]
+#[wasm_bindgen]
+pub fn run_case(
+    level: u32,
+    n: usize,
+    threads: usize,
+    tile_k: usize,
+    tile_j: usize,
+) -> Result<String, JsError> {
+    cases::run_hash(level, n, threads, tile_k, tile_j, &InlineRunner).map_err(|e| JsError::new(&e))
 }
 
 /// The same case with the standard-library runner. Expected to fail on wasm
@@ -85,6 +121,23 @@ pub fn run_case_std(
 }
 
 #[cfg(test)]
+mod inline_tests {
+    use super::*;
+    use crate::cases::run_hash;
+
+    #[test]
+    fn inline_runner_gives_the_same_hash_as_the_std_runner() {
+        for level in 1..=4 {
+            for threads in [1, 3] {
+                let std = run_hash(level, 48, threads, 32, 64, &StdRunner).unwrap();
+                let inline = run_hash(level, 48, threads, 32, 64, &InlineRunner).unwrap();
+                assert_eq!(std, inline, "level {level}, {threads} threads");
+            }
+        }
+    }
+}
+
+#[cfg(all(test, feature = "threads"))]
 mod tests {
     use super::*;
     use crate::cases::run_hash;
