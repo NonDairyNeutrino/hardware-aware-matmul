@@ -5,7 +5,8 @@
   const gate = new URLSearchParams(location.search).get('gate');
   let expected = {};
   try { expected = await (await fetch('./expected.json')).json(); } catch (e) { /* g1 needs none */ }
-  const worker = new Worker('./worker.js', { type: 'module' });
+  const workerUrl = gate === 'lite' ? './lite-worker.js' : './worker.js';
+  const worker = new Worker(workerUrl, { type: 'module' });
   const result = await new Promise((resolve) => {
     worker.onmessage = (event) => resolve(event.data);
     worker.onerror = (event) => resolve({ gate, ok: false, error: 'worker error: ' + event.message });

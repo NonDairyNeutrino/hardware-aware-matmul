@@ -203,6 +203,8 @@ anim/media/videos/**/partial_movie_files
 node_modules/
 .astro/
 web/wasm/pkg/
+web/wasm/pkg-lite/
+web/wasm/target-lite/
 web/wasm/www/expected.json
 web/site/public/expected.json
 web/site/public/coi-serviceworker.js

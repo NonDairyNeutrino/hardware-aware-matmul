@@ -7,6 +7,7 @@ Exits 0 on pass, 1 on failure. Gates:
   g3     g2, run from the Astro production build under /matmul_levels.rs/ with
          isolation supplied by the service worker rather than server headers
   probe  informational: records whether StdRunner works in the browser
+  lite   g2's cases on the stable single-threaded build, on a page that is NOT isolated
   g5     informational: records limits (pool start-up, re-init, panic, memory)
 """
 import json
@@ -25,9 +26,12 @@ def main(gate, path):
 
     if not report.get("ok"):
         problems.append("page reported an error: " + str(report.get("error")))
-    if not report.get("isolated"):
+    if gate == "lite":
+        if report.get("isolated"):
+            problems.append("the lite gate must run on a page that is NOT cross-origin isolated")
+    elif not report.get("isolated"):
         problems.append("page is not cross-origin isolated")
-    if gate != "g5" and report.get("pool_threads") != 4:
+    if gate not in ("g5", "lite") and report.get("pool_threads") != 4:
         problems.append("expected a pool of 4 threads, got %r" % report.get("pool_threads"))
 
     if gate == "probe":
@@ -35,7 +39,7 @@ def main(gate, path):
     if gate == "g1" and report.get("sum") != "2499487497200":
         problems.append("wrong parallel sum: %r" % report.get("sum"))
 
-    if gate in ("g2", "g3"):
+    if gate in ("g2", "g3", "lite"):
         if len(cases) != G2_CASES:
             problems.append("expected %d cases, got %d" % (G2_CASES, len(cases)))
         for c in cases:
@@ -49,7 +53,7 @@ def main(gate, path):
             return next(c["ms"] for c in cases
                         if (c["level"], c["n"], c["threads"], c["tile_k"]) == (level, n, threads, 32))
 
-        if not problems:
+        if not problems and gate != "lite":
             for level in SPEEDUP_LEVELS:
                 print("speedup level %d n 512: 1 -> 4 threads = %.2fx (indicative only)"
                       % (level, ms(level, 512, 1) / ms(level, 512, 4)))
