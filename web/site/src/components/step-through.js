@@ -31,6 +31,13 @@ function fieldsFor(level) {
   return keys;
 }
 
+// Round to an integer within the field's range; a missing or invalid value falls back to the default.
+function clamp(field, value) {
+  const whole = Math.round(Number(value));
+  if (!Number.isFinite(whole) || whole < 1) return field.value;
+  return Math.min(field.max, Math.max(field.min, whole));
+}
+
 const SVG = 'http://www.w3.org/2000/svg';
 function svg(tag, attrs = {}, text) {
   const node = document.createElementNS(SVG, tag);
@@ -53,8 +60,7 @@ class StepThrough extends HTMLElement {
     this.params = {};
     for (const key of fieldsFor(this.level)) {
       const field = FIELDS[key];
-      const given = Number(this.getAttribute(field.attr ?? key));
-      this.params[key] = Number.isFinite(given) && given >= 1 ? given : field.value;
+      this.params[key] = clamp(field, this.getAttribute(field.attr ?? key));
     }
     this.step = 0;
     this.timer = null;
@@ -66,6 +72,7 @@ class StepThrough extends HTMLElement {
         this.env = JSON.parse(api.envInfo());
         this.dataset.env = JSON.stringify(this.env);
         this.update();
+        this.setEnabled(true);
         this.dataset.state = 'ready';
       })
       .catch((error) => {
@@ -85,12 +92,16 @@ class StepThrough extends HTMLElement {
       const field = FIELDS[key];
       const input = html('input', { type: 'number', min: field.min, max: field.max, value: this.params[key], 'data-key': key });
       input.addEventListener('change', () => {
-        const clamped = Math.min(field.max, Math.max(field.min, Math.round(Number(input.value)) || field.value));
+        const clamped = clamp(field, input.value);
         input.value = String(clamped);
         this.params[key] = clamped;
         this.step = 0;
         this.pause();
-        this.update();
+        try {
+          this.update();
+        } catch (error) {
+          this.status.textContent = `Could not draw that (${error.message ?? error}).`;
+        }
       });
       const label = html('label');
       label.append(field.label + ' ', input);
@@ -115,6 +126,12 @@ class StepThrough extends HTMLElement {
     this.details = html('details', { class: 'st-plan' });
     this.details.append(html('summary', {}, 'Show the plan'), (this.planText = html('pre')));
     this.replaceChildren(this.controls, bar, this.figure, this.status, this.details);
+    this.setEnabled(false);
+  }
+
+  // The controls need the wasm module, so they stay disabled until it is ready (and after an error).
+  setEnabled(on) {
+    for (const control of this.querySelectorAll('input, .st-play, .st-step')) control.disabled = !on;
   }
 
   update() {
