@@ -1,17 +1,19 @@
 #!/usr/bin/env bash
 # Runs one browser gate headlessly and exits non-zero unless it passes.
-# usage: gate.sh g1|g2|probe [--no-build]
+# usage: gate.sh g1|g2|probe|g5 [--no-build]
 #   g1     the thread pool starts and runs a parallel sum
 #   g2     29 cases (levels 0 to 4) must hash exactly like native Rust
 #   probe  informational: records that StdRunner traps in the browser
+#   g5     informational: records limits (pool start-up, re-init, panic, memory)
 # env: WASM_BINDGEN (path to the CLI), PORT (default 8765), TIMEOUT (seconds)
 # --no-build reuses pkg/, but refuses if pkg/ is missing, was built for the
 # bundler, or is older than the sources.
 set -euo pipefail
 cd "$(dirname "$0")"
-GATE=${1:?usage: gate.sh g1|g2|probe [--no-build]}
+GATE=${1:?usage: gate.sh g1|g2|probe|g5 [--no-build]}
 case "$GATE" in
   g1|g2|probe) URL="www/gate.html?gate=$GATE" ;;
+  g5) URL="www/limits.html" ;;
   *) echo "unknown gate: $GATE" >&2; exit 2 ;;
 esac
 

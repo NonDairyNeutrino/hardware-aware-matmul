@@ -48,6 +48,29 @@ pub fn run_case(
     cases::run_hash(level, n, threads, tile_k, tile_j, &RayonRunner).map_err(|e| JsError::new(&e))
 }
 
+/// Gate G5 probe: allocates and touches `mib` MiB of memory.
+///
+/// Shows where the module's memory cap bites. A failed allocation aborts the
+/// module (`panic=abort`), which the page sees as a `RuntimeError`.
+#[wasm_bindgen]
+pub fn memory_probe(mib: usize) -> Result<u64, JsError> {
+    let bytes = mib
+        .checked_mul(1024 * 1024)
+        .ok_or_else(|| JsError::new("size overflows usize"))?;
+    let mut buffer = vec![0_u8; bytes];
+    for index in (0..buffer.len()).step_by(4096) {
+        buffer[index] = 1;
+    }
+    Ok(buffer.iter().step_by(4096).map(|&byte| u64::from(byte)).sum())
+}
+
+/// Gate G5 probe: a job on the pool panics. With `panic=abort` this traps.
+#[wasm_bindgen]
+pub fn panic_probe() {
+    let jobs: Vec<Box<dyn FnOnce() + Send>> = vec![Box::new(|| panic!("probe panic"))];
+    RayonRunner.run(jobs);
+}
+
 /// The same case with the standard-library runner. Expected to fail on wasm
 /// (this is the probe that shows why a `Runner` is needed); works natively.
 #[wasm_bindgen]

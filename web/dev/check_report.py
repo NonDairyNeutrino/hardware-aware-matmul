@@ -5,6 +5,7 @@ Exits 0 on pass, 1 on failure. Gates:
   g1     the thread pool starts and a parallel sum is right
   g2     every case's hash equals the native hash (levels 0 to 4)
   probe  informational: records whether StdRunner works in the browser
+  g5     informational: records limits (pool start-up, re-init, panic, memory)
 """
 import json
 import sys
@@ -16,6 +17,7 @@ SPEEDUP_LEVELS = (1, 2, 3, 4)
 def main(gate, path):
     report = json.load(open(path))
     cases = report.pop("cases", [])
+    probes = report.pop("probes", [])
     print(json.dumps(report, indent=2))
     problems = []
 
@@ -23,7 +25,7 @@ def main(gate, path):
         problems.append("page reported an error: " + str(report.get("error")))
     if not report.get("isolated"):
         problems.append("page is not cross-origin isolated")
-    if report.get("pool_threads") != 4:
+    if gate != "g5" and report.get("pool_threads") != 4:
         problems.append("expected a pool of 4 threads, got %r" % report.get("pool_threads"))
 
     if gate == "probe":
@@ -49,6 +51,12 @@ def main(gate, path):
             for level in SPEEDUP_LEVELS:
                 print("speedup level %d n 512: 1 -> 4 threads = %.2fx (indicative only)"
                       % (level, ms(level, 512, 1) / ms(level, 512, 4)))
+
+    if gate == "g5":
+        if not probes:
+            problems.append("no probes were reported")
+        for probe in probes:
+            print("probe " + json.dumps(probe, sort_keys=True))
 
     if problems:
         print("GATE %s: FAIL" % gate.upper())
