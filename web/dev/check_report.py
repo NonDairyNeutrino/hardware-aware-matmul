@@ -8,6 +8,8 @@ Exits 0 on pass, 1 on failure. Gates:
          isolation supplied by the service worker rather than server headers
   probe  informational: records whether StdRunner works in the browser
   lite   g2's cases on the stable single-threaded build, on a page that is NOT isolated
+  stepthrough  the chapters' <step-through> element on the lite build, from the Astro
+         production build, with no isolation and no service worker
   g5     informational: records limits (pool start-up, re-init, panic, memory)
 """
 import json
@@ -15,6 +17,65 @@ import sys
 
 G2_CASES = 29
 SPEEDUP_LEVELS = (1, 2, 3, 4)
+
+
+def rows(blocks):
+    return {"kind": "rows", "blocks": blocks}
+
+
+def check_stepthrough(report):
+    """Compares what the step-through page drew with what the core crate's plans say."""
+    problems = []
+    if report.get("base") != "/matmul_levels.rs/":
+        problems.append("wrong base path: %r" % report.get("base"))
+    if report.get("sw_scopes") != []:
+        problems.append("a service worker was registered (%r); the demo must not need one" % report.get("sw_scopes"))
+    elements = {e["level"]: e for e in report.get("elements", [])}
+    if sorted(elements) != [1, 2, 3, 4]:
+        return problems + ["expected elements for levels 1 to 4, got %r" % sorted(elements)]
+    for level, e in elements.items():
+        env = e["env"]
+        ok_tile = isinstance(env.get("micro_tile"), list) and len(env["micro_tile"]) == 2 and all(
+            isinstance(x, int) and x > 0 for x in env["micro_tile"])
+        if not (env.get("isa") and ok_tile and env.get("threads") is False):
+            problems.append("level %d: bad env %r (the lite build has no threads)" % (level, env))
+    one = elements[1]
+    # `row_block_plan`'s own documented example: 10 rows over 4 threads.
+    if one["plan"] != rows([[0, 3], [3, 6], [6, 9], [9, 10]]):
+        problems.append("level 1 plan is %r" % one["plan"])
+    if one["owners_by_row"] != [0, 0, 0, 1, 1, 1, 2, 2, 2, 3]:
+        problems.append("level 1 row owners are %r" % one["owners_by_row"])
+    if one["done_at_start"] != []:
+        problems.append("level 1 started with rows already done: %r" % one["done_at_start"])
+    after = report.get("after_step", {})
+    if after.get("step") != "1" or after.get("done") != [0, 3, 6, 9]:
+        problems.append("after one Step, expected rows 0,3,6,9 done at step 1, got %r" % after)
+    if "Step 1 of 3" not in after.get("caption", ""):
+        problems.append("caption after one Step is %r" % after.get("caption"))
+    end = report.get("at_end", {})
+    if end.get("step") != "3" or end.get("done") != list(range(10)):
+        problems.append("at the end, expected every row done at step 3, got %r" % end)
+    if report.get("three_threads") != rows([[0, 4], [4, 8], [8, 10]]):
+        problems.append("after changing threads to 3 the plan is %r" % report.get("three_threads"))
+    for level in (2, 3):
+        if elements[level]["plan"] != rows([[0, 4], [4, 8]]):
+            problems.append("level %d plan is %r" % (level, elements[level]["plan"]))
+    # Level 2: B is 6 x 8 in 3 x 4 cache blocks.
+    if elements[2]["b_blocks"] != 4:
+        problems.append("level 2 drew %r cache blocks over B, expected 4" % elements[2]["b_blocks"])
+    # Level 3: micro-tile lines inside two 4-row blocks of an 8-column output.
+    mr, nr = elements[3]["env"]["micro_tile"]
+    want = 2 * (len(range(mr, 4, mr)) + len(range(nr, 8, nr)))
+    if elements[3]["micro_lines"] != want:
+        problems.append("level 3 drew %r micro-tile lines, expected %d for %dx%d" % (elements[3]["micro_lines"], want, mr, nr))
+    four = elements[4]
+    if four["plan"].get("kind") != "tiles" or len(four["plan"].get("tiles", [])) != 4:
+        problems.append("level 4 plan is %r" % four["plan"])
+    elif four["plan"]["depth"] != [[0, 3], [3, 6]] or four["plan"]["workers"] != 2:
+        problems.append("level 4 depth/workers are %r / %r" % (four["plan"]["depth"], four["plan"]["workers"]))
+    if four["tiles_drawn"] != 4:
+        problems.append("level 4 drew %r tiles" % four["tiles_drawn"])
+    return problems
 
 
 def main(gate, path):
@@ -26,12 +87,12 @@ def main(gate, path):
 
     if not report.get("ok"):
         problems.append("page reported an error: " + str(report.get("error")))
-    if gate == "lite":
+    if gate in ("lite", "stepthrough"):
         if report.get("isolated"):
-            problems.append("the lite gate must run on a page that is NOT cross-origin isolated")
+            problems.append("the %s gate must run on a page that is NOT cross-origin isolated" % gate)
     elif not report.get("isolated"):
         problems.append("page is not cross-origin isolated")
-    if gate not in ("g5", "lite") and report.get("pool_threads") != 4:
+    if gate not in ("g5", "lite", "stepthrough") and report.get("pool_threads") != 4:
         problems.append("expected a pool of 4 threads, got %r" % report.get("pool_threads"))
 
     if gate == "probe":
@@ -66,6 +127,9 @@ def main(gate, path):
         scopes = report.get("sw_scopes")
         if not scopes or not all(s.endswith("/matmul_levels.rs/") for s in scopes):
             problems.append("the service worker scope must be the site root /matmul_levels.rs/, got %r" % scopes)
+
+    if gate == "stepthrough":
+        problems.extend(check_stepthrough(report))
 
     if gate == "g5":
         if not probes:
