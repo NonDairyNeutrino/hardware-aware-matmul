@@ -7,10 +7,12 @@ export const siteTitle = 'Mechanical sympathy';
 export const siteSubtitle = 'Five levels of matrix multiplication in Rust';
 export const repoUrl = 'https://github.com/NonDairyNeutrino/hardware-aware-matmul';
 
-// Chapters rendered from docs/ (id = path under docs/, no extension), in reading order.
-// `route` is relative to `base`; the introduction is the home page.
+// The site is laid out as a paper: abstract (the home page), introduction, methods (the
+// levels), and later results, discussion and conclusion. Pages rendered from docs/ (id =
+// path under docs/, no extension), in reading order. `route` is relative to `base`.
 export const chapters = [
-  { id: 'introduction', title: 'Introduction', route: '' },
+  { id: 'paper/abstract', title: 'Abstract', route: '' },
+  { id: 'introduction', title: 'Introduction', route: 'introduction/' },
   { id: 'levels/naive', title: 'Level 0: the naive loop', route: 'levels/naive/' },
   { id: 'levels/threaded', title: 'Level 1: threads', route: 'levels/threaded/' },
   { id: 'levels/cache_friendly', title: 'Level 2: cache blocking', route: 'levels/cache_friendly/' },

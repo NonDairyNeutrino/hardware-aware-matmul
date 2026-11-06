@@ -13,7 +13,10 @@ interface Props {
 const { title, previous = null, next = null, interactive = false } = Astro.props;
 const base = import.meta.env.BASE_URL;
 const here = Astro.url.pathname;
-const pageTitle = title === 'Introduction' ? `${siteTitle}: ${siteSubtitle}` : `${title} · ${siteTitle}`;
+// The landing page (the abstract) is headed by the site title and its subtitle; every other
+// page by its own title.
+const isHome = here === base;
+const pageTitle = isHome ? `${siteTitle}: ${siteSubtitle}` : `${title} · ${siteTitle}`;
 ---
 <!doctype html>
 <html lang="en">
@@ -41,7 +44,8 @@ const pageTitle = title === 'Introduction' ? `${siteTitle}: ${siteSubtitle}` : `
     </header>
     <main id="content">
       <article>
-        <h1>{title}</h1>
+        <h1>{isHome ? siteTitle : title}</h1>
+        {isHome && <p class="subtitle">{siteSubtitle}</p>}
         <slot />
       </article>
       <nav class="pager" aria-label="Previous and next chapter">
