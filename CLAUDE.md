@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-A teaching-oriented Rust crate (`naive_matmul`, no dependencies, `#![forbid(unsafe_code)]`, MSRV 1.73) implementing dense `f64` matrix multiplication as five levels of increasing performance. The repo directory is `matmul_levels.rs`; the crate name is `naive_matmul`. `anim/` holds unrelated-to-build Manim (Python) animations explaining the levels. `web/` is browser tooling, excluded from the published crate. `web/wasm` is a separate crate (own empty `[workspace]`, tracked `Cargo.lock`, nightly pinned in its `rust-toolchain.toml`) that wraps the levels for WebAssembly with a rayon-backed `RayonRunner` (without the `threads` feature it is a stable single-threaded `InlineRunner` build, the "lite" build); `web/dev/` holds a stdlib-only dev server, a headless-Firefox page runner, the gate report checker and `node.sh`. `web/site` is the Astro site; Node runs only in Docker, through `web/dev/node.sh` (image `node:latest` unless `NODE_IMAGE` is set). It renders the chapters from `docs/` (the remark plugin in `web/site/src/plugins/` strips rustdoc-hidden lines and rewrites intra-doc links through the table in `web/site/site.config.mjs`; a link not in the table fails the build) and keeps the stage B gate page at `/gate/`. `.github/workflows/pages.yml` builds the site on manual dispatch and on pull requests (no push trigger until the playground lands); the owner must set Settings > Pages > Source = GitHub Actions once, and `WASM_BINDGEN_VERSION` there must track the `=0.2.130` pin in `web/wasm/Cargo.toml`.
+A teaching-oriented Rust crate (`naive_matmul`, no dependencies, `#![forbid(unsafe_code)]`, MSRV 1.73) implementing dense `f64` matrix multiplication as five levels of increasing performance. The repo directory is `matmul_levels.rs`; the crate name is `naive_matmul`. `anim/` holds unrelated-to-build Manim (Python) animations explaining the levels. `web/` is browser tooling, excluded from the published crate. `web/wasm` is a separate crate (own empty `[workspace]`, tracked `Cargo.lock`, nightly pinned in its `rust-toolchain.toml`) that wraps the levels for WebAssembly with a rayon-backed `RayonRunner` (without the `threads` feature it is a stable single-threaded `InlineRunner` build, the "lite" build); `web/dev/` holds a stdlib-only dev server, a headless-Firefox page runner, the gate report checker and `node.sh`. `web/site` is the Astro site; Node runs only in Docker, through `web/dev/node.sh` (image `node:latest` unless `NODE_IMAGE` is set). It renders the chapters from `docs/` (the remark plugin in `web/site/src/plugins/` strips rustdoc-hidden lines and rewrites intra-doc links through the table in `web/site/site.config.mjs`; a link not in the table fails the build) keeps the stage B gate page at `/gate/`, and embeds a `<step-through>` custom element (`web/site/src/components/`, placed by the `demos` list in `site.config.mjs`) in chapters 1 to 4 that draws the real work partition from the wrapper's `partition_plan` and `env_info` on the lite module, so chapters need no threads and no service worker. `.github/workflows/pages.yml` builds the site on manual dispatch and on pull requests (no push trigger until the playground lands); the owner must set Settings > Pages > Source = GitHub Actions once, and `WASM_BINDGEN_VERSION` there must track the `=0.2.130` pin in `web/wasm/Cargo.toml`.
 
 ## Commands
 
@@ -25,13 +25,14 @@ cd web/wasm && cargo test                       # native tests of the shared cas
 ./build-lite.sh                                 # stable, single-threaded build into pkg-lite/ (no nightly, no threads)
 export WASM_BINDGEN="$HOME/.cargo/bin/wasm-bindgen"   # CLI version must equal the =0.2.130 pin
 ./gate.sh g1|g2|probe|g5|lite [--no-build]      # build, then run a gate in headless Firefox; --no-build reuses pkg/ (pkg-lite/ for lite)
+(cd ../site && ./gate-c2.sh [--no-build])       # the step-through element from the production build, on a page with no isolation and no service worker
 (cd ../site && ./gate-g3.sh [--no-build])       # Astro production build (Node in Docker) served under /matmul_levels.rs/ with no isolation headers; coi-serviceworker supplies them
 ```
 
 ```sh
 # from the repo root
-web/dev/node.sh site npm test                   # the prose plugin's unit tests
-web/dev/node.sh site npm run build              # the site into web/site/dist (needs FEATURES=threads ./build.sh first, for the gate page)
+web/dev/node.sh site npm test                   # unit tests of the prose plugin and the step-through's model
+web/dev/node.sh site npm run build              # the site into web/site/dist (needs ./build-lite.sh and FEATURES=threads ./build.sh first, and public/expected.json for the gate page; the gate scripts do all three)
 web/dev/node.sh site npm run check              # checks the built site (no crate::, one <h1>, chapters never load the service worker)
 ```
 
