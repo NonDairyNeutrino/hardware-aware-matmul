@@ -3,7 +3,7 @@
 # usage: gate.sh g1|g2|probe|g5 [--no-build]
 #   g1     the thread pool starts and runs a parallel sum
 #   g2     29 cases (levels 0 to 4) must hash exactly like native Rust
-#   probe  informational: records that StdRunner traps in the browser
+#   probe  informational: records whether StdRunner works in the browser (it traps)
 #   g5     informational: records limits (pool start-up, re-init, panic, memory)
 # The Astro-build gate (g3) is web/site/gate-g3.sh.
 # env: WASM_BINDGEN (path to the CLI), PORT (default 8765), TIMEOUT (seconds)
