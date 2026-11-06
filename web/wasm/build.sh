@@ -32,15 +32,15 @@ cargo build --release --target wasm32-unknown-unknown \
   --features "$FEATURES" -Z build-std=panic_abort,std
 rm -rf pkg
 "$WASM_BINDGEN" --target web --out-dir pkg \
-  "$TARGET_DIR/wasm32-unknown-unknown/release/naive_matmul_web.wasm"
+  "$TARGET_DIR/wasm32-unknown-unknown/release/hardware_aware_matmul_web.wasm"
 # A bundler resolves the bare directory import in wasm-bindgen-rayon's worker
 # helper through package.json; the raw CLI does not write one (wasm-pack does).
 cat > pkg/package.json <<'JSON'
 {
-  "name": "naive_matmul_web",
+  "name": "hardware_aware_matmul_web",
   "type": "module",
-  "main": "naive_matmul_web.js",
-  "module": "naive_matmul_web.js"
+  "main": "hardware_aware_matmul_web.js",
+  "module": "hardware_aware_matmul_web.js"
 }
 JSON
 printf '%s' "$FEATURES" > pkg/.features

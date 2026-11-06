@@ -17,7 +17,7 @@ if [ "${1:-}" = "--no-build" ]; then
   if [ "$(cat "$WASM/pkg/.features" 2>/dev/null || echo unknown)" != "threads" ]; then
     echo "REFUSING: pkg/ was not built for the bundler; run ./gate-g3.sh without --no-build"; exit 1
   fi
-  if [ ! -f "$WASM/pkg-lite/naive_matmul_web.js" ]; then
+  if [ ! -f "$WASM/pkg-lite/hardware_aware_matmul_web.js" ]; then
     echo "REFUSING: pkg-lite/ is missing; run ./gate-g3.sh without --no-build"; exit 1
   fi
 else

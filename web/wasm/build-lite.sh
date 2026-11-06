@@ -12,12 +12,12 @@ TARGET_DIR="${CARGO_TARGET_DIR:-$PWD/target}-lite"
 cargo +stable build --release --target wasm32-unknown-unknown --target-dir "$TARGET_DIR"
 rm -rf pkg-lite
 "$WASM_BINDGEN" --target web --out-dir pkg-lite \
-  "$TARGET_DIR/wasm32-unknown-unknown/release/naive_matmul_web.wasm"
+  "$TARGET_DIR/wasm32-unknown-unknown/release/hardware_aware_matmul_web.wasm"
 cat > pkg-lite/package.json <<'JSON'
 {
-  "name": "naive_matmul_web",
+  "name": "hardware_aware_matmul_web",
   "type": "module",
-  "main": "naive_matmul_web.js",
-  "module": "naive_matmul_web.js"
+  "main": "hardware_aware_matmul_web.js",
+  "module": "hardware_aware_matmul_web.js"
 }
 JSON

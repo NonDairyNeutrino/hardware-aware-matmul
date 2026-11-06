@@ -1,5 +1,5 @@
 [package]
-name = "naive_matmul_web"
+name = "hardware_aware_matmul_web"
 version = "0.1.0"
 edition = "2021"
 description = "Browser wrapper around hardware_aware_matmul (stage B spike)"

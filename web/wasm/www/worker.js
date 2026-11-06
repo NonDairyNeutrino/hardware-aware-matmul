@@ -5,7 +5,7 @@ import init, {
   sum_squares,
   run_case,
   run_case_std,
-} from '../pkg/naive_matmul_web.js';
+} from '../pkg/hardware_aware_matmul_web.js';
 import { g2Cases } from './g2-cases.js';
 
 self.onmessage = async (event) => {

@@ -24,7 +24,7 @@ case "$GATE" in
 esac
 
 if [ "${2:-}" = "--no-build" ]; then
-  WASM=$PKG/naive_matmul_web_bg.wasm
+  WASM=$PKG/hardware_aware_matmul_web_bg.wasm
   if [ ! -f "$WASM" ]; then
     echo "REFUSING: $WASM is missing; run $BUILD (or drop --no-build)"; exit 1
   fi

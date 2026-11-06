@@ -83,6 +83,16 @@ name = "hardware_aware_matmul"
 version = "0.1.0"
 
 [[package]]
+name = "hardware_aware_matmul_web"
+version = "0.1.0"
+dependencies = [
+ "hardware_aware_matmul",
+ "rayon",
+ "wasm-bindgen",
+ "wasm-bindgen-rayon",
+]
+
+[[package]]
 name = "js-sys"
 version = "0.3.107"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -91,16 +101,6 @@ dependencies = [
  "cfg-if",
  "futures-util",
  "wasm-bindgen",
-]
-
-[[package]]
-name = "naive_matmul_web"
-version = "0.1.0"
-dependencies = [
- "hardware_aware_matmul",
- "rayon",
- "wasm-bindgen",
- "wasm-bindgen-rayon",
 ]
 
 [[package]]

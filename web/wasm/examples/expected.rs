@@ -2,7 +2,7 @@
 //! the naive level. The browser gates compare every level against these.
 
 use hardware_aware_matmul::runner::StdRunner;
-use naive_matmul_web::cases::run_hash;
+use hardware_aware_matmul_web::cases::run_hash;
 
 fn main() {
     let sizes = [64_usize, 256, 512];

@@ -6,7 +6,7 @@ import init, {
   run_case,
   memory_probe,
   panic_probe,
-} from '../pkg/naive_matmul_web.js';
+} from '../pkg/hardware_aware_matmul_web.js';
 
 self.onmessage = async (event) => {
   const message = event.data;

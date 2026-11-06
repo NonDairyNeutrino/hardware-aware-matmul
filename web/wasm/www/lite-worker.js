@@ -1,6 +1,6 @@
 // Runs the lite (stable, single-threaded) build in a Web Worker: the same cases as
 // the g2 gate, with no thread pool. The page posts { gate, expected }.
-import init, { run_case } from '../pkg-lite/naive_matmul_web.js';
+import init, { run_case } from '../pkg-lite/hardware_aware_matmul_web.js';
 import { g2Cases } from './g2-cases.js';
 
 self.onmessage = async (event) => {

@@ -1,6 +1,6 @@
 // Loads the stable single-threaded build of the wrapper once per page. It has no
 // thread pool, so it needs no cross-origin isolation and no service worker.
-import init, { env_info, partition_plan } from '../../../wasm/pkg-lite/naive_matmul_web.js';
+import init, { env_info, partition_plan } from '../../../wasm/pkg-lite/hardware_aware_matmul_web.js';
 
 let ready;
 
