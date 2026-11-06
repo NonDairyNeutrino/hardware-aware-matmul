@@ -154,6 +154,7 @@ class StepThrough extends HTMLElement {
     this.step = Math.min(Math.max(step, 0), this.total);
     this.dataset.step = String(this.step);
     this.scrub.value = String(this.step);
+    this.scrub.setAttribute('aria-valuetext', `Step ${this.step} of ${this.total}`);
     for (const cell of this.figure.querySelectorAll('rect[data-row]')) {
       cell.dataset.done = String(this.isDone(cell));
     }
