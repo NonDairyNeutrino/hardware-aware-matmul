@@ -48,13 +48,12 @@ function row(label, fetches, bytes, width, note) {
     `<div class="rf-numbers">B is fetched <strong>${times(fetches)}</strong>: <strong>${formatBytes(bytes)}</strong> per thread</div></div>`;
 }
 
-/** The figure: two rows (without and with blocking), bars on a log scale of bytes. */
+/** The figure: two rows (without and with blocking), bars drawn to scale in bytes. */
 export function reuseFigure({ n, block, threads }) {
   const c = reuseCounts({ n, block, threads });
   const [tileK, tileJ] = block;
-  // Log scale: the bar length is log(bytes) / log(largest), so the 256-fold gap shows as a
-  // shorter bar instead of a bar too thin to see.
-  const width = (bytes) => Math.round((Math.log(bytes) / Math.log(c.bytesWithout)) * 1000) / 10;
+  // To scale: the blocked bar is a sliver, which is the point. A minimum width keeps it visible.
+  const width = (bytes) => Math.max(0.4, Math.round((bytes / c.bytesWithout) * 1000) / 10);
   const header = `Example: ${n} × ${n} matrices of 8-byte values, ${threads} threads (${c.rows} rows of C each), ` +
     `blocks of B of ${tileK} × ${tileJ} values = ${formatBytes(c.blockBytes)}`;
   const label = `${header}. Without blocking, each element of B is fetched ${times(c.fetchesWithout)} per thread, ` +
@@ -68,6 +67,6 @@ export function reuseFigure({ n, block, threads }) {
       `(a ${formatBytes(c.blockBytes)} block of B stays in the cache while all ${c.rows} rows use it)`) +
     `</div><figcaption>This counts fetches under one assumption: the cache holds one block of B but not all of B. ` +
     `It is a model of what the loops ask for, not a measurement, and the real saving depends on the cache sizes of the machine. ` +
-    `Bar lengths are on a log scale of bytes (the length is the logarithm, so the blocked bar stands for ${c.rows} times fewer bytes ` +
-    `but is drawn only a little shorter). The example uses ${threads} threads.</figcaption></figure>`;
+    `The bars are drawn to scale: the blocked bar is ${c.rows} times shorter, so it is only a sliver. ` +
+    `The example uses ${threads} threads.</figcaption></figure>`;
 }

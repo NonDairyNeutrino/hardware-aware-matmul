@@ -32,17 +32,19 @@ test('the figure states the example, both counts and the byte totals', () => {
   assert.match(html, /2 GiB/);
   assert.match(html, /8 MiB/);
   assert.match(html, /not a measurement/);
-  assert.match(html, /log/);
+  assert.doesNotMatch(html, /log scale/);
+  assert.match(html, /to scale/);
   assert.equal((html.match(/role="img" aria-label="[^"]*256 times[^"]*"/g) ?? []).length, 1);
   assert.doesNotMatch(html, /<script/);
 });
 
-test('the blocked bar is shorter than the unblocked bar and both fit', () => {
+test('the bars are drawn to scale: the blocked bar is a sliver of the unblocked one', () => {
   const html = reuseFigure({ n: 1024, block: [32, 64], threads: 4 });
   const widths = [...html.matchAll(/class="rf-fill[^"]*" style="width:([\d.]+)%"/g)].map((m) => Number(m[1]));
   assert.equal(widths.length, 2);
   assert.equal(widths[0], 100);
-  assert.ok(widths[1] > 0 && widths[1] < widths[0]);
+  // 8 MiB against 2 GiB is 1 in 256: 0.39 %, drawn with a minimum width so it stays visible.
+  assert.ok(widths[1] >= 0.4 && widths[1] <= 0.5, String(widths[1]));
 });
 
 test('invalid inputs are rejected', () => {
