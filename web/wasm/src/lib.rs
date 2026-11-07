@@ -59,7 +59,7 @@ pub fn pool_threads() -> usize {
     rayon::current_num_threads()
 }
 
-/// Gate G2: the bit hash of a level's product (0 to 4), with its work on the pool.
+/// Gate G2: the bit hash of a level's product (0 to 5), with its work on the pool.
 #[cfg(feature = "threads")]
 #[wasm_bindgen]
 pub fn run_case(
@@ -72,8 +72,8 @@ pub fn run_case(
     cases::run_hash(level, n, threads, tile_k, tile_j, &RayonRunner).map_err(|e| JsError::new(&e))
 }
 
-/// The partition of a small product at `level` (0 to 4), as JSON: row blocks for
-/// levels 0 to 3, output tiles in claim order for level 4. See [`plan`].
+/// The partition of a small product at `level` (0 to 5), as JSON: row blocks for
+/// levels 0 to 4, output tiles in claim order for level 5. See [`plan`].
 ///
 /// Display sizes only: `rows`, `inner`, `cols` and the tile edges are at most 64
 /// and `threads` at most 8. Bad arguments return an error.
@@ -118,9 +118,9 @@ pub fn bench_prepare(n: usize) -> Result<(), JsError> {
     BENCH.with(|bench| bench.borrow_mut().prepare(n)).map_err(|e| JsError::new(&e))
 }
 
-/// Benchmark API, step 2: multiplies the prepared operands at `level` (0 to 4) and keeps
+/// Benchmark API, step 2: multiplies the prepared operands at `level` (0 to 5) and keeps
 /// the result. This is the call a page times. `tile_k`/`tile_j` are the cache blocks of
-/// levels 2 to 4 and the three `tile_*` sizes the output tile of level 4.
+/// levels 2 to 5 and the three `tile_*` sizes the output tile of level 5.
 #[wasm_bindgen]
 pub fn bench_multiply(
     level: u32,
@@ -218,7 +218,7 @@ mod inline_tests {
 
     #[test]
     fn inline_runner_gives_the_same_hash_as_the_std_runner() {
-        for level in 1..=4 {
+        for level in 1..=5 {
             for threads in [1, 3] {
                 let std = run_hash(level, 48, threads, 32, 64, &StdRunner).unwrap();
                 let inline = run_hash(level, 48, threads, 32, 64, &InlineRunner).unwrap();
@@ -235,7 +235,7 @@ mod tests {
 
     #[test]
     fn rayon_runner_gives_the_same_hash_as_the_std_runner() {
-        for level in 1..=3 {
+        for level in 1..=4 {
             for threads in [1, 3] {
                 let std = run_hash(level, 48, threads, 32, 64, &StdRunner).unwrap();
                 let rayon = run_hash(level, 48, threads, 32, 64, &RayonRunner).unwrap();

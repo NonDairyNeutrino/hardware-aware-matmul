@@ -30,10 +30,10 @@ fn ranges(ranges: impl Iterator<Item = std::ops::Range<usize>>) -> String {
     format!("[{}]", items.join(","))
 }
 
-/// The partition of an `rows × inner` by `inner × cols` product at `level` (0 to 4).
+/// The partition of an `rows × inner` by `inner × cols` product at `level` (0 to 5).
 ///
-/// Levels 0 to 3 give `{"kind":"rows","blocks":[[start,end],...]}` from
-/// [`row_block_plan`] (level 0 is one block, whatever `threads` is). Level 4 gives
+/// Levels 0 to 4 give `{"kind":"rows","blocks":[[start,end],...]}` from
+/// [`row_block_plan`] (level 0 is one block, whatever `threads` is). Level 5 gives
 /// `{"kind":"tiles","tiles":[{"rows":[a,b],"cols":[a,b]},...],"depth":[[a,b],...],
 /// "workers":w}` from [`tile_plan`] with the given tile shape; `workers` is the
 /// number of workers the level starts (the thread count, capped at the number of
@@ -56,11 +56,11 @@ pub fn partition_plan_json(
     let workers = NonZeroUsize::new(threads).expect("bounded to at least 1");
     match level {
         0 => Ok(format!("{{\"kind\":\"rows\",\"blocks\":[[0,{rows}]]}}")),
-        1..=3 => {
+        1..=4 => {
             let blocks = ranges(row_block_plan(rows, workers).into_iter());
             Ok(format!("{{\"kind\":\"rows\",\"blocks\":{blocks}}}"))
         }
-        4 => {
+        5 => {
             let tile_rows = bounded("tile_rows", tile_rows, MAX_DIM)?;
             let tile_cols = bounded("tile_cols", tile_cols, MAX_DIM)?;
             let tile_depth = bounded("tile_depth", tile_depth, MAX_DIM)?;
@@ -83,7 +83,7 @@ pub fn partition_plan_json(
                 tiles.join(",")
             ))
         }
-        other => Err(format!("level must be 0 to 4, got {other}")),
+        other => Err(format!("level must be 0 to 5, got {other}")),
     }
 }
 
@@ -114,10 +114,11 @@ mod tests {
     }
 
     #[test]
-    fn levels_two_and_three_use_the_same_row_blocks() {
+    fn levels_two_to_four_use_the_same_row_blocks() {
         let one = partition_plan_json(1, 10, 6, 6, 4, 1, 1, 1).unwrap();
         assert_eq!(partition_plan_json(2, 10, 6, 6, 4, 1, 1, 1).unwrap(), one);
         assert_eq!(partition_plan_json(3, 10, 6, 6, 4, 1, 1, 1).unwrap(), one);
+        assert_eq!(partition_plan_json(4, 10, 6, 6, 4, 1, 1, 1).unwrap(), one);
     }
 
     #[test]
@@ -137,10 +138,10 @@ mod tests {
     }
 
     #[test]
-    fn level_four_lists_tiles_in_claim_order_and_depth_slices() {
+    fn level_five_lists_tiles_in_claim_order_and_depth_slices() {
         // The example from `tile_plan`'s documentation: a 2 x 2 grid of 2 x 3 tiles.
         assert_eq!(
-            partition_plan_json(4, 4, 6, 6, 2, 2, 3, 4).unwrap(),
+            partition_plan_json(5, 4, 6, 6, 2, 2, 3, 4).unwrap(),
             concat!(
                 r#"{"kind":"tiles","tiles":["#,
                 r#"{"rows":[0,2],"cols":[0,3]},{"rows":[0,2],"cols":[3,6]},"#,
@@ -151,29 +152,29 @@ mod tests {
     }
 
     #[test]
-    fn level_four_starts_no_more_workers_than_tiles() {
-        let json = partition_plan_json(4, 4, 4, 4, 8, 4, 4, 4).unwrap();
+    fn level_five_starts_no_more_workers_than_tiles() {
+        let json = partition_plan_json(5, 4, 4, 4, 8, 4, 4, 4).unwrap();
         assert!(json.contains(r#""workers":1"#), "{json}");
     }
 
     #[test]
-    fn level_four_clips_the_edge_tiles() {
-        let json = partition_plan_json(4, 5, 4, 5, 1, 4, 4, 4).unwrap();
+    fn level_five_clips_the_edge_tiles() {
+        let json = partition_plan_json(5, 5, 4, 5, 1, 4, 4, 4).unwrap();
         assert!(json.contains(r#"{"rows":[4,5],"cols":[4,5]}"#), "{json}");
     }
 
     #[test]
     fn bad_arguments_are_errors_not_panics() {
         for (args, needle) in [
-            ((5, 4, 4, 4, 1, 1, 1, 1), "level must be 0 to 4"),
+            ((6, 4, 4, 4, 1, 1, 1, 1), "level must be 0 to 5"),
             ((1, 0, 4, 4, 1, 1, 1, 1), "rows must be in 1..=64"),
             ((1, 4, 65, 4, 1, 1, 1, 1), "inner must be in 1..=64"),
             ((1, 4, 4, 0, 1, 1, 1, 1), "cols must be in 1..=64"),
             ((1, 4, 4, 4, 0, 1, 1, 1), "threads must be in 1..=8"),
             ((1, 4, 4, 4, 9, 1, 1, 1), "threads must be in 1..=8"),
-            ((4, 4, 4, 4, 1, 0, 1, 1), "tile_rows must be in 1..=64"),
-            ((4, 4, 4, 4, 1, 1, 0, 1), "tile_cols must be in 1..=64"),
-            ((4, 4, 4, 4, 1, 1, 1, 65), "tile_depth must be in 1..=64"),
+            ((5, 4, 4, 4, 1, 0, 1, 1), "tile_rows must be in 1..=64"),
+            ((5, 4, 4, 4, 1, 1, 0, 1), "tile_cols must be in 1..=64"),
+            ((5, 4, 4, 4, 1, 1, 1, 65), "tile_depth must be in 1..=64"),
         ] {
             let (l, r, i, c, t, tr, tc, td) = args;
             let err = partition_plan_json(l, r, i, c, t, tr, tc, td).unwrap_err();
@@ -183,7 +184,7 @@ mod tests {
 
     #[test]
     fn the_other_levels_ignore_the_tile_arguments() {
-        // Zero tile arguments are fine for levels 0 to 3.
+        // Zero tile arguments are fine for levels 0 to 4.
         assert!(partition_plan_json(2, 4, 4, 4, 2, 0, 0, 0).is_ok());
     }
 

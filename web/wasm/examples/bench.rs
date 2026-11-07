@@ -16,7 +16,7 @@ use hardware_aware_matmul::runner::StdRunner;
 use hardware_aware_matmul::simd::{micro_tile_shape, target_vector_isa};
 use hardware_aware_matmul_web::cases::Bench;
 
-/// The cache blocks (`k`, `j`) and the level 4 output tile of every measurement; they
+/// The cache blocks (`k`, `j`) and the level 5 output tile of every measurement; they
 /// are the crate defaults and what the browser runs use.
 const BLOCK: (usize, usize) = (32, 64);
 const TILE: (usize, usize, usize) = (128, 128, 128);
@@ -48,7 +48,7 @@ fn main() {
     // timed case does not pay for cold-start costs (thread start, first-touch of memory).
     let warm_n = sizes.iter().copied().min().expect("at least one size").min(128);
     bench.prepare(warm_n).expect("valid size");
-    for level in 0..=4_u32 {
+    for level in 0..=5_u32 {
         let counts: Vec<usize> = if level == 0 { vec![1] } else { threads.clone() };
         for &t in &counts {
             bench.multiply(level, t, BLOCK.0, BLOCK.1, TILE, &StdRunner).expect("valid case");
@@ -57,7 +57,7 @@ fn main() {
     let mut runs = Vec::new();
     for &n in &sizes {
         bench.prepare(n).expect("valid size");
-        for level in 0..=4_u32 {
+        for level in 0..=5_u32 {
             let counts: Vec<usize> = if level == 0 { vec![1] } else { threads.clone() };
             for &t in &counts {
                 let run = |bench: &mut Bench| {

@@ -5,7 +5,7 @@
 // warmed up and timed `repeats` times with `performance.now()` around the multiplication
 // alone. The result's hash is read after every repeat, outside the timer, and a repeat
 // that differs from the first is an error.
-// The cache blocks and the level 4 tile are fixed, like the native bench example's; the
+// The cache blocks and the level 5 tile are fixed, like the native bench example's; the
 // workers report them in their parameters.
 export const BLOCK = [32, 64];
 export const TILE = [128, 128, 128];
@@ -15,13 +15,13 @@ export function runBench(api, { sizes, threads, repeats, warmup }) {
   // Level 0 is single-threaded whatever the setting.
   const countsFor = (level) => (level === 0 ? [1] : threads);
   api.bench_prepare(Math.min(Math.min(...sizes), 128));
-  for (let level = 0; level <= 4; level += 1) {
+  for (let level = 0; level <= 5; level += 1) {
     for (const t of countsFor(level)) multiply(level, t);
   }
   const runs = [];
   for (const n of sizes) {
     api.bench_prepare(n);
-    for (let level = 0; level <= 4; level += 1) {
+    for (let level = 0; level <= 5; level += 1) {
       for (const t of countsFor(level)) {
         for (let i = 0; i < warmup; i += 1) multiply(level, t);
         const times = [];

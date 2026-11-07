@@ -8,7 +8,7 @@ use std::num::NonZeroUsize;
 use hardware_aware_matmul::cache_friendly::{self, BlockConfig};
 use hardware_aware_matmul::runner::Runner;
 use hardware_aware_matmul::streaming::{self, MemorySink, StreamConfig};
-use hardware_aware_matmul::{naive, simd, threaded, Matrix};
+use hardware_aware_matmul::{naive, packed, simd, threaded, Matrix};
 
 /// Operands with entries of very different magnitudes, so nearly every partial
 /// sum rounds and any change in summation order changes the bits. This is the
@@ -41,14 +41,14 @@ pub fn bit_hash(matrix: &Matrix) -> String {
 /// The largest matrix edge the wasm wrapper accepts.
 pub const MAX_N: usize = 2048;
 
-/// The output-tile shape (rows, columns, depth) level 4 uses in the gate cases.
+/// The output-tile shape (rows, columns, depth) level 5 uses in the gate cases.
 pub const GATE_TILE: (usize, usize, usize) = (64, 64, 64);
 
 /// Multiplies `a` by `b` at `level` (0 = naive, 1 = threaded, 2 = cache_friendly,
-/// 3 = simd, 4 = streaming with the output tiles of the given `tile` shape).
+/// 3 = simd, 4 = packed, 5 = streaming with the output tiles of the given `tile` shape).
 ///
-/// Levels 1 to 4 run their work on `runner`; `tile_k` and `tile_j` are the cache
-/// blocks of levels 2 to 4. Every argument is validated, so a bad one is an error and
+/// Levels 1 to 5 run their work on `runner`; `tile_k` and `tile_j` are the cache
+/// blocks of levels 2 to 5. Every argument is validated, so a bad one is an error and
 /// never a panic.
 #[allow(clippy::too_many_arguments)]
 pub fn multiply<R: Runner + ?Sized>(
@@ -74,7 +74,8 @@ pub fn multiply<R: Runner + ?Sized>(
         2 => cache_friendly::matmul_with_runner(a, b, threads, &block, runner)
             .map_err(|e| e.to_string()),
         3 => simd::matmul_with_runner(a, b, threads, &block, runner).map_err(|e| e.to_string()),
-        4 => {
+        4 => packed::matmul_with_runner(a, b, threads, &block, runner).map_err(|e| e.to_string()),
+        5 => {
             let config = StreamConfig::new(threads)
                 .with_tile_shape(tile.0, tile.1, tile.2)
                 .with_block_config(block);
@@ -83,15 +84,15 @@ pub fn multiply<R: Runner + ?Sized>(
                 .map_err(|e| e.to_string())?;
             Ok(sink.into_matrix())
         }
-        other => Err(format!("level must be 0 to 4, got {other}")),
+        other => Err(format!("level must be 0 to 5, got {other}")),
     }
 }
 
 /// Multiplies two `n × n` rough matrices at `level` (0 = naive, 1 = threaded,
-/// 2 = cache_friendly, 3 = simd, 4 = streaming with 64 × 64 × 64 tiles) and
+/// 2 = cache_friendly, 3 = simd, 4 = packed, 5 = streaming with 64 × 64 × 64 tiles) and
 /// returns the result's bit hash.
 ///
-/// Levels 1 to 4 run their work on `runner`.
+/// Levels 1 to 5 run their work on `runner`.
 pub fn run_hash<R: Runner + ?Sized>(
     level: u32,
     n: usize,
@@ -170,7 +171,7 @@ mod tests {
     fn every_level_has_the_naive_hash() {
         for n in [1, 7, 33, 64, 130] {
             let expected = run_hash(0, n, 1, 32, 64, &StdRunner).unwrap();
-            for level in 1..=4 {
+            for level in 1..=5 {
                 for threads in [1, 3] {
                     let got = run_hash(level, n, threads, 32, 64, &StdRunner).unwrap();
                     assert_eq!(got, expected, "level {level}, n {n}, {threads} threads");
@@ -183,7 +184,7 @@ mod tests {
     fn block_sizes_do_not_change_the_hash() {
         let expected = run_hash(0, 40, 1, 32, 64, &StdRunner).unwrap();
         for (tile_k, tile_j) in [(1, 1), (7, 2), (1000, 1000)] {
-            for level in [2, 3, 4] {
+            for level in [2, 3, 4, 5] {
                 let got = run_hash(level, 40, 2, tile_k, tile_j, &StdRunner).unwrap();
                 assert_eq!(got, expected, "level {level}, block {tile_k}x{tile_j}");
             }
@@ -195,7 +196,7 @@ mod tests {
         assert!(run_hash(1, 8, 0, 32, 64, &StdRunner).is_err());
         assert!(run_hash(2, 8, 1, 0, 64, &StdRunner).is_err());
         assert!(run_hash(3, 8, 1, 32, 0, &StdRunner).is_err());
-        assert!(run_hash(5, 8, 1, 32, 64, &StdRunner).is_err());
+        assert!(run_hash(6, 8, 1, 32, 64, &StdRunner).is_err());
         assert!(run_hash(9, 8, 1, 32, 64, &StdRunner).is_err());
         assert!(run_hash(1, 0, 1, 32, 64, &StdRunner).is_err());
         assert!(run_hash(1, 4096, 1, 32, 64, &StdRunner).is_err());
@@ -205,7 +206,7 @@ mod tests {
     fn bench_gives_the_same_hash_as_run_hash_for_every_level() {
         let mut bench = Bench::new();
         bench.prepare(48).unwrap();
-        for level in 0..=4 {
+        for level in 0..=5 {
             for threads in [1, 3] {
                 bench.multiply(level, threads, 32, 64, GATE_TILE, &StdRunner).unwrap();
                 let expected = run_hash(level, 48, threads, 32, 64, &StdRunner).unwrap();
@@ -215,13 +216,13 @@ mod tests {
     }
 
     #[test]
-    fn the_level_four_tile_shape_does_not_change_the_hash() {
+    fn the_level_five_tile_shape_does_not_change_the_hash() {
         let mut bench = Bench::new();
         bench.prepare(40).unwrap();
         bench.multiply(0, 1, 32, 64, GATE_TILE, &StdRunner).unwrap();
         let expected = bench.hash().unwrap();
         for tile in [(1, 1, 1), (7, 5, 3), (128, 128, 128)] {
-            bench.multiply(4, 2, 32, 64, tile, &StdRunner).unwrap();
+            bench.multiply(5, 2, 32, 64, tile, &StdRunner).unwrap();
             assert_eq!(bench.hash().unwrap(), expected, "tile {tile:?}");
         }
     }
@@ -238,9 +239,9 @@ mod tests {
         assert!(bench.multiply(1, 0, 32, 64, GATE_TILE, &StdRunner).is_err());
         assert!(bench.multiply(2, 1, 0, 64, GATE_TILE, &StdRunner).is_err());
         assert!(bench.multiply(3, 1, 32, 0, GATE_TILE, &StdRunner).is_err());
-        assert!(bench.multiply(4, 1, 32, 64, (0, 64, 64), &StdRunner).is_err());
-        assert!(bench.multiply(4, 1, 32, 64, (64, 64, 0), &StdRunner).is_err());
-        assert!(bench.multiply(5, 1, 32, 64, GATE_TILE, &StdRunner).is_err());
+        assert!(bench.multiply(5, 1, 32, 64, (0, 64, 64), &StdRunner).is_err());
+        assert!(bench.multiply(5, 1, 32, 64, (64, 64, 0), &StdRunner).is_err());
+        assert!(bench.multiply(6, 1, 32, 64, GATE_TILE, &StdRunner).is_err());
     }
 
     #[test]
