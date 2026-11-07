@@ -55,7 +55,7 @@ export function clampRequest(raw, { pool = 1, build = 'lite' } = {}) {
 
 /**
  * The longest budget any request may get. The largest request with the default blocks and tiles
- * needs about 6.5 minutes; tiny blocks or tiles could need hours.
+ * needs about 6.4 minutes; tiny blocks or tiles could need hours.
  */
 export const MAX_TIMEOUT_MS = 10 * 60 * 1000;
 
@@ -97,9 +97,16 @@ const ceilDiv = (a, b) => Math.ceil(a / b);
 /** Seconds one single-threaded multiplication of `level` takes, by the slowest build measured. */
 function levelSeconds(level, { n, block = DEFAULTS.block, tile = DEFAULTS.tile }) {
   let seconds = SECONDS_AT_512[level] * (n / 512) ** 3;
-  // Levels 2 to 4 visit every (row, k-block, j-block); level 4 also every tile.
-  if (level >= 2) seconds += n * ceilDiv(n, block[0]) * ceilDiv(n, block[1]) * SECONDS_PER_BLOCK;
-  if (level === 4) seconds += ceilDiv(n, tile[0]) * ceilDiv(n, tile[1]) * ceilDiv(n, tile[2]) * SECONDS_PER_TILE;
+  // Levels 2 and 3 visit every (row, k-block, j-block) of the matrix.
+  if (level === 2 || level === 3) seconds += n * ceilDiv(n, block[0]) * ceilDiv(n, block[1]) * SECONDS_PER_BLOCK;
+  if (level === 4) {
+    // Level 4 visits every tile, and runs the blocked kernel inside each one: every (row,
+    // k-block, j-block) of the tile, so a tile thinner than a block still costs a block call
+    // per row. Counting every tile at its full (clipped) size slightly overcounts edge tiles.
+    const [rows, cols, depth] = tile.map((edge) => Math.min(edge, n));
+    const tiles = ceilDiv(n, tile[0]) * ceilDiv(n, tile[1]) * ceilDiv(n, tile[2]);
+    seconds += tiles * (SECONDS_PER_TILE + rows * ceilDiv(depth, block[0]) * ceilDiv(cols, block[1]) * SECONDS_PER_BLOCK);
+  }
   return seconds;
 }
 
@@ -107,7 +114,9 @@ function levelSeconds(level, { n, block = DEFAULTS.block, tile = DEFAULTS.tile }
  * How long a request may run before the page gives up and restarts the worker: the work at one
  * thread (an overestimate when threads help, and counting the per-tile and per-block cost of
  * small shapes), repeated, plus a warm-up run per level, times a safety factor of 4, plus 15 s
- * for loading the module and starting the pool. `clampRequest` keeps it under MAX_TIMEOUT_MS.
+ * of slack. The controller counts it from the worker's `ready`, so loading the module and
+ * starting the pool are not in it (its start timeout covers those). `clampRequest` keeps it
+ * under MAX_TIMEOUT_MS.
  */
 export function timeoutMs(request) {
   const perRepeat = request.levels.reduce((sum, level) => sum + levelSeconds(level, request), 0);
