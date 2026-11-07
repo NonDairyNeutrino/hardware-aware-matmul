@@ -19,6 +19,8 @@ const supportsSimd = () => {
   try { return WebAssembly.validate(SIMD_PROBE); } catch { return false; }
 };
 
+const GATES = ['threads', 'lite', 'recover'];
+
 const store = {
   get() { try { return Number(sessionStorage.getItem(ATTEMPTS_KEY) || 0); } catch { return 0; } },
   set(value) { try { sessionStorage.setItem(ATTEMPTS_KEY, String(value)); } catch { /* storage blocked */ } },
@@ -52,7 +54,7 @@ async function main() {
     ui.setBanner('This browser has no WebAssembly SIMD support, which the playground needs. Firefox 89, Chrome 91 and Safari 16.4 or later have it.', 'warning');
     ui.disableAll('The playground cannot run in this browser.');
     context.unsupported = true;
-    if (query.get('gate')) (await import('./gate.js')).runGate(query.get('gate'), context);
+    if (GATES.includes(query.get('gate'))) (await import('./gate.js')).runGate(query.get('gate'), context);
     return;
   }
   ui.disableAll('Choosing how to run…');
@@ -73,8 +75,8 @@ async function main() {
   ui.setBuild(build === 'threads' ? `Threaded build (up to ${maxThreads} threads)` : 'Single-threaded (lite) build');
   ui.setStatus('Ready.');
 
-  const timeoutOverride = Number(query.get('timeout_ms'));
-  const results = [];
+  const requested = Number(query.get('timeout_ms'));
+  const timeoutOverride = Number.isFinite(requested) && requested > 0 ? Math.min(requested, 3600000) : 0;
   const controller = createController({
     makeWorker: () => new Worker(new URL('./worker.js', import.meta.url), { type: 'module' }),
     build,
@@ -93,8 +95,12 @@ async function main() {
     ui.clearResults();
     ui.setRunning(true);
     ui.setStatus('Starting (the first run loads the module)…');
-    results.length = 0;
-    const outcome = await controller.start(request, { timeout });
+    let outcome;
+    try {
+      outcome = await controller.start(request, { timeout });
+    } catch (error) {
+      outcome = { status: 'error', message: error?.message ?? String(error), results: [], timeout };
+    }
     context.lastOutcome = { ...outcome, request };
     ui.setRunning(false);
     const final = outcome.status === 'done';
@@ -108,7 +114,6 @@ async function main() {
     return outcome;
   }
   context.run = (request, options) => run(request, options);
-  context.timeoutOverride = timeoutOverride;
 
   ui.elements.form.addEventListener('submit', (event) => {
     event.preventDefault();
@@ -119,7 +124,7 @@ async function main() {
   });
   ui.elements.cancel.addEventListener('click', () => controller.cancel());
 
-  if (query.get('gate')) (await import('./gate.js')).runGate(query.get('gate'), context);
+  if (GATES.includes(query.get('gate'))) (await import('./gate.js')).runGate(query.get('gate'), context);
 }
 
 main();

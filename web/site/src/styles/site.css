@@ -140,6 +140,7 @@ step-through:not([data-state]) { display: none; }
 .results-figure figcaption { margin-bottom: 0.4rem; font-size: 0.92rem; font-weight: 600; }
 .table-scroll { overflow-x: auto; }
 table.results { display: table; border-collapse: collapse; width: 100%; font-size: 0.92rem; font-variant-numeric: tabular-nums; }
+table.results[hidden] { display: none; }
 table.results th, table.results td { padding: 0.35rem 0.6rem; border-bottom: 1px solid var(--border); text-align: right; white-space: nowrap; }
 table.results th:first-child { text-align: left; }
 table.results td.noisy { color: var(--muted); font-style: italic; }
