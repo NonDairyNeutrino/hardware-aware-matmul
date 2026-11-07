@@ -1,4 +1,4 @@
-**Level 4 of 4.** Everything from level 2, plus **bounded memory**: the
+**Level 5 of 5.** Everything from level 2, plus **bounded memory**: the
 matrices no longer have to be in memory at all. The product is computed one
 small output tile at a time, by streaming the matching tiles of the inputs
 past a running accumulator and handing each finished tile to an output sink.
@@ -8,7 +8,7 @@ RAM. It is what makes the problem *possible* when it does not.
 
 # The problem
 
-Levels 0 to 3 need `A`, `B`, and `C` resident at once: `3·n²·8` bytes for
+Levels 0 to 4 need `A`, `B`, and `C` resident at once: `3·n²·8` bytes for
 `n × n` matrices. At `n = 100 000` each matrix is 80 GB and the three together
 are 240 GB. The arithmetic is not the obstacle; the memory is.
 
@@ -52,7 +52,7 @@ its input incrementally and never needs it all at once.
 | Errors | dimension mismatch only | plus I/O errors from sources and sinks |
 
 The inner loop is deliberately not new: level 2's `axpy`, its `i-k-j` loop
-order, and its cache-block constants are reused unchanged. Level 4 adds a
+order, and its cache-block constants are reused unchanged. Level 5 adds a
 layer *around* the level-2 kernel, not a replacement for it.
 
 # The algorithm
@@ -205,7 +205,7 @@ stored exactly once: the product, with the same bits as
   the copy. That is not the purpose of this level, so measure rather than
   count on it. If
   everything fits in RAM, [`cache_friendly`](crate::cache_friendly) and
-  [`simd`](crate::simd) are simpler. Level 4 earns its keep when the data does
+  [`simd`](crate::simd) are simpler. Level 5 earns its keep when the data does
   not fit, or when you want to consume results without storing them.
 - **Rereading.** The inputs are read many times;
   [`StreamConfig::peak_buffer_bytes`] and

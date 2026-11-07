@@ -1,4 +1,4 @@
-**Level 2 of 4.** Same threads, same partitioning, same results, but each
+**Level 2 of 5.** Same threads, same partitioning, same results, but each
 thread's loops are rearranged so that each thread reuses data while it is still in
 the cache.
 

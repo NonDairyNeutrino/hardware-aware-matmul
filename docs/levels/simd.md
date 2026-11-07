@@ -1,4 +1,4 @@
-**Level 3 of 4.** Same threads, same partitioning, same results as level 2,
+**Level 3 of 5.** Same threads, same partitioning, same results as level 2,
 but the innermost step is rebuilt around the processor's vector registers.
 
 # What changed from level 2
@@ -204,17 +204,16 @@ assert_eq!(c, Matrix::new(2, 2, vec![58.0, 64.0, 139.0, 154.0]));
   the loops. Check the assembly if it matters.
 - **No packing.** Each micro-kernel call reads `NR` consecutive elements from
   each of `depth` rows of `B`, a row apart. Copying `B` blocks into a
-  contiguous, micro-kernel-shaped buffer ("packing") would make those reads
-  purely sequential. It is the usual next step and is not done here.
+  contiguous, micro-kernel-shaped buffer ("packing") makes those reads purely
+  sequential. [`packed`](crate::packed) does exactly that.
 - **Untuned constants.** `MR`, `NR`, and the cache-block sizes are reasonable
   defaults, not measured optima.
 - **Still three whole matrices in memory.**
 
 # Where to go next
 
-Everything so far assumes `A`, `B`, and `C` all fit in memory.
-[`streaming`](crate::streaming) removes that assumption. It computes its tiles with level 2's
-`axpy` kernel, not with this level's micro-kernel.
+[`packed`](crate::packed) keeps this micro-kernel and changes where it reads `B`
+from: a contiguous copy of each cache block instead of the matrix itself.
 
 [`micro_tile_shape`]: crate::simd::micro_tile_shape
 [`target_vector_isa`]: crate::simd::target_vector_isa

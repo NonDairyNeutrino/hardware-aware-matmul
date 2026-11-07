@@ -1,4 +1,4 @@
-**Level 0 of 4.** The textbook algorithm: one thread, three nested loops, no
+**Level 0 of 5.** The textbook algorithm: one thread, three nested loops, no
 tricks. Everything else in this crate is a modification of this function, and
 every other level is tested against it.
 New to caches, cache lines or SIMD? The project's website has a short primer on them.
@@ -66,7 +66,7 @@ touches memory and processors:
    remove some of it, not reliably all), and later levels sidestep it by
    iterating over slices.
 4. **Three whole matrices in memory.** `A`, `B`, and `C` must all be resident
-   at once, which for `n × n` matrices of `f64` is `3·n²·8` bytes. Level 4
+   at once, which for `n × n` matrices of `f64` is `3·n²·8` bytes. Level 5
    removes this limit.
 
 # Where to go next

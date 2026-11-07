@@ -30,7 +30,7 @@ fn multiply_row_block(a: &Matrix, b: &Matrix, first_row: usize, c_block: &mut [f
 }
 
 /// Divides `rows` output rows into the contiguous blocks that [`matmul`] (and
-/// levels 2 and 3) give to their threads.
+/// levels 2 to 4) give to their threads.
 ///
 /// The rows are cut into at most `threads` blocks of equal size; the last block
 /// may be smaller. If there are fewer rows than threads, there are fewer blocks
@@ -70,7 +70,7 @@ pub fn row_block_plan(rows: usize, threads: NonZeroUsize) -> Vec<Range<usize>> {
 /// that it can carry tuning parameters such as
 /// [`BlockConfig`](crate::cache_friendly::BlockConfig).
 ///
-/// This is the whole of the parallel structure shared by levels 1, 2, and 3:
+/// This is the whole of the parallel structure shared by levels 1 to 4:
 /// they differ only in the kernel they pass in. The rows of the result are
 /// divided into at most `threads` contiguous blocks of equal size (the last may
 /// be smaller). Each block becomes one job handed to `runner`; if there are

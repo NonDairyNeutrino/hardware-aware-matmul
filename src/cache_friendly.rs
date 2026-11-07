@@ -18,7 +18,7 @@ pub(crate) const TILE_K: usize = 32;
 /// Number of `j` values (columns of `b` and `c`) processed per cache block.
 pub(crate) const TILE_J: usize = 64;
 
-/// Cache-block sizes for the kernels of levels 2, 3, and 4.
+/// Cache-block sizes for the kernels of levels 2 to 5.
 ///
 /// A cache block is a `tile_k × tile_j` piece of `B`: `tile_k` values of the
 /// shared dimension by `tile_j` columns. It is walked for every row of the
