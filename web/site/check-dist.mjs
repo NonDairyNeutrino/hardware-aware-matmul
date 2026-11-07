@@ -19,9 +19,14 @@
 //   - a video the pages reference that was not copied into dist/media/;
 //   - a production build (GATE unset) that contains the gates' test pages under gate/, or a
 //     gate build (GATE=1) that lacks them;
-//   - a service worker script anywhere but playground/ (the root copy is for the gate page, in
-//     gate builds only), or a worker script outside playground/: the service worker's scope is
-//     playground/, and a worker is only given the isolation headers inside it.
+//   - a service worker script missing from playground/, or a worker script outside playground/:
+//     the service worker's scope is playground/, and a worker is only given the isolation
+//     headers inside it;
+//   - a root coi-serviceworker.js that is not the kill-switch (src/playground/kill-switch-sw.js,
+//     which adds no headers and unregisters the root registration earlier versions made) in a
+//     production build, or not the real copy in a gate build (the G3 page and the playground's
+//     migration scenario use it);
+//   - the playground's gate driver (_astro/gate.*.js) in a production build.
 // Run it with `npm run check` after `npm run build`. Exits 1 on any problem.
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
@@ -150,10 +155,29 @@ if (gateBuild) {
   }
 }
 
-// The service worker's scope is playground/ (its script's directory): it must be there, it must
-// not be at the root in production, and every worker script must be inside that scope.
-if (!existsSync(join(dist, 'playground', 'coi-serviceworker.js'))) problems.push('playground/coi-serviceworker.js is missing');
-if (!gateBuild && existsSync(join(dist, 'coi-serviceworker.js'))) problems.push('coi-serviceworker.js is at the site root; production serves it only from playground/');
+// The service worker's scope is playground/ (its script's directory): it must be there, and
+// every worker script must be inside that scope.
+const isRealServiceWorker = (text) => text.includes('Cross-Origin-Embedder-Policy') && /addEventListener\(\s*["']fetch/.test(text);
+const playgroundSw = join(dist, 'playground', 'coi-serviceworker.js');
+if (!existsSync(playgroundSw)) problems.push('playground/coi-serviceworker.js is missing');
+else if (!isRealServiceWorker(readFileSync(playgroundSw, 'utf8'))) problems.push('playground/coi-serviceworker.js is not coi-serviceworker');
+// At the root: in production the kill-switch that removes the old root registration (it must add
+// no headers), in gate builds the real copy.
+const rootSw = join(dist, 'coi-serviceworker.js');
+if (!existsSync(rootSw)) {
+  problems.push(`coi-serviceworker.js is missing at the site root (${gateBuild ? 'the gate build needs the real copy' : 'production serves the kill-switch there'})`);
+} else {
+  const text = readFileSync(rootSw, 'utf8');
+  if (gateBuild && !isRealServiceWorker(text)) problems.push('coi-serviceworker.js at the site root is not the real copy in this gate build');
+  if (!gateBuild) {
+    const killSwitch = readFileSync(new URL('./src/playground/kill-switch-sw.js', import.meta.url), 'utf8');
+    if (text !== killSwitch) problems.push('coi-serviceworker.js at the site root is not the kill-switch (src/playground/kill-switch-sw.js)');
+    if (/Cross-Origin-|new Headers|addEventListener\(\s*["']fetch/.test(text)) problems.push('coi-serviceworker.js at the site root adds headers; production must ship the kill-switch there');
+  }
+}
+// The playground loads its gate driver only in gate builds (main.js), so production has none.
+const gateDrivers = readdirSync(join(dist, '_astro')).filter((name) => /^gate[.-]/.test(name));
+if (!gateBuild && gateDrivers.length > 0) problems.push(`production build contains the playground's gate driver ${gateDrivers.join(', ')}`);
 const strayWorkers = readdirSync(join(dist, '_astro')).filter((name) => /^(worker|workerHelpers)-/.test(name));
 if (strayWorkers.length > 0) problems.push(`worker scripts outside playground/, where the service worker cannot reach them: ${strayWorkers.join(', ')}`);
 if (!existsSync(join(dist, 'playground', '_worker'))) problems.push('playground/_worker/ is missing: the playground worker was not built inside the service worker scope');
