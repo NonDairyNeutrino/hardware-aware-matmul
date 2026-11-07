@@ -64,11 +64,15 @@ export default function remarkRustdoc({ base = '/', links = {}, insertions = [],
 
     // Placeholders in running text (not in code spans or fences, which stay literal).
     visit(tree, 'text', (node) => {
-      if (!hasPlaceholder(node.value)) return;
-      try {
-        node.value = substitute(node.value, results);
-      } catch (error) {
-        throw new Error(`${where}: ${error.message}`);
+      if (hasPlaceholder(node.value)) {
+        try {
+          node.value = substitute(node.value, results);
+        } catch (error) {
+          throw new Error(`${where}: ${error.message}`);
+        }
+      }
+      if (node.value.includes('{{')) {
+        throw new Error(`${where}: unresolved "{{" in text (a placeholder split by markup, or malformed)`);
       }
     });
 

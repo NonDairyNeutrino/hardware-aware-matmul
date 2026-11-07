@@ -144,3 +144,14 @@ test('chapterId finds the path under docs/', () => {
   assert.equal(chapterId('/elsewhere/x.md'), null);
   assert.equal(chapterId('/home/u/docs/proj/docs/levels/naive.md'), 'levels/naive');
 });
+
+test('a placeholder split by markup fails the build', async () => {
+  await assert.rejects(render('Took {{ms *simd*}}.', { results }), /naive\.md: unresolved "\{\{" in text/);
+});
+
+test('a resolved placeholder and a lone brace are fine; literal braces in code are untouched', async () => {
+  const out = await render('Took {{ms simd}} and {single} and `{{x}}`.\n\n```text\n{{ms *simd*}}\n```\n', { results });
+  assert.match(out, /Took 250 ms and \{single\} and/);
+  assert.ok(out.includes('{{x}}'));
+  assert.ok(out.includes('{{ms *simd*}}'));
+});
