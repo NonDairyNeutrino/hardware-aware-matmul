@@ -8,6 +8,10 @@ description = "Dense matrix multiplication as a worked example of using the hard
 readme = "README.md"
 exclude = ["web/", "anim/", ".github/", "docs/superpowers/"]
 
+[[example]]
+name = "hw_probe"
+test = true
+
 [lib]
 name = "hardware_aware_matmul"
 path = "src/lib.rs"

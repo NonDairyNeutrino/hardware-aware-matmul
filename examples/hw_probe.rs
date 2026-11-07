@@ -15,6 +15,7 @@ use std::time::{Duration, Instant};
 const PEAK_SECONDS: f64 = 0.3;
 const PEAK_CHUNK: u64 = 100_000;
 const ACCUMULATORS: usize = 16;
+const MAX_TOTAL_MIB: usize = 4096;
 
 struct Args {
     threads: Vec<usize>,
@@ -45,6 +46,19 @@ fn parse_args(args: &[String]) -> Result<Args, String> {
     }
     if threads.is_empty() {
         return Err("give --threads, e.g. --threads 1,2,4,8".to_string());
+    }
+    let mut seen = Vec::new();
+    threads.retain(|t| {
+        let new = !seen.contains(t);
+        seen.push(*t);
+        new
+    });
+    let max_threads = threads.iter().copied().max().unwrap_or(0);
+    if 3 * mib * max_threads > MAX_TOTAL_MIB {
+        return Err(format!(
+            "3 arrays of {mib} MiB on {max_threads} threads need {} MiB, more than the {MAX_TOTAL_MIB} MiB allowed; lower --mib",
+            3 * mib * max_threads
+        ));
     }
     Ok(Args { threads, mib, repeats })
 }
@@ -161,7 +175,7 @@ fn main() {
         "{{\"triad_gbs\": {}, \"peak_gflops\": {}, \"params\": {{\"mib_per_array\": {}, \"repeats\": {}, \
 \"peak_seconds\": {}, \"accumulators\": {}, \"note\": \"triad a[i] = b[i] + s*c[i] on f64, three arrays per thread, \
 24 bytes per element (two reads and one write; write-allocate traffic is not counted), best of repeats after one \
-warm-up, total over all threads; peak is 16 independent acc = acc*m + a chains, 2 flops per update, no fused \
+warm-up, total over all threads; peak is {ACCUMULATORS} independent acc = acc*m + a chains, 2 flops per update, no fused \
 multiply-add, best of repeats, total over all threads\"}}}}",
         json_map(&triad),
         json_map(&peak),
@@ -194,6 +208,19 @@ mod tests {
         assert!(parse_args(&args(&["--threads", "0"])).is_err());
         assert!(parse_args(&args(&["--threads", "1,x"])).is_err());
         assert!(parse_args(&args(&["--bogus", "1"])).is_err());
+    }
+
+    #[test]
+    fn repeated_thread_counts_are_dropped_in_order() {
+        let parsed = parse_args(&args(&["--threads", "4,1,4,2,1"])).unwrap();
+        assert_eq!(parsed.threads, vec![4, 1, 2]);
+    }
+
+    #[test]
+    fn refuses_more_than_4096_mib_in_total() {
+        assert!(parse_args(&args(&["--threads", "8", "--mib", "171"])).is_err());
+        assert!(parse_args(&args(&["--mib", "171", "--threads", "8"])).is_err());
+        assert!(parse_args(&args(&["--threads", "8", "--mib", "128"])).is_ok());
     }
 
     #[test]
