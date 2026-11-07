@@ -123,6 +123,14 @@ export const insertions = [
       'Walking down a column of B touches a new cache line on every read; the i-k-j order reads whole rows, and blocking reuses a block of B for every row.',
     ),
   },
+  {
+    chapter: 'levels/simd',
+    afterHeading: 'What changed from level 2',
+    html: video(
+      'SimdMatMul.mp4',
+      'A 2 &times; 4 block of C stays in two vector registers for the whole run along k, with four lanes (a 4 &times; 4 example, so a row of B fills a register); C is stored once at the end.',
+    ),
+  },
   // Level 2: how often B is fetched, after the paragraph that gives the size of a block of B
   // (the step-through demo sits right after the heading and counts as one of the blocksAfter).
   // Threads = 4 is stated in the caption.
