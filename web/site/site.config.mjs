@@ -2,6 +2,7 @@
 // (rustdoc would show it as text), so their titles, order and routes live here.
 
 import results from './src/data/results.json' with { type: 'json' };
+import { cacheLineFigure } from './src/components/cache-figure.mjs';
 import { bestTable, scalingChart, scalingTable, throughputChart } from './src/results/render.mjs';
 
 // GitHub Pages serves this repository at /hardware-aware-matmul/.
@@ -20,7 +21,8 @@ export const repoUrl = 'https://github.com/NonDairyNeutrino/hardware-aware-matmu
 // labelled group (see `sectionTitles`), a section with one page as a plain link.
 export const chapters = [
   { id: 'paper/abstract', title: 'Abstract', route: '', section: 'abstract' },
-  { id: 'introduction', title: 'Introduction', route: 'introduction/', section: 'introduction' },
+  { id: 'paper/introduction', title: 'Introduction', route: 'introduction/', section: 'introduction' },
+  { id: 'paper/primer', title: 'Primer', route: 'primer/', section: 'primer' },
   { id: 'levels/naive', title: 'Level 0: the naive loop', route: 'levels/naive/', section: 'methods' },
   { id: 'levels/threaded', title: 'Level 1: threads', route: 'levels/threaded/', section: 'methods' },
   { id: 'levels/cache_friendly', title: 'Level 2: cache blocking', route: 'levels/cache_friendly/', section: 'methods' },
@@ -51,7 +53,9 @@ export const links = {
   streaming: 'levels/streaming/',
   results: 'results/',
   discussion: 'discussion/',
+  conclusion: 'conclusion/',
   introduction: 'introduction/',
+  primer: 'primer/',
   playground: 'playground/',
   // API items and rustdoc-only pages.
   ...Object.fromEntries([
@@ -99,6 +103,9 @@ export const insertions = [
       'Three threads, one row of the output each: the one-row case of the row blocks described below.',
     ),
   },
+  // The primer: the cache-line picture, after the paragraph that sets up the 8 x 8 example.
+  { chapter: 'paper/primer', afterHeading: 'Walking along a row, walking down a column', blocksAfter: 1,
+    html: cacheLineFigure() },
   // The Results page: tables and charts generated from the data, after the paragraph that
   // introduces each.
   { chapter: 'paper/results', afterHeading: 'Native', blocksAfter: 1,
