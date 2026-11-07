@@ -77,18 +77,22 @@ const video = (file, caption) =>
 // Step-through demos (see src/components/step-through.js): the level they show and the
 // heading of the chapter they go under. Levels 1 to 4 have one; level 0 has no plan to show.
 export const demos = [
-  { chapter: 'levels/threaded', afterHeading: 'What it gets right', level: 1 },
-  { chapter: 'levels/cache_friendly', afterHeading: 'Change 2: cache blocking', level: 2 },
-  { chapter: 'levels/simd', afterHeading: 'The micro-kernel', level: 3 },
-  { chapter: 'levels/streaming', afterHeading: 'The algorithm', level: 4 },
+  { chapter: 'levels/threaded', afterHeading: 'What it gets right', level: 1,
+    lookFor: "Each colour is one thread, and each colour owns a block of rows of the output. Press Step: every thread finishes one row at a time, and no thread touches another&rsquo;s rows, which is why no locking is needed and the result does not change." },
+  { chapter: 'levels/cache_friendly', afterHeading: 'Change 2: cache blocking', level: 2,
+    lookFor: "The output C is on the left; the input B is on the right, cut into numbered cache blocks (the picture does not highlight the current one). The real kernel finishes with one block of B for every row of its part of the output before moving to the next, so that block stays in the cache. Change Cache block k and Cache block j and watch how many blocks B is cut into: smaller blocks fit in the cache more easily but are visited more often." },
+  { chapter: 'levels/simd', afterHeading: 'The micro-kernel', level: 3,
+    lookFor: "The dashed lines cut each thread&rsquo;s block of the output into micro-tiles. A micro-tile is the piece of the output the kernel keeps in vector registers for the whole run along the shared dimension, loaded once and stored once, instead of being read and written back at every step." },
+  { chapter: 'levels/streaming', afterHeading: 'The algorithm', level: 4,
+    lookFor: "The numbers show the order in which tiles are claimed; press Step to watch them complete, each by whichever worker is free. Each tile is a piece of the output computed from a strip of A and a strip of B streamed through small buffers. At most as many tiles are in flight as there are workers, and that bound is what limits the memory used." },
 ];
 
 // Figures and demos inserted after a heading of a chapter (by heading text).
 export const insertions = [
-  ...demos.map(({ chapter, afterHeading, level }) => ({
+  ...demos.map(({ chapter, afterHeading, level, lookFor }) => ({
     chapter,
     afterHeading,
-    html: `<step-through level="${level}"></step-through>`,
+    html: `<p class="st-lookfor"><strong>What to look for.</strong> ${lookFor}</p><step-through level="${level}"></step-through>`,
   })),
   {
     chapter: 'levels/naive',

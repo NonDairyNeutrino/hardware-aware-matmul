@@ -119,6 +119,7 @@ step-through:not([data-state]) { display: none; }
 .st-edge { stroke: var(--fg); stroke-width: 1; }
 .st-micro { stroke: var(--bg); stroke-width: 1; stroke-dasharray: 2 2; }
 .st-tile { fill: none; stroke: var(--fg); stroke-width: 1; }
+.st-lookfor { margin: 0 0 0.5rem; }
 .st-caption { margin: 0.75rem 0 0; font-size: 0.9rem; }
 .st-plan pre { max-height: 14rem; overflow: auto; }
 @media (prefers-reduced-motion: no-preference) {

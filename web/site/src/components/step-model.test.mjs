@@ -89,3 +89,13 @@ test('level 2 and 3 captions say the rows are shown one per step', () => {
     assert.match(text, /once per cache block/);
   }
 });
+
+test('level 2 and 3 captions differ and each names its own idea', () => {
+  const two = caption(2, rows, 1, 3);
+  const three = caption(3, rows, 1, 3);
+  assert.notEqual(two, three);
+  assert.match(two, /cache blocks? of B/);
+  assert.doesNotMatch(two, /micro-tile/);
+  assert.match(three, /micro-tile/);
+  assert.doesNotMatch(three, /cache blocks of B, numbered/);
+});
