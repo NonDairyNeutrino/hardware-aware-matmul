@@ -40,7 +40,7 @@ const base = import.meta.env.BASE_URL;
         status.textContent = 'isolated; running ' + gate;
         const expected = await (await fetch(`${base}expected.json`)).json();
         // The same worker the plain gates use; its wasm import resolves to web/wasm/pkg.
-        const worker = new Worker(new URL('../../../../wasm/www/worker.js', import.meta.url), { type: 'module' });
+        const worker = new Worker(new URL('../../../wasm/www/worker.js', import.meta.url), { type: 'module' });
         const result = await new Promise((resolve) => {
           worker.onmessage = (event) => resolve(event.data);
           worker.onerror = (event) => resolve({ gate, ok: false, error: `worker error: ${event.message} (${event.filename}:${event.lineno}:${event.colno})` });

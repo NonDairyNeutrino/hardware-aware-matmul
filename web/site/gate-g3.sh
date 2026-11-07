@@ -32,6 +32,7 @@ if ! (cd "$WASM" && cargo run --release --example expected 2> target/expected-bu
 fi
 
 [ -d node_modules ] || ../dev/node.sh site npm ci --no-audit --no-fund
+export GATE=1 # build the test pages under /gate/ too, and have check-dist expect them
 ../dev/node.sh site npm run build
 ../dev/node.sh site npm run check
 

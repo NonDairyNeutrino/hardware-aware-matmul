@@ -16,7 +16,9 @@
 //   - a paper page (abstract, results, discussion, conclusion) with an unresolved `{{...}}`
 //     placeholder or a NaN/undefined/Infinity/null where a number should be, and a Results page
 //     whose count of tables or charts differs from what site.config.mjs inserts;
-//   - a video the pages reference that was not copied into dist/media/.
+//   - a video the pages reference that was not copied into dist/media/;
+//   - a production build (GATE unset) that contains the gates' test pages under gate/, or a
+//     gate build (GATE=1) that lacks them.
 // Run it with `npm run check` after `npm run build`. Exits 1 on any problem.
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
@@ -130,6 +132,18 @@ for (const page of extraPages) {
   if (scripts.length === 0) problems.push(`${page.route}: loads no script`);
   else if (!scripts.some((s) => /coi-serviceworker/.test(readFileSync(join(dist, '_astro', s), 'utf8')))) {
     problems.push(`${page.route}: its scripts never load the service worker, so the threaded build could not be enabled`);
+  }
+}
+
+// The gates' test pages ship only in gate builds (astro.config.mjs builds them when GATE=1).
+const gateBuild = process.env.GATE === '1';
+const gatePages = [...pages(dist)].filter((page) => page.slice(dist.length).startsWith('gate/'));
+if (!gateBuild && gatePages.length > 0) {
+  problems.push(`production build contains the gate pages ${gatePages.map((p) => p.slice(dist.length)).join(', ')}; they are built only with GATE=1`);
+}
+if (gateBuild) {
+  for (const route of ['gate', 'gate/step-through']) {
+    if (!existsSync(join(dist, route, 'index.html'))) problems.push(`${route}: the gate page was not built (GATE=1)`);
   }
 }
 

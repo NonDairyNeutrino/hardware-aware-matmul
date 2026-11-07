@@ -5,6 +5,7 @@
 # Files it writes are owned by you, not root.
 # usage: node.sh SUBDIR COMMAND...        e.g.  node.sh site npm run build
 # env: NODE_IMAGE  image to use (default: node:latest)
+#      GATE        passed through: GATE=1 builds the site with the gates' test pages
 set -euo pipefail
 WEB=$(cd "$(dirname "$0")/.." && pwd)
 ROOT=$(dirname "$WEB")
@@ -15,6 +16,7 @@ exec docker run --rm \
   -e HOME=/tmp \
   -e npm_config_update_notifier=false \
   -e ASTRO_TELEMETRY_DISABLED=1 \
+  -e GATE="${GATE:-}" \
   -v "$WEB:/work" -w "/work/$SUBDIR" \
   -v "$ROOT/docs:/docs:ro" -v "$ROOT/anim:/anim:ro" \
   "${NODE_IMAGE:-node:latest}" "$@"
