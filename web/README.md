@@ -136,16 +136,28 @@ the container, so the production build never contains them.
 
 `npm run check` (`web/site/check-dist.mjs`) checks the built site. It fails if:
 
-- any page contains `crate::`, or does not have exactly one `<h1>`;
-- a chapter loads or registers the service worker, or the playground page does not
-  load the service worker script, or the Results prose does not link the
-  playground;
-- the demos on the built chapters do not match `site.config.mjs`, or a chapter
-  without a demo loads a script;
-- the service worker or any worker under `playground/` is outside its scope;
-- production lacks the kill-switch at the root, or contains a gate page or the
-  gate driver;
-- a `GATE=1` build lacks the real root copy or the gate pages.
+- **Any page** contains `crate::` (an unrewritten intra-doc link), a rustdoc-hidden
+  line (`Ok::<`), or an unlinked intra-doc shortcut shown as literal `[code]`; or it
+  references a video that is not in `dist/media/`.
+- **A chapter** is missing, does not have exactly one `<h1>`, or loads or registers the
+  service worker (directly, or through any script it loads); or its step-through demos
+  differ from `demos` in `site.config.mjs`; or it has a demo but loads no script, or has
+  none and loads one.
+- **The landing page** is not headed by the site title and subtitle with the abstract
+  under them.
+- **A paper page** (abstract, results, discussion, conclusion) has an unresolved `{{`
+  placeholder, or `NaN`, `undefined`, `Infinity` or `null` where a number should be.
+  The Results page must also have exactly the tables and charts that `site.config.mjs`
+  inserts, and link to the playground.
+- **The playground page** is missing, has no script, or its scripts never load the
+  service worker. It is the one reading page that may.
+- **The service worker** is missing from `playground/`, or a worker script sits outside
+  `playground/` (`playground/_worker/` must exist). Its scope is `playground/`, and a
+  worker is given the isolation headers only inside it.
+- **The root `coi-serviceworker.js`** is not the kill-switch in a production build, or not
+  the real copy in a `GATE=1` build.
+- **A production build** contains the gate pages or the playground's gate driver, or a
+  `GATE=1` build lacks the gate pages.
 
 The C3 gate (`gate-c3.sh`) checks `sw_scopes`. Its migrate scenario plays a
 returning visitor, with the old root service worker registered first. The page must
