@@ -4,6 +4,9 @@ Dense matrix multiplication in Rust, presented as **five implementations of
 increasing performance**, each a small step beyond the one before, so the fast
 version is understood in stages rather than met as one big blob.
 
+Read it as a paper, and run the benchmark in your browser, at
+<https://www.natchap.me/hardware-aware-matmul/>.
+
 | Level | Module             | Adds                                       | Fixes               |
 |-------|--------------------|--------------------------------------------|---------------------|
 | 0     | `naive`            | The textbook triple loop                   | (the reference)     |
