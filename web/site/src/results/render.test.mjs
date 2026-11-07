@@ -38,14 +38,14 @@ test('the scaling table shows each thread count with the speedup over one thread
 
 test('the throughput chart is an accessible SVG with a bar per level and environment', () => {
   const html = throughputChart(data, {});
-  assert.match(html, /<div class="chart-scroll" tabindex="0" role="region" aria-labelledby="throughput-title"><svg viewBox/);
+  assert.match(html, /<div class="chart-scroll" tabindex="0" role="region" aria-labelledby="throughput-128-title"><svg viewBox/);
   assert.match(html, /<\/svg><\/div><figcaption>/);
-  assert.match(html, /<svg viewBox="0 0 640 320" role="img" aria-labelledby="throughput-title throughput-desc">/);
-  assert.match(html, /<title id="throughput-title">Throughput of each level, n = 128<\/title>/);
+  assert.match(html, /<svg viewBox="0 0 640 320" role="img" aria-labelledby="throughput-128-title throughput-128-desc">/);
+  assert.match(html, /<title id="throughput-128-title">Throughput of each level, n = 128<\/title>/);
   // two environments in the fixture: 5 bars each, plus one legend swatch each
   assert.equal(count(html, 'class="bar bar-native"'), 6);
   assert.equal(count(html, 'class="bar bar-browser-lite"'), 6);
-  assert.match(html, /<desc id="throughput-desc">GFLOP\/s at the largest thread count\. Native: level 0 [\d.]+, level 1 [\d.]+/);
+  assert.match(html, /<desc id="throughput-128-desc">GFLOP\/s at the largest thread count\. Native: level 0 [\d.]+, level 1 [\d.]+/);
   assert.equal(count(html, '<svg'), 1);
   assert.equal(count(html, '</svg>'), 1);
   assert.doesNotMatch(html, /NaN|undefined|Infinity/);
@@ -56,11 +56,33 @@ test('the scaling chart has a line per level over the measured thread counts, an
   for (const level of [1, 2, 3, 4]) assert.equal(count(html, `<polyline class="line line-${level}"`), 1);
   assert.equal(count(html, '<polyline class="ideal"'), 1);
   assert.equal(count(html, '<circle'), 8); // 4 levels x 2 thread counts
-  assert.match(html, /<div class="chart-scroll" tabindex="0" role="region" aria-labelledby="scaling-native-title"><svg/);
-  assert.match(html, /<title id="scaling-native-title">Thread scaling, Native, n = 64<\/title>/);
+  assert.match(html, /<div class="chart-scroll" tabindex="0" role="region" aria-labelledby="scaling-native-64-title"><svg/);
+  assert.match(html, /<title id="scaling-native-64-title">Thread scaling, native, n = 64<\/title>/);
   // every level in the fixture scales perfectly: 2 threads is 2.0x
-  assert.match(html, /level 1: 1 threads 1\.0×, 2 threads 2\.0×/);
+  assert.match(html, /level 1: 1 thread 1\.0×, 2 threads 2\.0×/);
   assert.doesNotMatch(html, /NaN|undefined|Infinity/);
+});
+
+test('chart ids are unique when two sizes are rendered', () => {
+  const ids = (html) => [...html.matchAll(/ id="([^"]+)"/g)].map((m) => m[1]);
+  const all = [
+    ...ids(throughputChart(data, { n: 64 })), ...ids(throughputChart(data, { n: 128 })),
+    ...ids(scalingChart(data, { environment: 'native', n: 64 })), ...ids(scalingChart(data, { environment: 'native', n: 128 })),
+  ];
+  assert.equal(new Set(all).size, all.length);
+  assert.equal(all.length, 8);
+});
+
+test('the scaling chart axis grows to hold a superlinear speedup', () => {
+  const fast = structuredClone(data);
+  // level 3 at 2 threads becomes 5x faster than at 1 thread: above the 2x ideal line
+  const one = fast.runs.find((r) => r.environment === 'native' && r.level === 3 && r.n === 64 && r.threads === 1);
+  const two = fast.runs.find((r) => r.environment === 'native' && r.level === 3 && r.n === 64 && r.threads === 2);
+  two.median_ms = one.median_ms / 5;
+  const html = scalingChart(fast, { environment: 'native', n: 64 });
+  assert.match(html, />5×<\/text>/); // the top tick is the largest speedup, not the thread count
+  assert.match(html, /level 3: 1 thread 1\.0×, 2 threads 5\.0×/);
+  assert.doesNotMatch(html, /cy="-/);
 });
 
 test('missing measurements are an error, never a silent gap', () => {

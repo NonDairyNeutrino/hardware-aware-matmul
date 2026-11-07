@@ -134,9 +134,9 @@ export function throughputChart(data, { n }) {
     `<text class="legend" x="${M.left + e * 190 + 18}" y="20">${escape(ENVIRONMENT_LABELS[environment])}</text>`).join('');
   const description = environments.map((environment, e) =>
     `${ENVIRONMENT_LABELS[environment]}: ${values[e].map((v, level) => `level ${level} ${v.toFixed(1)}`).join(', ')}`).join('. ');
-  return `<figure class="chart"><div class="chart-scroll" tabindex="0" role="region" aria-labelledby="throughput-title"><svg viewBox="0 0 ${W} ${H}" role="img" aria-labelledby="throughput-title throughput-desc">` +
-    `<title id="throughput-title">Throughput of each level, n = ${size}</title>` +
-    `<desc id="throughput-desc">GFLOP/s at the largest thread count. ${escape(description)}.</desc>` +
+  return `<figure class="chart"><div class="chart-scroll" tabindex="0" role="region" aria-labelledby="throughput-${size}-title"><svg viewBox="0 0 ${W} ${H}" role="img" aria-labelledby="throughput-${size}-title throughput-${size}-desc">` +
+    `<title id="throughput-${size}-title">Throughput of each level, n = ${size}</title>` +
+    `<desc id="throughput-${size}-desc">GFLOP/s at the largest thread count. ${escape(description)}.</desc>` +
     `${legend}${parts.join('')}</svg></div>` +
     `<figcaption>Throughput in GFLOP/s (higher is faster) of each level at n = ${size}, at the largest thread count measured in each environment (level 0 always uses one).</figcaption></figure>`;
 }
@@ -147,7 +147,12 @@ export function scalingChart(data, { environment, n }) {
   const counts = threadCounts(data, environment);
   const plotW = W - M.left - M.right;
   const plotH = H - M.top - M.bottom;
-  const top = Math.max(...counts);
+  const series = [1, 2, 3, 4].map((level) => {
+    const single = mustFind(data, environment, level, size, 1);
+    return counts.map((t) => single.median_ms / mustFind(data, environment, level, size, t).median_ms);
+  });
+  // The ideal line reaches the largest thread count; a superlinear series must not be clipped.
+  const top = Math.max(Math.max(...counts), ...series.flat());
   const x = (i) => M.left + (counts.length === 1 ? plotW / 2 : (plotW * i) / (counts.length - 1));
   const y = (v) => M.top + plotH - (v / top) * plotH;
   const parts = [];
@@ -159,10 +164,6 @@ export function scalingChart(data, { environment, n }) {
   counts.forEach((t, i) => parts.push(`<text class="axis" x="${x(i).toFixed(1)}" y="${H - M.bottom + 18}" text-anchor="middle">${t}</text>`));
   parts.push(`<text class="axis" x="${(M.left + plotW / 2).toFixed(1)}" y="${H - 8}" text-anchor="middle">threads</text>`);
   parts.push(`<polyline class="ideal" fill="none" points="${counts.map((t, i) => `${x(i).toFixed(1)},${y(t).toFixed(1)}`).join(' ')}"/>`);
-  const series = [1, 2, 3, 4].map((level) => {
-    const single = mustFind(data, environment, level, size, 1);
-    return counts.map((t) => single.median_ms / mustFind(data, environment, level, size, t).median_ms);
-  });
   series.forEach((values, index) => {
     const points = values.map((v, i) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`);
     parts.push(`<polyline class="line line-${index + 1}" fill="none" points="${points.join(' ')}"/>` +
@@ -172,10 +173,10 @@ export function scalingChart(data, { environment, n }) {
     `<line class="line line-${level}" x1="${M.left + (level - 1) * 130}" x2="${M.left + (level - 1) * 130 + 16}" y1="16" y2="16"/>` +
     `<text class="legend" x="${M.left + (level - 1) * 130 + 22}" y="20">Level ${level}</text>`).join('') +
     `<line class="ideal" x1="${M.left + 4 * 130}" x2="${M.left + 4 * 130 + 16}" y1="16" y2="16"/><text class="legend" x="${M.left + 4 * 130 + 22}" y="20">ideal</text>`;
-  const description = series.map((values, i) => `level ${i + 1}: ${counts.map((t, k) => `${t} threads ${values[k].toFixed(1)}×`).join(', ')}`).join('. ');
-  const id = `scaling-${ENVIRONMENT_SHORT[environment]}`;
+  const description = series.map((values, i) => `level ${i + 1}: ${counts.map((t, k) => `${t} thread${t === 1 ? '' : 's'} ${values[k].toFixed(1)}×`).join(', ')}`).join('. ');
+  const id = `scaling-${ENVIRONMENT_SHORT[environment]}-${size}`;
   return `<figure class="chart"><div class="chart-scroll" tabindex="0" role="region" aria-labelledby="${id}-title"><svg viewBox="0 0 ${W} ${H}" role="img" aria-labelledby="${id}-title ${id}-desc">` +
-    `<title id="${id}-title">Thread scaling, ${escape(ENVIRONMENT_LABELS[environment])}, n = ${size}</title>` +
+    `<title id="${id}-title">Thread scaling, ${escape(ENVIRONMENT_LABELS[environment].toLowerCase())}, n = ${size}</title>` +
     `<desc id="${id}-desc">Speedup over one thread. ${escape(description)}.</desc>` +
     `${legend}${parts.join('')}</svg></div>` +
     `<figcaption>${escape(ENVIRONMENT_LABELS[environment])}, n = ${size}: speedup over the same level with one thread against the number of threads. The dashed line is perfect scaling.</figcaption></figure>`;
