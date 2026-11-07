@@ -9,7 +9,7 @@ wrong change.
 
 A teaching-oriented Rust crate (`hardware_aware_matmul`, no dependencies,
 `#![forbid(unsafe_code)]`, MSRV 1.73) implementing dense `f64` matrix multiplication as
-five levels of increasing performance. The repo directory is `hardware-aware-matmul`; the
+six levels of increasing performance. The repo directory is `hardware-aware-matmul`; the
 crate name is `hardware_aware_matmul`.
 
 - `src/`, `tests/`, `examples/`: the crate.
@@ -25,30 +25,33 @@ crate name is `hardware_aware_matmul`.
 
 Every level returns bit-for-bit identical results, because each output element is summed in
 increasing-`k` order starting from zero. `tests/levels.rs` compares the raw bits
-(`to_bits`) of all five levels, on small-integer operands and on order-sensitive
+(`to_bits`) of all six levels, on small-integer operands and on order-sensitive
 `rough_operands`, across several `BlockConfig` values. Any optimisation must preserve
 per-element summation order: don't introduce reassociation, FMA changes, or split
 accumulators over `k`.
 
 ## Architecture
 
-Levels: `naive` (0) → `threaded` (1) → `cache_friendly` (2) → `simd` (3) → `streaming` (4).
+Levels: `naive` (0) → `threaded` (1) → `cache_friendly` (2) → `simd` (3) → `packed` (4) → `streaming` (5).
 Levels reuse each other rather than being independent (see `docs/design/architecture.md`):
 
 - `threaded.rs` owns `row_block_plan` (the row partition) and the row-block driver
   `multiply_by_row_blocks`, which builds one boxed job per block and hands the batch to a
-  `Runner`. Levels 2 and 3 reuse the driver with a different kernel passed as a closure.
+  `Runner`. Levels 2 to 4 reuse the driver with a different kernel passed as a closure.
 - `runner.rs` holds the `Runner` trait (`run(&self, jobs: Vec<Box<dyn FnOnce() + Send + 'env>>)`;
   it must run every job and return only when all are done) and `StdRunner`
-  (`std::thread::scope`, the default; it traps on `wasm32-unknown-unknown`). Levels 1 to 3
-  each have `matmul_with_runner` (one job per row block) and level 4 has
+  (`std::thread::scope`, the default; it traps on `wasm32-unknown-unknown`). Levels 1 to 4
+  each have `matmul_with_runner` (one job per row block) and level 5 has
   `matmul_streaming_with_runner` (one job per worker, each claiming tiles from a shared
   counter); the plain functions delegate with `StdRunner`. A runner changes where jobs run,
   never what they compute. Its docs are `docs/design/runner.md`, a module doc rather than a
   `design` page.
 - `cache_friendly.rs` owns `axpy`, the default cache-block constants and `BlockConfig`
   (runtime cache-block sizes, also taken by `simd.rs` and `StreamConfig`).
-- `simd.rs` holds the register-blocked micro-kernel. Level 4 does *not* use it:
+- `packed.rs` (level 4) is level 3 with `B` packed: `pack_strips` copies each cache block's
+  whole `NR`-wide strips into one contiguous buffer and the *same* `simd::micro_kernel`
+  (a `pub(crate)` item) reads them with row length `NR`. Edges use `simd`'s `Operands`.
+- `simd.rs` holds the register-blocked micro-kernel. Level 5 does *not* use it:
   `streaming/kernel.rs` is level 2's `axpy` kernel on flat buffers. Vectorisation comes from
   the auto-vectoriser, not intrinsics (hence no `unsafe`). The micro-tile `MR`×`NR` is a
   compile-time constant.
@@ -101,6 +104,13 @@ functions with its own runners. Nightly and wasm dependencies live only in `web/
 
 ## Notes
 
+- The crate has six levels but `web/` (wasm crate, `results.json`, `results.py`, site chapters,
+  playground, `anim/`) still describes five and calls streaming "level 4". `packed` is not in
+  the reference run yet. Updating that is its own stage; the wasm crate still builds, since
+  module names did not change.
+- `web/dev/perf_counters.py` counts cache/TLB events per level with `perf stat` (Linux, runs
+  `examples/level_once.rs` once per level and subtracts an operands-only run). Output is not
+  wired into the site.
 - Trunk branch is `trunk`; the root `Cargo.lock` is gitignored (`web/wasm/Cargo.lock` is
   tracked).
 - Commit only when asked. Keep commits small, with short one-line messages.

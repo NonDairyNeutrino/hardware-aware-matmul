@@ -10,7 +10,7 @@ project is, read [`README.md`](README.md). For the website's internals, read
   `k` order starting from zero. An optimisation may reorder loops, block, or
   vectorise, but it must not reassociate the sum, change fused-multiply-add use,
   or split accumulators over `k`. `tests/levels.rs` compares the raw bits
-  (`to_bits`) of all five levels and will fail if you break this.
+  (`to_bits`) of all six levels and will fail if you break this.
 - **The core crate stays dependency-free**, `#![forbid(unsafe_code)]`, and builds
   on Rust 1.73. Nightly and wasm dependencies live only in `web/wasm`.
 - **Prose lives in Markdown, not in `.rs` files.** Module docs are
@@ -40,8 +40,9 @@ Always benchmark with `--release`:
 ```sh
 cargo run --release                      # the `compare` binary: times every level; args: [n] [threads]
 cargo run --release -- 1024 8
-cargo run --release --bin out_of_core    # level 4 on file-backed matrices
+cargo run --release --bin out_of_core    # level 5 on file-backed matrices
 RUSTFLAGS="-C target-cpu=native" cargo run --release   # let level 3 use every CPU feature
+python3 -I web/dev/perf_counters.py --n 1024 --threads 1   # cache/TLB misses per level (Linux, needs perf)
 ```
 
 CI (`.github/workflows/rust.yml`) runs a build and the tests, a build on exactly
@@ -91,6 +92,7 @@ web/dev/node.sh site npm test          # unit tests: prose plugin, step-through 
 web/dev/node.sh site npm run build     # the site into web/site/dist
 web/dev/node.sh site npm run check     # checks the built site (see web/README.md)
 python3 -I web/dev/test_results.py     # unit tests of the results assembler
+python3 -I web/dev/test_perf_counters.py  # unit tests of the hardware-counter script
 ```
 
 `npm run build` needs `web/wasm/build-lite.sh` and `FEATURES=threads web/wasm/build.sh`
@@ -156,7 +158,7 @@ docker run --rm -v "$PWD/anim:/manim" -w /manim manimcommunity/manim:latest \
   manim -ql --media_dir /manim/media <file>.py <SceneClass>
 ```
 
-The level 2 to 4 scenes share `anim/common.py`. `naive_matmul_parallel_cache.py`
+The level 2 to 5 scenes share `anim/common.py`. `naive_matmul_parallel_cache.py`
 is an older combined scene that draws column-major memory, unlike the row-major
 crate, so don't use it as a reference. The generated `Tex/`, `texts/` and
 `partial_movie_files/` under `anim/media/` are untracked.
