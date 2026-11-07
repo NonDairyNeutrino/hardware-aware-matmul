@@ -69,7 +69,9 @@ A manual process, not CI (shared CI machines are too noisy to trust for timing):
 
 ### Placeholders and the Results page (plan P2b)
 
-- Prose cites figures with placeholders such as `{{speedup:simd/naive@n=1024,native}}`.
+- Prose cites figures with placeholders such as `{{speedup simd/naive n=1024 native}}`
+  (the grammar is documented in CLAUDE.md and in the header of
+  `web/site/src/results/lookup.mjs`).
   The remark plugin fills each from `results.json` at build time; **a placeholder whose
   key does not resolve fails the build**, like an unlisted link does.
 - `docs/paper/results.md` introduces the method and each table; Astro components render

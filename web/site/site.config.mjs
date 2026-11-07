@@ -1,8 +1,8 @@
-import results from './src/data/results.json' with { type: 'json' };
-import { bestTable, scalingChart, scalingTable, throughputChart } from './src/results/render.mjs';
-
 // Everything about the site that is not in docs/: the chapters have no frontmatter
 // (rustdoc would show it as text), so their titles, order and routes live here.
+
+import results from './src/data/results.json' with { type: 'json' };
+import { bestTable, scalingChart, scalingTable, throughputChart } from './src/results/render.mjs';
 
 // GitHub Pages serves this repository at /hardware-aware-matmul/.
 export const base = '/hardware-aware-matmul/';
