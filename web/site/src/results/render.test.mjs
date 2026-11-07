@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import { data } from './fixture.mjs';
-import { bestTable, scalingChart, scalingTable, throughputChart } from './render.mjs';
+import { NOISY, bestTable, scalingChart, scalingTable, throughputChart } from './render.mjs';
 
 const count = (haystack, needle) => haystack.split(needle).length - 1;
 
@@ -100,4 +100,9 @@ test('the real results.json renders every table and chart without gaps', () => {
     assert.doesNotMatch(scalingChart(real, { environment }), /NaN|undefined|Infinity/);
   }
   assert.doesNotMatch(throughputChart(real, {}), /NaN|undefined|Infinity/);
+});
+
+test('the noise threshold is the 20% that docs/paper/results.md states', () => {
+  // The prose says "IQR is above 20%": change both together.
+  assert.equal(NOISY, 0.2);
 });

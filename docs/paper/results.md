@@ -14,21 +14,22 @@ timed runs. The tables show the **median** and, as the measure of noise, the
 the median. Cases whose IQR is above 20% are marked †. Throughput is `2n³`
 floating-point operations divided by the median time. Level 0 is single-threaded; the
 other levels were run with each thread count shown. Levels 2 to 4 use cache blocks of
-{{env block}} and level 4 uses output tiles of {{env tile}}.
+{{env block}} (k by j) and level 4 uses output tiles of {{env tile}} (rows by columns by
+depth of the shared dimension).
 
 The reference machine: {{env cpu}}, with {{env physical_cores}} physical cores
 ({{env cores}} logical), running {{env os}} with the CPU governor set to
 {{env governor}}. The run was made on {{env date}} from commit {{env commit}}.
-Native code was compiled with {{env rustc_native}} for the baseline instruction set of
-the target ({{env native_isa}}). Browser code ran as WebAssembly in {{env firefox}},
+Native code was compiled with {{env rustc_native}} for {{env native_isa}} (RUSTFLAGS:
+{{env rustflags}}). Browser code ran as WebAssembly in {{env firefox}},
 compiled with {{env rustc_lite}} (the lite build) and {{env rustc_threads}} (the threaded
 build) with {{env browser_isa}} enabled; the threaded build used a pool of {{env pool}}
 threads.
 
 # Native
 
-At n = {{env largest}}, level 0 took {{ms naive}} and level 3 took {{ms simd}} at the
-largest thread count: {{speedup simd/naive}} faster.
+The table gives every level at n = {{env largest}} at the largest thread count measured
+({{env threads_native}} threads; level 0 has one).
 
 # Thread scaling, native
 
@@ -40,8 +41,9 @@ thread in brackets, and the same speedups as a chart.
 The same cases ran in {{env firefox}} as WebAssembly, in two builds: a single-threaded
 one (the **lite** build, which the step-through diagrams in the Methods also use) and a
 threaded one on a pool of {{env pool}} threads. At n = {{env largest}}, level 3 took
-{{ms simd lite}} in the lite build and {{ms simd threads}} in the threaded build;
-natively it took {{ms simd}}.
+{{ms simd lite}} in the lite build (one thread) and {{ms simd threads}} in the threaded
+build ({{env threads_threaded}} threads); natively it took {{ms simd}}
+({{env threads_native}} threads).
 
 # Thread scaling in the browser
 
@@ -50,11 +52,10 @@ scaling to show.
 
 # The same answer everywhere
 
-All {{env runs}} measured runs, every level and every thread count, natively and in both
+All {{env runs}} measured cases (each timed {{env repeats}} times), every level and every thread count, natively and in both
 browser builds, produced the same result for each matrix size, bit for bit. Each run's
 output was hashed, and the reference-run script refuses to produce this data unless every
-hash agrees for each size. The arithmetic does not change from level to level; only how
-the hardware is used does.
+hash agrees for each size.
 
 # Noise and limits
 
@@ -63,8 +64,9 @@ These are the measurements of one machine on one day.
 - The IQR column shows how much the runs of each case varied. Cases marked † varied by
   more than 20% of their median and are indicative only.
 - Thread counts above {{env physical_cores}} must share physical cores with other
-  threads, so they cannot be expected to scale like the lower ones.
+  threads.
 - Browser timings come from `performance.now()` on a cross-origin-isolated page.
   Browsers deliberately coarsen their clocks, so very short times are less precise.
-- The numbers describe this hardware and these compilers. Read the ratios as showing the
-  size of the effects on this machine, not as constants.
+- The numbers describe this hardware and these compilers.
+- Browser timings are indicative: they depend on the browser, its clock resolution and its
+  WebAssembly engine.
