@@ -2,16 +2,20 @@
 // run's data, at build time: no JavaScript on the page, and every number comes from
 // results.json. (The prose cites numbers through placeholders; see lookup.mjs.)
 import {
-  ENVIRONMENTS, defaultThreads, findRun, formatGflops, formatMs, formatPercent, formatSpeedup, noise,
-  threadCounts,
+  ENVIRONMENTS, defaultThreads, findRun, formatCount, formatGflops, formatMs, formatPercent, formatRate,
+  formatSpeedup, noise, threadCounts,
 } from './lookup.mjs';
 
 /** Cases whose interquartile range exceeds this share of the median are marked as noisy. */
 export const NOISY = 0.2;
 
 export const LEVEL_NAMES = [
-  'Level 0: naive', 'Level 1: threaded', 'Level 2: cache blocking', 'Level 3: SIMD', 'Level 4: streaming',
+  'Level 0: naive', 'Level 1: threaded', 'Level 2: cache blocking', 'Level 3: SIMD', 'Level 4: packed B',
+  'Level 5: streaming',
 ];
+/** Every level, and the levels that take a thread count (all but level 0). */
+const ALL_LEVELS = LEVEL_NAMES.map((_, level) => level);
+const THREADED_LEVELS = ALL_LEVELS.slice(1);
 export const ENVIRONMENT_LABELS = {
   native: 'Native',
   'browser-lite': 'Browser, lite build (one thread)',
@@ -50,7 +54,7 @@ export function bestTable(data, { environment, n }) {
   const size = sizeOf(data, n);
   const baseline = mustFind(data, environment, 0, size, 1);
   let anyNoisy = false;
-  const rows = [0, 1, 2, 3, 4].map((level) => {
+  const rows = ALL_LEVELS.map((level) => {
     const run = mustFind(data, environment, level, size, defaultThreads(data, environment, level));
     anyNoisy ||= noise(run) > NOISY;
     return `<tr><th scope="row">${escape(LEVEL_NAMES[level])}</th><td>${run.threads}</td>` +
@@ -66,15 +70,44 @@ export function bestTable(data, { environment, n }) {
     `<tbody>${rows.join('')}</tbody></table></div></figure>${anyNoisy ? NOISE_NOTE : ''}`;
 }
 
+const COUNTER_LEVELS = ['naive', 'threaded', 'cache_friendly', 'simd', 'packed', 'streaming'];
+
 /**
- * Levels 1 to 4 against the thread counts measured for the environment: the median, and
+ * The hardware event counts of one multiplication at each level (environment.counters, from
+ * `perf stat`): cycles, instructions per cycle, and the misses of the L1 data cache, the
+ * last-level cache and the data TLB with the L1 miss rate. An event the CPU could not count is
+ * null in the data and shows as "n/a", never as 0.
+ */
+export function countersTable(data) {
+  const counters = data.environment.counters;
+  if (!counters) throw new Error('the data has no hardware event counts');
+  const count = (value) => (Number.isFinite(value) ? formatCount(value) : 'n/a');
+  const rows = COUNTER_LEVELS.map((name, level) => {
+    const c = counters.per_multiplication[name];
+    return `<tr><th scope="row">${escape(LEVEL_NAMES[level])}</th><td>${count(c.cycles)}</td>` +
+      `<td>${Number.isFinite(c.ipc) ? c.ipc.toFixed(2) : 'n/a'}</td><td>${count(c['L1-dcache-load-misses'])}</td>` +
+      `<td>${Number.isFinite(c.l1d_miss_rate) ? formatRate(c.l1d_miss_rate) : 'n/a'}</td>` +
+      `<td>${count(c['LLC-load-misses'])}</td><td>${count(c['dTLB-load-misses'])}</td></tr>`;
+  });
+  const id = `table-counters-${counters.n}`;
+  const threads = counters.threads === 1 ? 'one thread' : `${counters.threads} threads`;
+  return `<figure class="results-figure"><figcaption id="${id}">Native, n = ${counters.n}, ${threads}: hardware events of one ` +
+    `multiplication, user space only, median of ${counters.repeats} processes (set-up subtracted).</figcaption>` +
+    `<div class="table-scroll" tabindex="0" role="region" aria-labelledby="${id}"><table class="results" aria-labelledby="${id}">` +
+    `<thead><tr><th scope="col">Level</th><th scope="col">Cycles</th><th scope="col">Instructions per cycle</th>` +
+    `<th scope="col">L1 data misses</th><th scope="col">L1 miss rate</th><th scope="col">Last-level misses</th>` +
+    `<th scope="col">Data-TLB misses</th></tr></thead><tbody>${rows.join('')}</tbody></table></div></figure>`;
+}
+
+/**
+ * Levels 1 to 5 against the thread counts measured for the environment: the median, and
  * in brackets the speedup over the same level with one thread.
  */
 export function scalingTable(data, { environment, n }) {
   const size = sizeOf(data, n);
   const counts = threadCounts(data, environment);
   let anyNoisy = false;
-  const rows = [1, 2, 3, 4].map((level) => {
+  const rows = THREADED_LEVELS.map((level) => {
     const single = mustFind(data, environment, level, size, 1);
     const cells = counts.map((threads) => {
       const run = mustFind(data, environment, level, size, threads);
@@ -106,11 +139,11 @@ export function throughputChart(data, { n }) {
   const size = sizeOf(data, n);
   const environments = ENVIRONMENTS.filter((e) => findRun(data, e, 0, size, 1));
   const values = environments.map((environment) =>
-    [0, 1, 2, 3, 4].map((level) => mustFind(data, environment, level, size, defaultThreads(data, environment, level)).gflops));
+    ALL_LEVELS.map((level) => mustFind(data, environment, level, size, defaultThreads(data, environment, level)).gflops));
   const top = niceMax(Math.max(...values.flat()));
   const plotW = W - M.left - M.right;
   const plotH = H - M.top - M.bottom;
-  const groupW = plotW / 5;
+  const groupW = plotW / ALL_LEVELS.length;
   const barW = (groupW * 0.8) / environments.length;
   const y = (v) => M.top + plotH - (v / top) * plotH;
   const parts = [];
@@ -126,7 +159,7 @@ export function throughputChart(data, { n }) {
         `<text class="value" x="${(x + (barW - 2) / 2).toFixed(1)}" y="${(y(v) - 4).toFixed(1)}" text-anchor="middle">${v.toFixed(1)}</text>`);
     });
   });
-  for (let level = 0; level <= 4; level += 1) {
+  for (const level of ALL_LEVELS) {
     parts.push(`<text class="axis" x="${(M.left + level * groupW + groupW / 2).toFixed(1)}" y="${H - M.bottom + 18}" text-anchor="middle">Level ${level}</text>`);
   }
   const legend = environments.map((environment, e) =>
@@ -141,13 +174,13 @@ export function throughputChart(data, { n }) {
     `<figcaption>Throughput in GFLOP/s (higher is faster) of each level at n = ${size}, at the largest thread count measured in each environment (level 0 always uses one).</figcaption></figure>`;
 }
 
-/** Lines: speedup over one thread against the thread count, levels 1 to 4, with the ideal. */
+/** Lines: speedup over one thread against the thread count, every level but 0, with the ideal. */
 export function scalingChart(data, { environment, n }) {
   const size = sizeOf(data, n);
   const counts = threadCounts(data, environment);
   const plotW = W - M.left - M.right;
   const plotH = H - M.top - M.bottom;
-  const series = [1, 2, 3, 4].map((level) => {
+  const series = THREADED_LEVELS.map((level) => {
     const single = mustFind(data, environment, level, size, 1);
     return counts.map((t) => single.median_ms / mustFind(data, environment, level, size, t).median_ms);
   });
@@ -169,10 +202,11 @@ export function scalingChart(data, { environment, n }) {
     parts.push(`<polyline class="line line-${index + 1}" fill="none" points="${points.join(' ')}"/>` +
       values.map((v, i) => `<circle class="dot line-${index + 1}" cx="${x(i).toFixed(1)}" cy="${y(v).toFixed(1)}" r="3.5"/>`).join(''));
   });
-  const legend = [1, 2, 3, 4].map((level) =>
-    `<line class="line line-${level}" x1="${M.left + (level - 1) * 130}" x2="${M.left + (level - 1) * 130 + 16}" y1="16" y2="16"/>` +
-    `<text class="legend" x="${M.left + (level - 1) * 130 + 22}" y="20">Level ${level}</text>`).join('') +
-    `<line class="ideal" x1="${M.left + 4 * 130}" x2="${M.left + 4 * 130 + 16}" y1="16" y2="16"/><text class="legend" x="${M.left + 4 * 130 + 22}" y="20">ideal</text>`;
+  const gap = 104;
+  const legend = THREADED_LEVELS.map((level) =>
+    `<line class="line line-${level}" x1="${M.left + (level - 1) * gap}" x2="${M.left + (level - 1) * gap + 16}" y1="16" y2="16"/>` +
+    `<text class="legend" x="${M.left + (level - 1) * gap + 22}" y="20">Level ${level}</text>`).join('') +
+    `<line class="ideal" x1="${M.left + THREADED_LEVELS.length * gap}" x2="${M.left + THREADED_LEVELS.length * gap + 16}" y1="16" y2="16"/><text class="legend" x="${M.left + THREADED_LEVELS.length * gap + 22}" y="20">ideal</text>`;
   const description = series.map((values, i) => `level ${i + 1}: ${counts.map((t, k) => `${t} thread${t === 1 ? '' : 's'} ${values[k].toFixed(1)}×`).join(', ')}`).join('. ');
   const id = `scaling-${ENVIRONMENT_SHORT[environment]}-${size}`;
   return `<figure class="chart"><div class="chart-scroll" tabindex="0" role="region" aria-labelledby="${id}-title"><svg viewBox="0 0 ${W} ${H}" role="img" aria-labelledby="${id}-title ${id}-desc">` +
@@ -182,10 +216,10 @@ export function scalingChart(data, { environment, n }) {
     `<figcaption>${escape(ENVIRONMENT_LABELS[environment])}, n = ${size}: speedup over the same level with one thread against the number of threads. The dashed line is perfect scaling.</figcaption></figure>`;
 }
 
-/** Lines: throughput against the matrix size (log scale), one line per level, levels 1 to 4 at `threads` threads and level 0 on one. */
+/** Lines: throughput against the matrix size (log scale), one line per level, levels 1 to 5 at `threads` threads and level 0 on one. */
 export function sizeChart(data, { environment, threads = 1 }) {
   const sizes = data.parameters.sizes;
-  const series = [0, 1, 2, 3, 4].map((level) =>
+  const series = ALL_LEVELS.map((level) =>
     sizes.map((n) => mustFind(data, environment, level, n, level === 0 ? 1 : threads).gflops));
   const top = niceMax(Math.max(...series.flat()));
   const plotW = W - M.left - M.right;
@@ -207,9 +241,9 @@ export function sizeChart(data, { environment, threads = 1 }) {
     parts.push(`<polyline class="line line-${level}" fill="none" points="${points.join(' ')}"/>` +
       values.map((v, i) => `<circle class="dot line-${level}" cx="${x(sizes[i]).toFixed(1)}" cy="${y(v).toFixed(1)}" r="3.5"/>`).join(''));
   });
-  const legend = [0, 1, 2, 3, 4].map((level) =>
-    `<line class="line line-${level}" x1="${M.left + level * 110}" x2="${M.left + level * 110 + 16}" y1="16" y2="16"/>` +
-    `<text class="legend" x="${M.left + level * 110 + 22}" y="20">Level ${level}</text>`).join('');
+  const legend = ALL_LEVELS.map((level) =>
+    `<line class="line line-${level}" x1="${M.left + level * 96}" x2="${M.left + level * 96 + 16}" y1="16" y2="16"/>` +
+    `<text class="legend" x="${M.left + level * 96 + 22}" y="20">Level ${level}</text>`).join('');
   const description = series.map((values, level) =>
     `level ${level}: ${sizes.map((n, i) => `n = ${n} ${values[i].toFixed(1)}`).join(', ')}`).join('. ');
   const id = `size-${ENVIRONMENT_SHORT[environment]}-${threads}`;

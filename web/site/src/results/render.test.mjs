@@ -2,13 +2,13 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import { data, run } from './fixture.mjs';
-import { NOISY, bestTable, scalingChart, scalingTable, sizeChart, throughputChart } from './render.mjs';
+import { NOISY, bestTable, countersTable, scalingChart, scalingTable, sizeChart, throughputChart } from './render.mjs';
 
 const count = (haystack, needle) => haystack.split(needle).length - 1;
 
 test('the best-configuration table has one row per level with the numbers from the data', () => {
   const html = bestTable(data, { environment: 'native' });
-  assert.equal(count(html, '<tr>'), 6); // header + 5 levels
+  assert.equal(count(html, '<tr>'), 7); // header + 6 levels
   assert.match(html, /<figcaption id="table-native-best-128">Native, n = 128: median of 3 runs\. "vs level 0" is the speedup/);
   assert.match(html, /<table class="results" aria-labelledby="table-native-best-128">/);
   assert.match(html, /<div class="table-scroll" tabindex="0" role="region" aria-labelledby="table-native-best-128">/);
@@ -32,7 +32,7 @@ test('the scaling table shows each thread count with the speedup over one thread
   assert.match(html, /<th scope="col">1 thread<\/th><th scope="col">2 threads<\/th>/);
   // level 2: 500 ms with 1 thread, 250 ms with 2
   assert.match(html, /Level 2: cache blocking<\/th><td>500 ms \(1\.0×\)<\/td><td>250 ms \(2\.0×\)<\/td>/);
-  assert.equal(count(html, '<tr>'), 5);
+  assert.equal(count(html, '<tr>'), 6);
   assert.match(html, /<div class="table-scroll" tabindex="0" role="region" aria-labelledby="table-native-scaling-64">/);
 });
 
@@ -42,9 +42,9 @@ test('the throughput chart is an accessible SVG with a bar per level and environ
   assert.match(html, /<\/svg><\/div><figcaption>/);
   assert.match(html, /<svg viewBox="0 0 640 320" role="img" aria-labelledby="throughput-128-title throughput-128-desc">/);
   assert.match(html, /<title id="throughput-128-title">Throughput of each level, n = 128<\/title>/);
-  // two environments in the fixture: 5 bars each, plus one legend swatch each
-  assert.equal(count(html, 'class="bar bar-native"'), 6);
-  assert.equal(count(html, 'class="bar bar-browser-lite"'), 6);
+  // two environments in the fixture: 6 bars each, plus one legend swatch each
+  assert.equal(count(html, 'class="bar bar-native"'), 7);
+  assert.equal(count(html, 'class="bar bar-browser-lite"'), 7);
   assert.match(html, /<desc id="throughput-128-desc">GFLOP\/s at the largest thread count\. Native: level 0 [\d.]+, level 1 [\d.]+/);
   assert.equal(count(html, '<svg'), 1);
   assert.equal(count(html, '</svg>'), 1);
@@ -53,9 +53,9 @@ test('the throughput chart is an accessible SVG with a bar per level and environ
 
 test('the scaling chart has a line per level over the measured thread counts, and the ideal', () => {
   const html = scalingChart(data, { environment: 'native', n: 64 });
-  for (const level of [1, 2, 3, 4]) assert.equal(count(html, `<polyline class="line line-${level}"`), 1);
+  for (const level of [1, 2, 3, 4, 5]) assert.equal(count(html, `<polyline class="line line-${level}"`), 1);
   assert.equal(count(html, '<polyline class="ideal"'), 1);
-  assert.equal(count(html, '<circle'), 8); // 4 levels x 2 thread counts
+  assert.equal(count(html, '<circle'), 10); // 5 levels x 2 thread counts
   assert.match(html, /<div class="chart-scroll" tabindex="0" role="region" aria-labelledby="scaling-native-64-title"><svg/);
   assert.match(html, /<title id="scaling-native-64-title">Thread scaling, native, n = 64<\/title>/);
   // every level in the fixture scales perfectly: 2 threads is 2.0x
@@ -71,7 +71,7 @@ const fastData = {
 
 test('the size chart has a line per level, a dot per size and the numbers in its description', () => {
   const html = sizeChart(fastData, { environment: 'native' });
-  for (let level = 0; level <= 4; level += 1) {
+  for (let level = 0; level <= 5; level += 1) {
     assert.equal(count(html, `<polyline class="line line-${level}"`), 1);
     assert.equal(count(html, `<circle class="dot line-${level}"`), 2);
   }
@@ -88,7 +88,7 @@ test('the size chart has a line per level, a dot per size and the numbers in its
   assert.doesNotMatch(sizeChart(data, { environment: 'native' }), /NaN|undefined|Infinity/);
 });
 
-test('the size chart takes a thread count for levels 1 to 4 and keeps level 0 at one thread', () => {
+test('the size chart takes a thread count for levels 1 to 5 and keeps level 0 at one thread', () => {
   const html = sizeChart(fastData, { environment: 'native', threads: 2 });
   assert.match(html, /id="size-native-2-title"/);
   assert.match(html, /Native, 2 threads: throughput/);
@@ -141,4 +141,21 @@ test('the real results.json renders every table and chart without gaps', () => {
 test('the noise threshold is the 20% that docs/paper/results.md states', () => {
   // The prose says "IQR is above 20%": change both together.
   assert.equal(NOISY, 0.2);
+});
+
+test('the counters table has one row per level, in millions and percentages, and n/a for an event the CPU could not count', () => {
+  const html = countersTable(data);
+  assert.equal(count(html, '<tr>'), 7); // header + 6 levels
+  assert.match(html, /Native, n = 128, one thread: hardware events of one multiplication/);
+  assert.match(html, /<table class="results" aria-labelledby="table-counters-128">/);
+  // the fixture's simd: 1.50 billion cycles, IPC 2.00, 20 million L1 misses, a 20.0% rate
+  assert.match(html, /<th scope="row">Level 3: SIMD<\/th><td>1\.50 billion<\/td><td>2\.00<\/td><td>20\.0 million<\/td><td>20\.0%<\/td>/);
+  assert.match(html, /<th scope="row">Level 4: packed B<\/th><td>1\.50 billion<\/td><td>2\.00<\/td><td>2\.0 million<\/td><td>2\.0%<\/td>/);
+  assert.doesNotMatch(html, /NaN|undefined|Infinity|null/);
+  const missing = structuredClone(data);
+  missing.environment.counters.per_multiplication.simd['L1-dcache-load-misses'] = null;
+  assert.match(countersTable(missing), /Level 3: SIMD<\/th><td>1\.50 billion<\/td><td>2\.00<\/td><td>n\/a<\/td>/);
+  const without = structuredClone(data);
+  delete without.environment.counters;
+  assert.throws(() => countersTable(without), /no hardware event counts/);
 });

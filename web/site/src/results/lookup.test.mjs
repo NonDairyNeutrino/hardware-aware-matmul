@@ -39,11 +39,36 @@ test('resolves ms, gflops, speedup and iqr with the defaults (native, largest n,
 
 test('selectors choose the size, thread count and environment', () => {
   assert.equal(resolvePlaceholder(data, 'ms threaded n=64 t=1'), '1000 ms');
-  assert.equal(resolvePlaceholder(data, 'ms streaming n=64 t=1'), '250 ms');
+  assert.equal(resolvePlaceholder(data, 'ms packed n=64 t=1'), '250 ms');
+  assert.equal(resolvePlaceholder(data, 'ms streaming n=64 t=1'), '200 ms');
   assert.equal(resolvePlaceholder(data, 'ms simd n=64 lite'), '1000 ms');
   assert.equal(resolvePlaceholder(data, 'ms L3 browser-lite'), '1000 ms');
   // t= is ignored for level 0
   assert.equal(resolvePlaceholder(data, 'ms naive t=2'), '1000 ms');
+});
+
+test('hardware event counts: a count, a rate, a ratio of two levels', () => {
+  // simd missed L1 20 million times per multiplication, packed 2 million (the fixture's numbers).
+  assert.equal(resolvePlaceholder(data, 'count l1d_misses simd'), '20.0 million');
+  assert.equal(resolvePlaceholder(data, 'count l1d_miss_rate packed'), '2.0%');
+  assert.equal(resolvePlaceholder(data, 'count cycles naive'), '1.50 billion');
+  assert.equal(resolvePlaceholder(data, 'count ipc simd'), '2.00');
+  assert.equal(resolvePlaceholder(data, 'countratio l1d_misses simd/packed'), '10.0×');
+  assert.equal(resolvePlaceholder(data, 'env counters_n'), '128');
+  assert.equal(resolvePlaceholder(data, 'env counters_threads'), '1');
+});
+
+test('a hardware event count that is missing never becomes text', () => {
+  // The fixture's streaming level has no LLC loads (null: the CPU could not count them).
+  assert.throws(() => resolvePlaceholder(data, 'count llc_loads streaming'), /no llc_loads count for streaming/);
+  assert.throws(() => resolvePlaceholder(data, 'count bogus simd'), /counter must be one of/);
+  assert.throws(() => resolvePlaceholder(data, 'count l1d_misses'), /needs a level/);
+  assert.throws(() => resolvePlaceholder(data, 'countratio l1d_misses simd'), /two levels/);
+  assert.throws(() => resolvePlaceholder(data, 'count l1d_misses nonesuch'), /unknown level/);
+  const without = structuredClone(data);
+  delete without.environment.counters;
+  assert.throws(() => resolvePlaceholder(without, 'count cycles simd'), /no hardware event counts/);
+  assert.throws(() => resolvePlaceholder(without, 'env counters_n'), /no value/);
 });
 
 test('env facts', () => {
@@ -195,13 +220,13 @@ test('the committed results.json resolves every kind of placeholder the prose us
   for (const t of real.parameters.threads.native) {
     assert.match(resolvePlaceholder(real, `triad t=${t}`), /^\d+\.\d GB\/s$/);
     assert.match(resolvePlaceholder(real, `peak t=${t}`), /^\d+\.\d GFLOP\/s$/);
-    for (const level of ['naive', 'threaded', 'cache_friendly', 'simd', 'streaming']) {
+    for (const level of ['naive', 'threaded', 'cache_friendly', 'simd', 'packed', 'streaming']) {
       assert.match(resolvePlaceholder(real, `frac ${level} t=${t}`), /^\d+%$/);
     }
   }
   assert.match(resolvePlaceholder(real, 'env sizes'), /^\d+(, \d+)* and \d+$/);
   for (const metric of ['ms', 'gflops', 'iqr']) {
-    for (const level of ['naive', 'threaded', 'cache_friendly', 'simd', 'streaming']) {
+    for (const level of ['naive', 'threaded', 'cache_friendly', 'simd', 'packed', 'streaming']) {
       for (const environment of ['native', 'lite', 'threads']) {
         assert.doesNotMatch(resolvePlaceholder(real, `${metric} ${level} ${environment}`), /NaN|undefined/);
       }

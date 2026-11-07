@@ -6,19 +6,26 @@
 //   {{ms simd n=1024 native}}            median time of level 3 at n = 1024, native
 //   {{gflops cache_friendly lite}}       throughput of level 2, browser, lite build
 //   {{speedup simd/naive n=512 native}}  how many times faster level 3 is than level 0
-//   {{iqr streaming t=4}}                noise of level 4 with 4 threads, native
+//   {{iqr streaming t=4}}                noise of level 5 with 4 threads, native
 //   {{env cpu}}                          a fact about the reference run
 //   {{triad t=4}}, {{peak t=4}}          the hardware probe at 4 threads: triad bandwidth
 //                                        (GB/s) and the rate of an arithmetic test loop
 //                                        (GFLOP/s), native
 //   {{frac simd t=4}}                    level 3's throughput as a share of that rate
+//   {{count l1d_misses packed}}          a hardware event count of one multiplication (level 4),
+//                                        from `perf stat`; metrics: cycles, instructions, ipc,
+//                                        l1d_loads, l1d_misses, l1d_miss_rate, llc_loads, llc_misses,
+//                                        llc_miss_rate, dtlb_loads, dtlb_misses, dtlb_miss_rate
+//   {{countratio l1d_misses simd/packed}} how many times as many events the first level counted
+//                                        (they were counted once, at `counters_n` and one thread
+//                                        or as recorded: see the `counters_n`, `counters_threads` env fields)
 // Selectors: `n=<size>` (default: the largest), `t=<threads>` (default: the largest count
 // measured; ignored for level 0, which is always one thread), and one environment: native
 // (default), lite or browser-lite, threads or browser-threads. Giving a selector twice is
 // an error. `env` takes one field name: cpu, cores, physical_cores, governor, os, date,
 // commit (seven characters, plus a note if the tree was dirty), firefox, rustc_native,
 // rustc_lite, rustc_threads, native_isa, browser_isa, pool, runs, repeats, warmup, sizes,
-// largest, madds (the multiply-adds of one product at the largest size, n cubed), block,
+// counters_n, counters_threads (the size and thread count of the event counts), largest, madds (the multiply-adds of one product at the largest size, n cubed), block,
 // tile, rustflags (the recorded RUSTFLAGS, `none` if empty), and
 // threads_native, threads_lite, threads_threaded (the largest thread count measured in
 // that environment), l1d, l2, l3 (the cache sizes, in KiB below 1 MiB, else MiB), and
@@ -29,9 +36,9 @@
 // Anything that does not resolve throws, so a stale or misspelt placeholder fails the
 // build instead of publishing a wrong number.
 
-/** Levels by module name (and the L0 to L4 shorthand). */
-export const LEVELS = { naive: 0, threaded: 1, cache_friendly: 2, simd: 3, streaming: 4 };
-for (let level = 0; level <= 4; level += 1) LEVELS[`L${level}`] = level;
+/** Levels by module name (and the L0 to L5 shorthand). */
+export const LEVELS = { naive: 0, threaded: 1, cache_friendly: 2, simd: 3, packed: 4, streaming: 5 };
+for (let level = 0; level <= 5; level += 1) LEVELS[`L${level}`] = level;
 
 /** The names of the three measured environments, and the short forms prose may use. */
 export const ENVIRONMENTS = ['native', 'browser-lite', 'browser-threads'];
@@ -87,6 +94,12 @@ export const formatGflops = (value) => `${value.toFixed(1)} GFLOP/s`;
 export const formatSpeedup = (ratio) => `${ratio.toFixed(1)}×`;
 export const formatPercent = (fraction) => `${Math.round(fraction * 100)}%`;
 export const formatGbs = (value) => `${value.toFixed(1)} GB/s`;
+
+/** An event count as text: millions below a billion, else billions. */
+export const formatCount = (value) =>
+  value >= 1e9 ? `${(value / 1e9).toFixed(2)} billion` : `${(value / 1e6).toFixed(1)} million`;
+/** A miss rate as a percentage with one decimal (rates are small, whole percents would hide them). */
+export const formatRate = (fraction) => `${(fraction * 100).toFixed(1)}%`;
 
 /** A byte count as text: KiB below 1 MiB, else MiB, with at most two decimals. */
 export function formatBytes(bytes) {
@@ -144,6 +157,8 @@ const ENV_FIELDS = {
   threads_native: (d) => String(Math.max(...threadCounts(d, 'native'))),
   threads_lite: (d) => String(Math.max(...threadCounts(d, 'browser-lite'))),
   threads_threaded: (d) => String(Math.max(...threadCounts(d, 'browser-threads'))),
+  counters_n: (d) => (d.environment.counters ? String(d.environment.counters.n) : undefined),
+  counters_threads: (d) => (d.environment.counters ? String(d.environment.counters.threads) : undefined),
   l1d: (d) => cacheSize(d, 1),
   l2: (d) => cacheSize(d, 2),
   l3: (d) => cacheSize(d, 3),
@@ -155,6 +170,22 @@ const ENV_FIELDS = {
     const best = probeMax(d.environment.hardware?.peak_gflops);
     return best === undefined ? undefined : formatGflops(best);
   },
+};
+
+/** The `perf stat` metrics `{{count ...}}` accepts, by the name the prose uses. */
+const COUNTER_METRICS = {
+  cycles: 'cycles',
+  instructions: 'instructions',
+  ipc: 'ipc',
+  l1d_loads: 'L1-dcache-loads',
+  l1d_misses: 'L1-dcache-load-misses',
+  l1d_miss_rate: 'l1d_miss_rate',
+  llc_loads: 'LLC-loads',
+  llc_misses: 'LLC-load-misses',
+  llc_miss_rate: 'llc_miss_rate',
+  dtlb_loads: 'dTLB-loads',
+  dtlb_misses: 'dTLB-load-misses',
+  dtlb_miss_rate: 'dtlb_miss_rate',
 };
 
 /** The names `{{env ...}}` accepts. */
@@ -231,8 +262,9 @@ export function resolvePlaceholder(data, text) {
     if (!Number.isFinite(value) || value <= 0) return problem(`the hardware probe has no value for ${threads} thread(s)`);
     return metric === 'triad' ? formatGbs(value) : formatGflops(value);
   }
+  if (metric === 'count' || metric === 'countratio') return counterValue(data, metric, subject, rest, problem);
   if (!['ms', 'gflops', 'speedup', 'iqr', 'frac'].includes(metric)) {
-    return problem('the metric must be ms, gflops, speedup, iqr, frac, triad, peak or env');
+    return problem('the metric must be ms, gflops, speedup, iqr, frac, triad, peak, count, countratio or env');
   }
   if (!subject) return problem('a level is needed');
   const selectors = parseSelectors(data, rest, problem);
@@ -253,6 +285,35 @@ export function resolvePlaceholder(data, text) {
   if (metric === 'ms') return formatMs(run.median_ms);
   if (metric === 'gflops') return formatGflops(run.gflops);
   return formatPercent(noise(run));
+}
+
+/**
+ * `{{count METRIC LEVEL}}` and `{{countratio METRIC A/B}}`: the hardware event counts that
+ * `web/dev/perf_counters.py` recorded as environment.counters. A count that the CPU could not
+ * provide is null in the data, and null never becomes text.
+ */
+function counterValue(data, metric, subject, rest, problem) {
+  const counters = data.environment.counters;
+  if (!counters) return problem('the data has no hardware event counts');
+  if (!Object.hasOwn(COUNTER_METRICS, subject)) {
+    return problem(`the counter must be one of: ${Object.keys(COUNTER_METRICS).join(', ')}`);
+  }
+  if (rest.length !== 1) return problem(metric === 'count' ? 'count needs a level' : 'countratio needs two levels, like simd/packed');
+  const key = COUNTER_METRICS[subject];
+  const valueOf = (name) => {
+    const levelName = Object.keys(LEVELS).find((k) => LEVELS[k] === level(name, problem) && !/^L\d$/.test(k));
+    const value = counters.per_multiplication?.[levelName]?.[key];
+    if (!Number.isFinite(value) || value <= 0) return problem(`no ${subject} count for ${levelName}`);
+    return value;
+  };
+  if (metric === 'countratio') {
+    const parts = rest[0].split('/');
+    if (parts.length !== 2) return problem('countratio needs two levels, like simd/packed');
+    return formatSpeedup(valueOf(parts[0]) / valueOf(parts[1]));
+  }
+  const value = valueOf(rest[0]);
+  if (subject === 'ipc') return value.toFixed(2);
+  return subject.endsWith('_rate') ? formatRate(value) : formatCount(value);
 }
 
 const PLACEHOLDER = /\{\{([^{}]*)\}\}/g;
