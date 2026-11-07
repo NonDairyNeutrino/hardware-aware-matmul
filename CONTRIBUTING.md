@@ -17,6 +17,10 @@ project is, read [`README.md`](README.md). For the website's internals, read
   `include_str!`'d from `docs/`, and their code blocks are doctests.
 - **No benchmark numbers by hand.** Numbers appear only as generated data
   (see [The reference run](#the-reference-run)).
+- The code is MIT OR Apache-2.0 and the paper prose and videos are CC BY 4.0 (see
+  [License](README.md#license)); contributions are accepted under the same terms. Keep
+  dependencies of the core crate at zero, and check the license of anything added to
+  `web/wasm` or `web/site` (the site's output must stay permissively licensed).
 - The trunk branch is `trunk`. Keep commits small, one idea each, with a short
   one-line message.
 
