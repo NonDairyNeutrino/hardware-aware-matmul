@@ -10,6 +10,8 @@
 //   - an unlinked intra-doc shortcut left as literal "[code]" text;
 //   - a landing page that is not headed by the site title and subtitle with the abstract
 //     under them;
+//   - a Results page with an unresolved `{{...}}` placeholder, a missing table or chart,
+//     or a NaN/undefined/Infinity where a number should be;
 //   - a video the pages reference that was not copied into dist/media/.
 // Run it with `npm run check` after `npm run build`. Exits 1 on any problem.
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
@@ -88,6 +90,13 @@ for (const chapter of chapters) {
   }
   if (wanted.length > 0 && reachableScripts(html).length === 0) problems.push(`${where}: has a demo but loads no script`);
   if (wanted.length === 0 && /<script/.test(html)) problems.push(`${where}: has no demo but loads a script`);
+  if (chapter.id === 'paper/results') {
+    if (html.includes('{{')) problems.push(`${where}: contains an unresolved "{{" placeholder`);
+    if (/\b(NaN|undefined|Infinity)\b/.test(html)) problems.push(`${where}: contains NaN, undefined or Infinity`);
+    const tables = (html.match(/<table class="results"/g) ?? []).length;
+    const charts = (html.match(/<figure class="chart"/g) ?? []).length;
+    if (tables < 4 || charts < 3) problems.push(`${where}: ${tables} tables and ${charts} charts, expected at least 4 and 3`);
+  }
 }
 
 if (problems.length > 0) {
