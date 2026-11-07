@@ -14,7 +14,7 @@
 // an error. `env` takes one field name: cpu, cores, physical_cores, governor, os, date,
 // commit (seven characters, plus a note if the tree was dirty), firefox, rustc_native,
 // rustc_lite, rustc_threads, native_isa, browser_isa, pool, runs, repeats, warmup, sizes,
-// largest, block, tile, rustflags (the recorded RUSTFLAGS, `none` if empty), and
+// largest, madds (the multiply-adds of one product at the largest size, n cubed), block, tile, rustflags (the recorded RUSTFLAGS, `none` if empty), and
 // threads_native, threads_lite, threads_threaded (the largest thread count measured in
 // that environment). An `env` value that is missing or empty is an error, never text.
 // Anything that does not resolve throws, so a stale or misspelt placeholder fails the
@@ -102,6 +102,7 @@ const ENV_FIELDS = {
   warmup: (d) => String(d.parameters.warmup),
   sizes: (d) => d.parameters.sizes.join(' and '),
   largest: (d) => String(defaultSize(d)),
+  madds: (d) => (defaultSize(d) ** 3).toLocaleString('en-US'),
   block: (d) => d.parameters.block.join(' x '),
   tile: (d) => d.parameters.tile.join(' x '),
   rustflags: (d) => d.environment.rustflags || 'none',

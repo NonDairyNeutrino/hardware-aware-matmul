@@ -46,6 +46,8 @@ test('env facts', () => {
   assert.equal(resolvePlaceholder(data, 'env firefox'), 'Firefox 1.0');
   assert.equal(resolvePlaceholder(data, 'env sizes'), '64 and 128');
   assert.equal(resolvePlaceholder(data, 'env runs'), String(data.runs.length));
+  // n^3 multiply-adds at the largest size (128^3), with thousands separators.
+  assert.equal(resolvePlaceholder(data, 'env madds'), '2,097,152');
 });
 
 test('a null, undefined or empty env value throws instead of rendering', () => {
