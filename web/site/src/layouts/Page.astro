@@ -83,6 +83,12 @@ const entries = chapters.reduce((groups, chapter) => {
     {interactive && <StepThroughLoader />}
     <footer class="site-footer">
       <a href={repoUrl}>Source on GitHub</a>
+      <p class="licenses">
+        © 2026 Nat Chapman. Code:
+        <a href={`${repoUrl}/blob/trunk/LICENSE-MIT`}>MIT</a> or
+        <a href={`${repoUrl}/blob/trunk/LICENSE-APACHE`}>Apache-2.0</a>. Text and videos:
+        <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>.
+      </p>
     </footer>
   </body>
 </html>
