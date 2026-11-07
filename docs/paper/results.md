@@ -1,6 +1,6 @@
 The same matrix product was timed at every level, natively and in a web browser, on one
-machine. This page reports the measurements and nothing else: the
-[Discussion](crate::discussion) compares them. Every figure on it comes from the committed
+machine. This page reports the measurements, with a question to answer before each
+group of figures, and nothing else: the [Discussion](crate::discussion) compares them. Every figure on it comes from the committed
 data of the reference run, not from this text.
 
 # What was measured
@@ -28,15 +28,35 @@ threads.
 
 # Native
 
-The table gives every level at n = {{env largest}} at the largest thread count measured
-({{env threads_native}} threads; level 0 has one).
+> **Predict.** Before you read the tables: level 0 and level 1 run the same loop, level 1
+> split across threads. Which is faster on one thread? How much faster is level 2 than level
+> 0 on one thread, and is the gap bigger at the smaller size or the larger one?
+
+The tables give every level at the largest thread count measured ({{env threads_native}}
+threads; level 0 has one), first at n = 512 and then at n = {{env largest}}.
+
+# Throughput against matrix size, native
+
+> **Predict.** Doubling n makes the arithmetic eight times larger. Does the time grow eight
+> times? If a level's throughput (operations per second) stays the same as n grows, the machine
+> is doing the same work per second on a larger problem; if it falls, something got in the way.
+> Which level's throughput will fall most?
+
+The chart gives each level's throughput on one thread at every size measured, so that
+the size is the only thing that changes.
 
 # Thread scaling, native
+
+> **Predict.** How many threads will each level use well before more threads stop helping?
+> The machine has {{env physical_cores}} physical cores and {{env cores}} hardware threads.
 
 Each level's median time at every measured thread count, with the speedup over one
 thread in brackets, and the same speedups as a chart.
 
 # In the browser
+
+> **Predict.** The browser runs the same Rust, compiled to WebAssembly. Which level will lose
+> the least against native code, and which the most?
 
 The same cases ran in {{env firefox}} as WebAssembly, in two builds: a single-threaded
 one (the **lite** build, which the step-through diagrams in the Methods also use) and a
