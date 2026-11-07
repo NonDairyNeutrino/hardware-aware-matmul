@@ -6,8 +6,15 @@ import {
   ENV_FIELD_NAMES, formatMs, hasPlaceholder, interquartileRange, noise, resolvePlaceholder, substitute,
 } from './lookup.mjs';
 
-test('formats times as seconds, whole milliseconds or one decimal', () => {
-  assert.equal(formatMs(3796.2), '3.8 s');
+test('formats times as seconds from 10 s, whole milliseconds from 100 ms, else one decimal', () => {
+  assert.equal(formatMs(66173.2), '66.2 s');
+  assert.equal(formatMs(10000), '10.0 s');
+  assert.equal(formatMs(9999.7), '10.0 s'); // would round to 10000 ms
+  assert.equal(formatMs(3796.2), '3796 ms');
+  // Below 10 s a tenth of a second would exaggerate small gaps (1166.7 against 1127.3 ms
+  // is 3.4%, but "1.2 s" against "1.1 s" reads as 9%).
+  assert.equal(formatMs(1166.7), '1167 ms');
+  assert.equal(formatMs(1127.3), '1127 ms');
   assert.equal(formatMs(222.23), '222 ms');
   assert.equal(formatMs(42.46), '42.5 ms');
 });
@@ -24,19 +31,19 @@ test('resolves ms, gflops, speedup and iqr with the defaults (native, largest n,
   assert.equal(resolvePlaceholder(data, 'ms simd'), '167 ms');
   assert.equal(resolvePlaceholder(data, 'gflops simd'), `${((2 * 128 ** 3) / (1000 / 6 / 1000) / 1e9).toFixed(1)} GFLOP/s`);
   // level 0 is always single-threaded: 1000 ms
-  assert.equal(resolvePlaceholder(data, 'ms naive'), '1.0 s');
+  assert.equal(resolvePlaceholder(data, 'ms naive'), '1000 ms');
   // simd is 6 times faster than naive here (1000 / 166.7)
   assert.equal(resolvePlaceholder(data, 'speedup simd/naive'), '6.0×');
   assert.equal(resolvePlaceholder(data, 'iqr simd'), '2%');
 });
 
 test('selectors choose the size, thread count and environment', () => {
-  assert.equal(resolvePlaceholder(data, 'ms threaded n=64 t=1'), '1.0 s');
+  assert.equal(resolvePlaceholder(data, 'ms threaded n=64 t=1'), '1000 ms');
   assert.equal(resolvePlaceholder(data, 'ms streaming n=64 t=1'), '250 ms');
-  assert.equal(resolvePlaceholder(data, 'ms simd n=64 lite'), '1.0 s');
-  assert.equal(resolvePlaceholder(data, 'ms L3 browser-lite'), '1.0 s');
+  assert.equal(resolvePlaceholder(data, 'ms simd n=64 lite'), '1000 ms');
+  assert.equal(resolvePlaceholder(data, 'ms L3 browser-lite'), '1000 ms');
   // t= is ignored for level 0
-  assert.equal(resolvePlaceholder(data, 'ms naive t=2'), '1.0 s');
+  assert.equal(resolvePlaceholder(data, 'ms naive t=2'), '1000 ms');
 });
 
 test('env facts', () => {
@@ -79,6 +86,12 @@ test('the hardware probe: triad bandwidth and arithmetic peak, per thread count 
   assert.equal(resolvePlaceholder(data, 'peak t=1'), '0.0 GFLOP/s');
   assert.equal(resolvePlaceholder(data, 'env triad_max'), '15.1 GB/s');
   assert.equal(resolvePlaceholder(data, 'env peak_max'), '0.1 GFLOP/s');
+  // Realistic peaks, so the formatting itself is tested, not just "0.0".
+  const real = structuredClone(data);
+  real.environment.hardware.peak_gflops = { 1: 13.64, 2: 26.96 };
+  assert.equal(resolvePlaceholder(real, 'peak t=1'), '13.6 GFLOP/s');
+  assert.equal(resolvePlaceholder(real, 'peak'), '27.0 GFLOP/s');
+  assert.equal(resolvePlaceholder(real, 'env peak_max'), '27.0 GFLOP/s');
   const old = structuredClone(data);
   delete old.environment.hardware;
   for (const bad of ['env triad_max', 'env peak_max']) {
@@ -100,6 +113,16 @@ test('frac: a level\'s throughput as a share of the arithmetic peak at the same 
   assert.equal(resolvePlaceholder(data, 'frac simd t=1 n=64'), '8%');
   // Level 0 is one thread, so its share is of the one-thread peak whatever t= says.
   assert.equal(resolvePlaceholder(data, 'frac naive t=2'), resolvePlaceholder(data, 'frac naive t=1'));
+  // A peak of zero, or a value that is not a finite number, throws instead of rendering
+  // "Infinity%" or "NaN GB/s".
+  for (const bad of [0, -1, Infinity, NaN, '0.05']) {
+    const broken = structuredClone(data);
+    broken.environment.hardware.peak_gflops[2] = bad;
+    broken.environment.hardware.triad_gbs[2] = bad;
+    assert.throws(() => resolvePlaceholder(broken, 'frac simd t=2'), /unresolvable placeholder/, `frac, peak ${bad}`);
+    assert.throws(() => resolvePlaceholder(broken, 'triad t=2'), /unresolvable placeholder/, `triad ${bad}`);
+    assert.throws(() => resolvePlaceholder(broken, 'peak t=2'), /unresolvable placeholder/, `peak ${bad}`);
+  }
   // The peak was measured natively only.
   for (const bad of ['frac simd lite', 'frac simd threads', 'frac', 'frac simd/naive']) {
     assert.throws(() => resolvePlaceholder(data, bad), /unresolvable placeholder/, bad);

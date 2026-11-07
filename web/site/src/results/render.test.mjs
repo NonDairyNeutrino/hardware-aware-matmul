@@ -12,9 +12,9 @@ test('the best-configuration table has one row per level with the numbers from t
   assert.match(html, /<figcaption id="table-native-best-128">Native, n = 128: median of 3 runs\. "vs level 0" is the speedup/);
   assert.match(html, /<table class="results" aria-labelledby="table-native-best-128">/);
   assert.match(html, /<div class="table-scroll" tabindex="0" role="region" aria-labelledby="table-native-best-128">/);
-  // level 3 at 2 threads: 1000 / 6 ms, 6.0 times faster than level 0 (1 s)
+  // level 3 at 2 threads: 1000 / 6 ms, 6.0 times faster than level 0 (1000 ms)
   assert.match(html, /<th scope="row">Level 3: SIMD<\/th><td>2<\/td><td>167 ms<\/td><td>[\d.]+ GFLOP\/s<\/td><td>6\.0×<\/td><td>2%<\/td>/);
-  assert.match(html, /<th scope="row">Level 0: naive<\/th><td>1<\/td><td>1\.0 s<\/td>/);
+  assert.match(html, /<th scope="row">Level 0: naive<\/th><td>1<\/td><td>1000 ms<\/td>/);
   assert.doesNotMatch(html, /†|NaN|undefined/);
 });
 

@@ -17,7 +17,8 @@
 // an error. `env` takes one field name: cpu, cores, physical_cores, governor, os, date,
 // commit (seven characters, plus a note if the tree was dirty), firefox, rustc_native,
 // rustc_lite, rustc_threads, native_isa, browser_isa, pool, runs, repeats, warmup, sizes,
-// largest, madds (the multiply-adds of one product at the largest size, n cubed), block, tile, rustflags (the recorded RUSTFLAGS, `none` if empty), and
+// largest, madds (the multiply-adds of one product at the largest size, n cubed), block,
+// tile, rustflags (the recorded RUSTFLAGS, `none` if empty), and
 // threads_native, threads_lite, threads_threaded (the largest thread count measured in
 // that environment), l1d, l2, l3 (the cache sizes, in KiB below 1 MiB, else MiB), and
 // triad_max, peak_max (the largest triad bandwidth and arithmetic peak over the thread
@@ -73,9 +74,11 @@ export function defaultThreads(data, environment, level) {
   return level === 0 ? 1 : Math.max(...threadCounts(data, environment));
 }
 
-/** `ms` as text: seconds from 1000 ms, whole milliseconds from 100, else one decimal. */
+/** `ms` as text: seconds (one decimal) from 10 s, whole milliseconds from 100 ms, else one
+ *  decimal. Whole milliseconds up to 10 s, because a tenth of a second there would make a
+ *  gap of a few percent look like one of ten. */
 export function formatMs(ms) {
-  if (ms >= 1000) return `${(ms / 1000).toFixed(1)} s`;
+  if (Math.round(ms) >= 10000) return `${(ms / 1000).toFixed(1)} s`;
   if (ms >= 100) return `${Math.round(ms)} ms`;
   return `${ms.toFixed(1)} ms`;
 }
@@ -224,7 +227,7 @@ export function resolvePlaceholder(data, text) {
     }
     const threads = tokens.length === 1 ? Number(tokens[0].slice(2)) : defaultThreads(data, 'native', null);
     const value = table[threads];
-    if (typeof value !== 'number') return problem(`the hardware probe has no value for ${threads} thread(s)`);
+    if (!Number.isFinite(value) || value <= 0) return problem(`the hardware probe has no value for ${threads} thread(s)`);
     return metric === 'triad' ? formatGbs(value) : formatGflops(value);
   }
   if (!['ms', 'gflops', 'speedup', 'iqr', 'frac'].includes(metric)) {
@@ -243,7 +246,7 @@ export function resolvePlaceholder(data, text) {
   if (metric === 'frac') {
     if (selectors.environment !== 'native') return problem('the arithmetic peak was measured natively only');
     const peak = data.environment.hardware?.peak_gflops?.[run.threads];
-    if (typeof peak !== 'number') return problem(`the hardware probe has no peak for ${run.threads} thread(s)`);
+    if (!Number.isFinite(peak) || peak <= 0) return problem(`the hardware probe has no peak for ${run.threads} thread(s)`);
     return formatPercent(run.gflops / peak);
   }
   if (metric === 'ms') return formatMs(run.median_ms);
