@@ -1,7 +1,7 @@
 //! Times each level of the crate on the same problem.
 //!
 //! Multiplies two n×n matrices with every implementation in turn, checks that
-//! all five produce bit-identical results, and prints how long each took.
+//! all six produce bit-identical results, and prints how long each took.
 //!
 //! Usage: `cargo run --release [-- n [threads]]` (default n = 512, and one
 //! thread per available core).
@@ -18,7 +18,7 @@ use std::thread;
 use std::time::{Duration, Instant};
 
 use hardware_aware_matmul::streaming::{matmul_streaming, MemorySink, StreamConfig};
-use hardware_aware_matmul::{cache_friendly, naive, simd, threaded, Matrix};
+use hardware_aware_matmul::{cache_friendly, naive, packed, simd, threaded, Matrix};
 
 /// Runs `f` once and returns its result with the elapsed wall-clock time.
 fn time<T>(f: impl FnOnce() -> T) -> (T, Duration) {
@@ -90,17 +90,21 @@ fn main() -> Result<(), Box<dyn Error>> {
     require_identical("simd", &c?, &reference)?;
     report("3  + SIMD micro-kernel", t_simd, Some(t_cache), t_naive);
 
-    // Level 4 with in-memory matrices: tiles are chosen small enough that there
+    let (c, t_packed) = time(|| packed::matmul(&a, &b, threads));
+    require_identical("packed", &c?, &reference)?;
+    report("4  + packed B", t_packed, Some(t_simd), t_naive);
+
+    // Level 5 with in-memory matrices: tiles are chosen small enough that there
     // are plenty of them for every thread to claim.
     let config = StreamConfig::new(threads).with_tile_shape(128, 128, 128);
     let sink = MemorySink::new(n, n);
     let (result, t_streaming) = time(|| matmul_streaming(&a, &b, &sink, &config));
     result?;
     require_identical("streaming", &sink.into_matrix(), &reference)?;
-    report("4  + streaming", t_streaming, Some(t_simd), t_naive);
+    report("5  + streaming", t_streaming, Some(t_packed), t_naive);
 
     println!(
-        "\nLevel 4 is not meant to be faster on matrices that fit in memory: it copies\n\
+        "\nLevel 5 is not meant to be faster on matrices that fit in memory: it copies\n\
          tiles into small buffers. Its purpose is bounded memory ({} KiB of tile\n\
          buffers here, whatever n is), which is what lets it work on data from disk.",
         config.peak_buffer_bytes() / 1024

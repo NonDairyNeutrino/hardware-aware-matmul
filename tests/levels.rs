@@ -15,7 +15,9 @@ use hardware_aware_matmul::cache_friendly::BlockConfig;
 use hardware_aware_matmul::runner::{Runner, StdRunner};
 use hardware_aware_matmul::threaded::row_block_plan;
 use hardware_aware_matmul::streaming::StreamConfig;
-use hardware_aware_matmul::{cache_friendly, naive, simd, streaming, threaded, DimensionMismatch, MatmulError, Matrix};
+use hardware_aware_matmul::{
+    cache_friendly, naive, packed, simd, streaming, threaded, DimensionMismatch, MatmulError, Matrix,
+};
 
 fn nz(n: usize) -> NonZeroUsize {
     NonZeroUsize::new(n).unwrap()
@@ -74,7 +76,7 @@ fn rough_operands_are_sensitive_to_summation_order() {
 
 /// The product computed at every level, labelled by module name.
 ///
-/// Level 4 is run with small tiles so that even modest matrices are split into
+/// Level 5 is run with small tiles so that even modest matrices are split into
 /// several tiles and several depth slices.
 fn product_at_every_level(a: &Matrix, b: &Matrix, threads: usize) -> Vec<(&'static str, Matrix)> {
     let t = nz(threads);
@@ -87,6 +89,7 @@ fn product_at_every_level(a: &Matrix, b: &Matrix, threads: usize) -> Vec<(&'stat
         ("threaded", threaded::matmul(a, b, t).unwrap()),
         ("cache_friendly", cache_friendly::matmul(a, b, t).unwrap()),
         ("simd", simd::matmul(a, b, t).unwrap()),
+        ("packed", packed::matmul(a, b, t).unwrap()),
         ("streaming (default tiles)", streaming::matmul(a, b, t).unwrap()),
         ("streaming (small tiles)", sink.into_matrix()),
     ]
@@ -149,6 +152,8 @@ fn block_configs_never_change_the_bits() {
                 assert_same_bits(&c2, &reference, &context("cache_friendly"));
                 let c3 = simd::matmul_with_config(&a, &b, t, &block).unwrap();
                 assert_same_bits(&c3, &reference, &context("simd"));
+                let c4 = packed::matmul_with_config(&a, &b, t, &block).unwrap();
+                assert_same_bits(&c4, &reference, &context("packed"));
 
                 let config = StreamConfig::new(t).with_tile_shape(16, 24, 20).with_block_config(block);
                 let sink = streaming::MemorySink::new(m, p);
@@ -215,6 +220,14 @@ fn runners_never_change_the_bits() {
 
                 let c = simd::matmul_with_runner(&a, &b, t, &block, &StdRunner).unwrap();
                 assert_same_bits(&c, &reference, &context("simd", &format!("std {block:?}")));
+
+                let inline = CountingInline::new();
+                let c = packed::matmul_with_runner(&a, &b, t, &block, &inline).unwrap();
+                assert_same_bits(&c, &reference, &context("packed", &format!("inline {block:?}")));
+                assert_eq!(inline.jobs(), jobs_expected, "{}", context("packed", "job count"));
+
+                let c = packed::matmul_with_runner(&a, &b, t, &block, &StdRunner).unwrap();
+                assert_same_bits(&c, &reference, &context("packed", &format!("std {block:?}")));
             }
         }
     }
@@ -256,6 +269,7 @@ fn an_empty_product_hands_the_runner_no_jobs() {
         threaded::matmul_with_runner(&a, &b, nz(4), &inline).unwrap();
         cache_friendly::matmul_with_runner(&a, &b, nz(4), &block, &inline).unwrap();
         simd::matmul_with_runner(&a, &b, nz(4), &block, &inline).unwrap();
+        packed::matmul_with_runner(&a, &b, nz(4), &block, &inline).unwrap();
         let config = StreamConfig::new(nz(4));
         streaming::matmul_streaming_with_runner(&a, &b, &streaming::MemorySink::new(m, p), &config, &inline).unwrap();
         assert_eq!(inline.jobs(), 0, "shape {m}x{n}x{p}");
@@ -278,6 +292,7 @@ fn more_threads_than_rows() {
     assert_eq!(threaded::matmul(&a, &b, nz(16)).unwrap(), reference);
     assert_eq!(cache_friendly::matmul(&a, &b, nz(16)).unwrap(), reference);
     assert_eq!(simd::matmul(&a, &b, nz(16)).unwrap(), reference);
+    assert_eq!(packed::matmul(&a, &b, nz(16)).unwrap(), reference);
     assert_eq!(streaming::matmul(&a, &b, nz(16)).unwrap(), reference);
 }
 
@@ -291,6 +306,7 @@ fn empty_operands_give_empty_results() {
         assert_eq!(shape(&threaded::matmul(&a, &b, t).unwrap()), (m, p));
         assert_eq!(shape(&cache_friendly::matmul(&a, &b, t).unwrap()), (m, p));
         assert_eq!(shape(&simd::matmul(&a, &b, t).unwrap()), (m, p));
+        assert_eq!(shape(&packed::matmul(&a, &b, t).unwrap()), (m, p));
         assert_eq!(shape(&streaming::matmul(&a, &b, t).unwrap()), (m, p));
     }
 }
@@ -314,6 +330,7 @@ fn every_level_rejects_mismatched_dimensions() {
     assert_eq!(threaded::matmul(&a, &b, t).unwrap_err(), expected);
     assert_eq!(cache_friendly::matmul(&a, &b, t).unwrap_err(), expected);
     assert_eq!(simd::matmul(&a, &b, t).unwrap_err(), expected);
+    assert_eq!(packed::matmul(&a, &b, t).unwrap_err(), expected);
     assert!(matches!(
         streaming::matmul(&a, &b, t),
         Err(MatmulError::DimensionMismatch(e)) if e == expected
