@@ -10,6 +10,9 @@
 //   - an unlinked intra-doc shortcut left as literal "[code]" text;
 //   - a landing page that is not headed by the site title and subtitle with the abstract
 //     under them;
+//   - a playground page that is missing, has no script, or whose scripts never load the service
+//     worker (it is the one reading page that may, so that readers can use the threaded build);
+//     and a Results page that does not link to it;
 //   - a Results page with an unresolved `{{...}}` placeholder, a count of tables or
 //     charts that differs from what site.config.mjs inserts, or a NaN/undefined/
 //     Infinity/null where a number should be;
@@ -18,7 +21,7 @@
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { base, chapters, demos, insertions, siteSubtitle, siteTitle } from './site.config.mjs';
+import { base, chapters, demos, extraPages, insertions, siteSubtitle, siteTitle } from './site.config.mjs';
 
 const dist = fileURLToPath(new URL('./dist/', import.meta.url));
 const problems = [];
@@ -100,9 +103,28 @@ for (const chapter of chapters) {
     const inserted = insertions.filter((i) => i.chapter === chapter.id).map((i) => i.html).join('');
     const wantTables = (inserted.match(/<table class="results"/g) ?? []).length;
     const wantCharts = (inserted.match(/<figure class="chart"/g) ?? []).length;
+    if (!html.includes(`${base}playground/`)) problems.push(`${where}: does not link to the playground`);
     if (tables !== wantTables || charts !== wantCharts) {
       problems.push(`${where}: ${tables} tables and ${charts} charts, expected ${wantTables} and ${wantCharts}`);
     }
+  }
+}
+
+// Pages outside the paper's reading order. The playground may register the service worker (one
+// reload, to enable multithreading): it is the only reading page that does, so its scripts MUST
+// reference it, and nothing else does (the chapters are checked above).
+for (const page of extraPages) {
+  const file = join(dist, page.route, 'index.html');
+  if (!existsSync(file)) {
+    problems.push(`${page.route}: page was not built`);
+    continue;
+  }
+  const html = readFileSync(file, 'utf8');
+  if (!html.includes('id="playground"')) problems.push(`${page.route}: the playground section is missing`);
+  const scripts = reachableScripts(html);
+  if (scripts.length === 0) problems.push(`${page.route}: loads no script`);
+  else if (!scripts.some((s) => /coi-serviceworker/.test(readFileSync(join(dist, '_astro', s), 'utf8')))) {
+    problems.push(`${page.route}: its scripts never load the service worker, so the threaded build could not be enabled`);
   }
 }
 

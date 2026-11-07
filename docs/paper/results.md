@@ -57,6 +57,11 @@ browser builds, produced the same result for each matrix size, bit for bit. Each
 output was hashed, and the reference-run script refuses to produce this data unless every
 hash agrees for each size.
 
+# Run it yourself
+
+The [playground](crate::playground) runs the same benchmark on your own machine, in your
+browser, and reports whether every level gave the same answer.
+
 # Noise and limits
 
 These are the measurements of one machine on one day.
