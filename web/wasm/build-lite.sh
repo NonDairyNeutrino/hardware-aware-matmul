@@ -2,11 +2,15 @@
 # Builds the STABLE, single-threaded wasm module into pkg-lite/: no threads, no
 # atomics, no nightly. Used by the chapters and as the playground's fallback. The
 # threaded build is build.sh.
-# env: WASM_BINDGEN  path to the wasm-bindgen CLI (default: wasm-bindgen on PATH)
+# env: WASM_BINDGEN  path to the wasm-bindgen CLI (default: wasm-bindgen on PATH, else
+#                    ~/.cargo/bin/wasm-bindgen)
 #      CARGO_TARGET_DIR  honoured; this build uses "<dir>-lite" (default ./target-lite)
 set -euo pipefail
 cd "$(dirname "$0")"
-WASM_BINDGEN=${WASM_BINDGEN:-wasm-bindgen}
+# Unset: wasm-bindgen on PATH, else the copy `cargo install` puts in ~/.cargo/bin.
+if [ -z "${WASM_BINDGEN:-}" ]; then
+  if command -v wasm-bindgen >/dev/null; then WASM_BINDGEN=wasm-bindgen; else WASM_BINDGEN=$HOME/.cargo/bin/wasm-bindgen; fi
+fi
 TARGET_DIR="${CARGO_TARGET_DIR:-$PWD/target}-lite"
 # `+stable` overrides the nightly pinned for this directory by rust-toolchain.toml.
 # 128-bit SIMD (every current browser has it) lets the level 3 micro-kernel be

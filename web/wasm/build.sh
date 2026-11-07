@@ -2,7 +2,8 @@
 # Builds the wasm module with threads (pinned nightly via rust-toolchain.toml)
 # and generates the JavaScript glue into pkg/.
 # This is the THREADED build. The stable, single-threaded build is build-lite.sh.
-# env: WASM_BINDGEN  path to the wasm-bindgen CLI (default: wasm-bindgen on PATH)
+# env: WASM_BINDGEN  path to the wasm-bindgen CLI (default: wasm-bindgen on PATH, else
+#                    ~/.cargo/bin/wasm-bindgen)
 #      CARGO_TARGET_DIR  honoured (default: ./target)
 #      FEATURES      cargo features. Unset: no-bundler, for pages that load the
 #                    module without a bundler (the gates). `FEATURES=threads` is
@@ -10,7 +11,10 @@
 #                    recorded in pkg/.features.
 set -euo pipefail
 cd "$(dirname "$0")"
-WASM_BINDGEN=${WASM_BINDGEN:-wasm-bindgen}
+# Unset: wasm-bindgen on PATH, else the copy `cargo install` puts in ~/.cargo/bin.
+if [ -z "${WASM_BINDGEN:-}" ]; then
+  if command -v wasm-bindgen >/dev/null; then WASM_BINDGEN=wasm-bindgen; else WASM_BINDGEN=$HOME/.cargo/bin/wasm-bindgen; fi
+fi
 FEATURES=${FEATURES-no-bundler}
 case "$FEATURES" in
   threads|no-bundler) ;;
