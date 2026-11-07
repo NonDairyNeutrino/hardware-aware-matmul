@@ -20,8 +20,9 @@ const supportsSimd = () => {
 };
 
 const GATES = ['threads', 'lite', 'recover', 'fallback'];
-// The gates serve the page from http://127.0.0.1; on a real site `?gate=` does nothing.
-const gate = ['127.0.0.1', 'localhost'].includes(location.hostname) && GATES.includes(query.get('gate')) ? query.get('gate') : null;
+// The gates serve a GATE=1 build (__GATE_BUILD__, astro.config.mjs) from http://127.0.0.1; in
+// production the gate driver is not even built, and on a real site `?gate=` does nothing.
+const gate = __GATE_BUILD__ && ['127.0.0.1', 'localhost'].includes(location.hostname) && GATES.includes(query.get('gate')) ? query.get('gate') : null;
 
 const store = {
   get() { try { return Number(sessionStorage.getItem(ATTEMPTS_KEY) || 0); } catch { return 0; } },

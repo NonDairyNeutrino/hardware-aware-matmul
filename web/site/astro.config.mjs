@@ -20,6 +20,9 @@ export default defineConfig({
   integrations: process.env.GATE === '1' ? [gatePages] : [],
   trailingSlash: 'always',
   vite: {
+    // The playground loads its gate driver (src/playground/gate.js) only in gate builds, so the
+    // production build does not ship it.
+    define: { __GATE_BUILD__: JSON.stringify(process.env.GATE === '1') },
     worker: {
       format: 'es',
       // Workers (and what they load) go under playground/, inside the service worker's scope:
