@@ -37,7 +37,7 @@ out of bounds. These are programmer errors, so they are panics rather than
 
 | You want…                                          | Use                                              |
 |----------------------------------------------------|--------------------------------------------------|
-| The fastest in-memory product                      | [`simd::matmul`](crate::simd::matmul)            |
+| The fastest in-memory product (measure on yours)   | [`simd::matmul`](crate::simd::matmul)            |
 | Cache blocking without the vector work             | [`cache_friendly::matmul`](crate::cache_friendly::matmul) |
 | A simple reference, or to understand the algorithm | [`naive::matmul`](crate::naive::matmul)          |
 | Threads without the cache work (mostly for study)  | [`threaded::matmul`](crate::threaded::matmul)    |
