@@ -1,7 +1,10 @@
 // Automated runs of the playground for the browser gates (web/site/gate-c3.sh), chosen by
-// `?gate=threads|lite|recover|fallback` in the URL (fallback: main.js makes the first worker
-// fail to load, so the threaded start fails and the page must move to the lite build). They drive the real page and POST a report that
-// web/dev/check_report.py judges. A normal visit never uses this module.
+// `?gate=threads|lite|recover|fallback|migrate` in the URL (fallback: main.js makes the first
+// worker fail to load, so the threaded start fails and the page must move to the lite build;
+// migrate: the gate page /gate/migrate/ first registered the real service worker at the site
+// root, as earlier versions did, and the page must leave it and still run threaded). They drive
+// the real page and POST a report that web/dev/check_report.py judges. Only gate builds contain
+// this module (main.js), and a normal visit never uses it.
 import { DEFAULTS, clampRequest } from './request.mjs';
 
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -36,7 +39,14 @@ export async function runGate(name, context) {
     report.threads_control_disabled = ui.elements.form.elements.threads.disabled;
     report.banner = ui.elements.banner.hidden ? null : ui.elements.banner.textContent;
 
-    if (name === 'threads' || name === 'lite' || name === 'fallback') {
+    if (name === 'migrate') {
+      // What /gate/migrate/ registered before it opened this page, and whether main.js reloaded
+      // to leave that worker (isolation.mjs).
+      report.root_registered_before = sessionStorage.getItem('gate-migrate-root-scope');
+      report.left_root_reload = sessionStorage.getItem('playground-left-root-service-worker') === '1';
+      report.controller_script = navigator.serviceWorker.controller?.scriptURL ?? null;
+    }
+    if (name === 'threads' || name === 'lite' || name === 'fallback' || name === 'migrate') {
       // The real page path: fill the form, press Run, read what the page shows.
       ui.writeForm(small);
       ui.elements.form.requestSubmit();
@@ -80,6 +90,7 @@ export async function runGate(name, context) {
       // The scope must be the playground alone: no registration may cover a paper page.
       report.sw_scopes = (await navigator.serviceWorker.getRegistrations()).map((r) => r.scope);
       report.sw_covers_results_page = Boolean(await navigator.serviceWorker.getRegistration(`${base}results/`));
+      report.sw_covers_home_page = Boolean(await navigator.serviceWorker.getRegistration(base));
     }
     report.ok = true;
   } catch (error) {

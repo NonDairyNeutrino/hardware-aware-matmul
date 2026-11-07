@@ -1,0 +1,33 @@
+---
+// Gate C3, scenario migrate: plays a returning visitor of an earlier version, which registered
+// coi-serviceworker at the site root. It registers the real root copy (only gate builds have it;
+// production serves a kill-switch there), waits until that worker is active, then opens the
+// playground, which must leave the root worker (one reload) and still run threaded.
+---
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="robots" content="noindex" />
+    <title>gate: migrate</title>
+  </head>
+  <body>
+    <p id="status">Registering the root service worker…</p>
+    <script>
+      const base = import.meta.env.BASE_URL;
+      const status = document.getElementById('status');
+      async function main() {
+        const registration = await navigator.serviceWorker.register(`${base}coi-serviceworker.js`);
+        const worker = registration.installing ?? registration.waiting ?? registration.active;
+        if (worker.state !== 'activated') {
+          await new Promise((resolve) => worker.addEventListener('statechange', () => worker.state === 'activated' && resolve()));
+        }
+        sessionStorage.setItem('gate-migrate-root-scope', registration.scope);
+        location.href = `${base}playground/?gate=migrate`;
+      }
+      main().catch(async (error) => {
+        status.textContent = String(error);
+        await fetch('/report', { method: 'POST', body: JSON.stringify({ gate: 'playground-migrate', ok: false, error: String(error) }) });
+      });
+    </script>
+  </body>
+</html>

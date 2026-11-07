@@ -150,7 +150,7 @@ if (!gateBuild && gatePages.length > 0) {
   problems.push(`production build contains the gate pages ${gatePages.map((p) => p.slice(dist.length)).join(', ')}; they are built only with GATE=1`);
 }
 if (gateBuild) {
-  for (const route of ['gate', 'gate/step-through']) {
+  for (const route of ['gate', 'gate/step-through', 'gate/migrate']) {
     if (!existsSync(join(dist, route, 'index.html'))) problems.push(`${route}: the gate page was not built (GATE=1)`);
   }
 }

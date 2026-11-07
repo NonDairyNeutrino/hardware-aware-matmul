@@ -3,14 +3,15 @@ import { unified } from '@astrojs/markdown-remark';
 import remarkRustdoc from './src/plugins/remark-rustdoc.mjs';
 import { base, insertions, links, results } from './site.config.mjs';
 
-// The browser gates' own test pages (/gate/ and /gate/step-through/) are built only when GATE=1,
-// which the gate scripts set; the production build never contains them.
+// The browser gates' own test pages (/gate/, /gate/step-through/ and /gate/migrate/) are built
+// only when GATE=1, which the gate scripts set; the production build never contains them.
 const gatePages = {
   name: 'gate-pages',
   hooks: {
     'astro:config:setup': ({ injectRoute }) => {
       injectRoute({ pattern: '/gate', entrypoint: './src/gate-pages/index.astro' });
       injectRoute({ pattern: '/gate/step-through', entrypoint: './src/gate-pages/step-through.astro' });
+      injectRoute({ pattern: '/gate/migrate', entrypoint: './src/gate-pages/migrate.astro' });
     },
   },
 };

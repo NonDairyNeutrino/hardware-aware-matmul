@@ -8,11 +8,13 @@ Exits 0 on pass, 1 on failure. Gates:
          isolation supplied by the service worker rather than server headers
   probe  informational: records whether StdRunner works in the browser
   lite   g2's cases on the stable single-threaded build, on a page that is NOT isolated
-  playground-threads | playground-lite | playground-recover | playground-fallback
+  playground-threads | playground-lite | playground-recover | playground-fallback |
+  playground-migrate
          the playground page of the Astro production build, on a page with no isolation
          headers: the threaded build after the service worker enables isolation, the
          single-threaded fallback with service workers disabled, cancel/timeout recovery,
-         and the automatic move to the lite build when the threaded worker fails to start
+         the automatic move to the lite build when the threaded worker fails to start, and a
+         returning visitor whose browser still has the root service worker of earlier versions
   stepthrough  the chapters' <step-through> element on the lite build, from the Astro
          production build, with no isolation and no service worker
   g5     informational: records limits (pool start-up, re-init, panic, memory)
@@ -103,7 +105,7 @@ def check_playground(gate, report):
     if report.get("build") != want_build:
         problems.append("the page chose the %r build, expected %r" % (report.get("build"), want_build))
     levels = [0, 1, 2, 3, 4]
-    if gate in ("playground-threads", "playground-lite", "playground-fallback"):
+    if gate in ("playground-threads", "playground-lite", "playground-fallback", "playground-migrate"):
         if report.get("status") != "done":
             problems.append("the run ended with status %r" % report.get("status"))
         results = report.get("results", [])
@@ -123,13 +125,22 @@ def check_playground(gate, report):
         env = report.get("env") or {}
         if env.get("isa") != "WASM SIMD128":
             problems.append("the module reports instruction set %r" % env.get("isa"))
-    if gate in ("playground-threads", "playground-fallback"):
+    if gate in ("playground-threads", "playground-fallback", "playground-migrate"):
         scopes = report.get("sw_scopes")
         if not scopes or not all(s.endswith("/hardware-aware-matmul/playground/") for s in scopes):
             problems.append("the service worker scope must be /hardware-aware-matmul/playground/, got %r" % scopes)
         if report.get("sw_covers_results_page") is not False:
             problems.append("a service worker registration covers the Results page")
-    if gate == "playground-threads":
+        if report.get("sw_covers_home_page") is not False:
+            problems.append("a service worker registration covers the landing page")
+    if gate == "playground-migrate":
+        if not str(report.get("root_registered_before") or "").endswith("/hardware-aware-matmul/"):
+            problems.append("the gate page did not register the root service worker first: %r" % report.get("root_registered_before"))
+        if report.get("left_root_reload") is not True:
+            problems.append("the page did not reload to leave the root service worker")
+        if not str(report.get("controller_script") or "").endswith("/hardware-aware-matmul/playground/coi-serviceworker.js"):
+            problems.append("the page is controlled by %r, expected the playground's service worker" % report.get("controller_script"))
+    if gate in ("playground-threads", "playground-migrate"):
         if (report.get("pool") or 0) < 2:
             problems.append("the thread pool has %r threads" % report.get("pool"))
         if report.get("threads_used") != 2:
