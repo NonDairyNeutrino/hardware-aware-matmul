@@ -1,7 +1,7 @@
 """Assembles the reference run's results.json from the native and browser reports.
 
 usage: python3 -I results.py --native N.json --lite L.json --threads T.json --out OUT.json
-                             [--allow-unknown]
+                             [--probe P.json] [--allow-unknown]
        python3 -I results.py --check results.json
 
 The inputs are the JSON the native bench example and the two browser bench pages print
@@ -15,7 +15,12 @@ The inputs are the JSON the native bench example and the two browser bench pages
                        load_average_start, os, toolchains (rustc per build: native,
                        browser-lite, browser-threads), wasm_bindgen_cli,
                        wasm_target_features (per browser build), rustflags, firefox,
-                       commit, native_isa, native_micro_tile, browser_isa, browser_pool
+                       commit, native_isa, native_micro_tile, browser_isa, browser_pool.
+                       Two optional keys: caches (the CPU's cache levels from Linux sysfs:
+                       level, type, size_bytes, shared_cpu_list) and hardware (the
+                       examples/hw_probe.rs report given with --probe: triad_gbs and
+                       peak_gflops keyed by native thread count, and params); older files
+                       have neither, and both are validated only when present
   parameters           sizes, repeats, warmup, block, tile and the thread counts per
                        environment
   runs                 one per measured case: environment, level, n, threads, repeats,
@@ -110,6 +115,7 @@ def _check(document):
     runs = document["runs"]
     if not runs:
         raise ResultsError("no runs")
+    _check_optional_environment(document)
     for run in runs:
         if run["environment"] not in ENVIRONMENTS:
             raise ResultsError("unknown environment %r" % (run["environment"],))
@@ -156,6 +162,45 @@ def _check(document):
                 raise ResultsError("%s: %s is %r but times_ms give %r" % (where, key, run[key], value))
 
 
+def _positive_number(value):
+    return (isinstance(value, (int, float)) and not isinstance(value, bool)
+            and math.isfinite(value) and value > 0)
+
+
+def _check_optional_environment(document):
+    """Validates environment.caches and environment.hardware when they are present."""
+    environment = document["environment"]
+    if "caches" in environment:
+        caches = environment["caches"]
+        if not isinstance(caches, list) or not caches:
+            raise ResultsError("environment.caches must be a non-empty list")
+        for cache in caches:
+            if not (isinstance(cache, dict)
+                    and isinstance(cache.get("level"), int) and not isinstance(cache.get("level"), bool)
+                    and cache["level"] > 0
+                    and isinstance(cache.get("type"), str)
+                    and isinstance(cache.get("size_bytes"), int) and not isinstance(cache.get("size_bytes"), bool)
+                    and cache["size_bytes"] > 0
+                    and isinstance(cache.get("shared_cpu_list"), str)):
+                raise ResultsError("environment.caches has a malformed entry: %r" % (cache,))
+    if "hardware" in environment:
+        hardware = environment["hardware"]
+        native_threads = {str(t) for t in document["parameters"]["threads"]["native"]}
+        if not isinstance(hardware, dict) or not isinstance(hardware.get("params"), dict):
+            raise ResultsError("environment.hardware must hold triad_gbs, peak_gflops and params")
+        for name in ("triad_gbs", "peak_gflops"):
+            table = hardware.get(name)
+            if not isinstance(table, dict) or not table:
+                raise ResultsError("environment.hardware.%s must be a non-empty object" % name)
+            for key, value in table.items():
+                if key not in native_threads:
+                    raise ResultsError("environment.hardware.%s: %r is not a native thread count %s"
+                                       % (name, key, sorted(native_threads)))
+                if not _positive_number(value):
+                    raise ResultsError("environment.hardware.%s[%s] must be a positive number, not %r"
+                                       % (name, key, value))
+
+
 def _unknown(value):
     return value is None or value == "unknown" or value == ""
 
@@ -169,8 +214,10 @@ def _check_known(environment):
                            % ", ".join(unknown))
 
 
-def assemble(native, lite, threads, environment, generated, allow_unknown=False):
-    """The results document from the three reports and the recorded environment."""
+def assemble(native, lite, threads, environment, generated, allow_unknown=False, probe=None):
+    """The results document from the three reports and the recorded environment.
+
+    probe is the hw_probe report (or None); it is recorded as environment.hardware."""
     slots = (("native", native), ("browser-lite", lite), ("browser-threads", threads))
     for name, report in slots:
         if report.get("ok") is False:
@@ -197,6 +244,8 @@ def assemble(native, lite, threads, environment, generated, allow_unknown=False)
     environment["browser_cores"] = threads["cores"]
     environment["browser_isolated"] = {"browser-lite": lite.get("isolated"),
                                        "browser-threads": threads.get("isolated")}
+    if probe is not None:
+        environment["hardware"] = {key: probe.get(key) for key in ("triad_gbs", "peak_gflops", "params")}
     document = {
         "schema": SCHEMA,
         "generated": generated,
@@ -265,7 +314,38 @@ def _load_average_start():
         return None
 
 
-def collect_environment(native):
+CACHE_DIR = "/sys/devices/system/cpu/cpu0/cache"
+
+
+def _parse_size(text):
+    """Bytes from a sysfs cache size such as '32K', '8192K', '8M' or '512', or None."""
+    if not isinstance(text, str):
+        return None
+    text = text.strip()
+    scale = {"K": 1024, "M": 1024 ** 2, "G": 1024 ** 3}.get(text[-1:].upper(), 1)
+    digits = text[:-1] if scale != 1 else text
+    if not digits.isascii() or not digits.isdigit() or int(digits) == 0:
+        return None
+    return int(digits) * scale
+
+
+def collect_caches(directory=CACHE_DIR):
+    """The cache levels of cpu0 from Linux sysfs, or None if there are none to read."""
+    caches = []
+    for path in sorted(glob.glob(os.path.join(glob.escape(directory), "index*")),
+                       key=lambda p: (len(p), p)):
+        values = {name: _read(os.path.join(path, name)) for name in ("level", "type", "size", "shared_cpu_list")}
+        if any(v is None or not v.strip() for v in values.values()):
+            continue
+        level, size = values["level"].strip(), _parse_size(values["size"])
+        if not level.isascii() or not level.isdigit() or int(level) == 0 or size is None:
+            continue
+        caches.append({"level": int(level), "type": values["type"].strip(), "size_bytes": size,
+                       "shared_cpu_list": values["shared_cpu_list"].strip()})
+    return caches or None
+
+
+def collect_environment(native, cache_dir=CACHE_DIR):
     """What this machine and toolchain are, for the record. None marks what was not found."""
     root = os.path.normpath(ROOT)
     wasm = os.path.join(root, "web", "wasm")
@@ -284,7 +364,7 @@ def collect_environment(native):
     # web/wasm/rust-toolchain.toml pins the nightly that the native example and the threaded
     # wasm build use; build-lite.sh uses +stable.
     nightly = _run("rustc", "-V", cwd=wasm)
-    return {
+    environment = {
         "cpu": cpu,
         "logical_cores": native["cores"],
         "physical_cores": _count_physical_cores(cpuinfo) if cpuinfo else None,
@@ -305,6 +385,10 @@ def collect_environment(native):
         "native_isa": native["isa"],
         "native_micro_tile": native["micro_tile"],
     }
+    caches = collect_caches(cache_dir)
+    if caches is not None:
+        environment["caches"] = caches
+    return environment
 
 
 def main(argv):
@@ -312,6 +396,7 @@ def main(argv):
     parser.add_argument("--native")
     parser.add_argument("--lite")
     parser.add_argument("--threads")
+    parser.add_argument("--probe", help="the JSON of examples/hw_probe.rs, recorded as environment.hardware")
     parser.add_argument("--out")
     parser.add_argument("--check")
     parser.add_argument("--allow-unknown", action="store_true",
@@ -326,9 +411,10 @@ def main(argv):
         if not (args.native and args.lite and args.threads and args.out):
             parser.error("give --native, --lite, --threads and --out, or --check")
         native, lite, threads = (json.load(open(path)) for path in (args.native, args.lite, args.threads))
+        probe = json.load(open(args.probe)) if args.probe else None
         generated = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
         document = assemble(native, lite, threads, collect_environment(native), generated,
-                            allow_unknown=args.allow_unknown)
+                            allow_unknown=args.allow_unknown, probe=probe)
         with open(args.out, "w") as out:
             json.dump(document, out, indent=1)
             out.write("\n")

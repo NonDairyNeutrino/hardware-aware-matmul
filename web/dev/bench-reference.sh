@@ -11,6 +11,12 @@
 # It refuses to run when the 1-minute load average is above 1.0 (set ALLOW_BUSY=1 to
 # override) or when tracked files have uncommitted changes (ALLOW_DIRTY=1 to override), so
 # the recorded numbers come from an idle machine and a commit that can be checked out.
+# SIZES defaults to "512 1024" and the largest size is the paper's default, so every
+# {{...}} default of the paper follows it. The owner may add 256 and 2048 (SIZES="256 512
+# 1024 2048"); adding or dropping a size changes every {{...}} default of the paper.
+# After the native run it also runs examples/hw_probe.rs (memory bandwidth and peak
+# arithmetic per thread count, with the machine's cache sizes recorded by results.py), so
+# the Discussion can test its cache and bandwidth explanations against the machine.
 # Smaller values are for rehearsing the pipeline, e.g.
 #   SIZES="64 128" THREADS="1 2" REPEATS=2 ALLOW_BUSY=1 OUT=/tmp/rehearsal.json web/dev/bench-reference.sh
 # Thread counts above the machine's cores are dropped (natively) or above the pool size
@@ -45,6 +51,13 @@ echo "== native"
 (cd web/wasm && cargo run --release --example bench -- \
   --sizes "${SIZES// /,}" --threads "${THREADS// /,}" --repeats "$REPEATS" --warmup "$WARMUP") > "$WORK/native.json"
 
+echo "== hardware probe (bandwidth and peak arithmetic)"
+# Thread counts above the machine's logical cores are dropped, as in the native run.
+CORES=$(nproc)
+PROBE_THREADS=""
+for t in $THREADS; do [ "$t" -le "$CORES" ] && PROBE_THREADS="${PROBE_THREADS:+$PROBE_THREADS,}$t"; done
+cargo run --release --example hw_probe -- --threads "$PROBE_THREADS" > "$WORK/hw_probe.json"
+
 echo "== browser, lite build"
 web/wasm/bench-browser.sh lite "$WORK/lite.json"
 echo "== browser, threaded build"
@@ -52,4 +65,4 @@ web/wasm/bench-browser.sh threads "$WORK/threads.json"
 
 echo "== assembling"
 python3 -I web/dev/results.py --native "$WORK/native.json" --lite "$WORK/lite.json" \
-  --threads "$WORK/threads.json" --out "$OUT"
+  --threads "$WORK/threads.json" --probe "$WORK/hw_probe.json" --out "$OUT"
