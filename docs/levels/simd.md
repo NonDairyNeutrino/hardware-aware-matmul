@@ -89,6 +89,9 @@ for the loaded `B` vectors and a broadcast value without spilling to the stack.
 
 # How the compiler is persuaded to use SIMD, with no `unsafe`
 
+<details>
+<summary>Implementation notes: writing loops the auto-vectoriser recognises, and how to check</summary>
+
 The crate does not call vector intrinsics. Explicit intrinsics need `unsafe`
 code (the safe `std::simd` is not available on stable Rust), and this crate
 forbids `unsafe` and has no dependencies. Instead the loops are written in the
@@ -118,12 +121,18 @@ multiply instructions (`mulpd` or `vmulpd` on `x86_64`, `fmul v….2d` on
 cargo rustc --release --lib -- --emit asm
 ```
 
+</details>
+
 # Which vector width you actually get
 
 The vector instruction set is chosen **when the crate is compiled**, not at run
 time. A default `x86_64` build targets SSE2, with two lanes, even on a CPU that
-supports AVX-512. To let the compiler use everything the machine you are
-building on offers:
+supports AVX-512.
+
+<details>
+<summary>Implementation notes: target-cpu flags and querying the instruction set</summary>
+
+To let the compiler use everything the machine you are building on offers:
 
 ```sh
 RUSTFLAGS="-C target-cpu=native" cargo run --release
@@ -142,6 +151,8 @@ let (mr, nr) = simd::micro_tile_shape();
 assert!(!isa.is_empty());
 assert!(mr > 0 && nr > 0);
 ```
+
+</details>
 
 # The result is still bit-identical
 

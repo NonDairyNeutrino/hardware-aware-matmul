@@ -79,7 +79,9 @@ assert_eq!(c, Matrix::new(2, 2, vec![58.0, 64.0, 139.0, 154.0]));
 # The result is still bit-identical
 
 Rearranging loops usually changes floating-point results, because addition is
-not associative. This rearrangement does not. For any one output element, the
+not associative. For example, `(0.1 + 0.2) + 0.3` gives `0.6000000000000001`,
+while `0.1 + (0.2 + 0.3)` gives `0.6`, so reordering sums normally changes the
+bits. This rearrangement does not. For any one output element, the
 terms are still added in increasing `k`, starting from zero:
 
 - `k` blocks are visited in increasing order;

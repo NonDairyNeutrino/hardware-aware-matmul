@@ -51,6 +51,9 @@ assert_eq!(c, Matrix::new(2, 2, vec![58.0, 64.0, 139.0, 154.0]));
 
 # How it is done safely
 
+<details>
+<summary>Implementation notes: scoped threads and split_at_mut</summary>
+
 Two Rust features make this short and free of `unsafe`:
 
 - **Scoped threads** (`std::thread::scope`). The workers may borrow `a` and `b`
@@ -66,6 +69,8 @@ Two Rust features make this short and free of `unsafe`:
 Each thread's kernel (a private function in this module) reads `a` and `b` and
 writes only its own block. That separation, with arithmetic on one side and
 partitioning on the other, is kept at every level from here on.
+
+</details>
 
 # What it gets right
 

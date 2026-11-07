@@ -157,6 +157,9 @@ your own data sources, implement [`TileSource`] and [`TileSink`].
 
 # Edge cases
 
+<details>
+<summary>Implementation notes: how empty, oversized and ragged cases behave</summary>
+
 | Case                          | Behaviour                                                   |
 |-------------------------------|-------------------------------------------------------------|
 | `m = 0` or `p = 0`            | Returns immediately; nothing to compute or write.           |
@@ -165,7 +168,12 @@ your own data sources, implement [`TileSource`] and [`TileSink`].
 | Dimensions not divisible by tile | Edge tiles are smaller; buffers use only the needed prefix.|
 | More threads than tiles       | Only as many worker jobs as tiles run (scoped threads by default).|
 
+</details>
+
 # Why it is correct
+
+<details>
+<summary>Implementation notes: the step-by-step argument</summary>
 
 Fix an output element `C[i][j]` and let `t` be the tile containing it.
 
@@ -179,6 +187,8 @@ Fix an output element `C[i][j]` and let `t` be the tile containing it.
    `D` and the last `depth` is clipped to `n − depth_start`.
 4. The tile is written once, to the position of its grid cell; the cells
    partition `C`.
+
+</details>
 
 So every `C[i][j]` receives every product `A[i][k]·B[k][j]` exactly once,
 summed in increasing `k`, and is stored exactly once: the product, with the
