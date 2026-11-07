@@ -1,7 +1,7 @@
 The same matrix product was timed at every level, natively and in a web browser, on one
-machine. This page reports the measurements and nothing else: the Discussion compares
-them. Every figure on it comes from the committed data of the reference run, not from
-this text.
+machine. This page reports the measurements and nothing else: the
+[Discussion](crate::discussion) compares them. Every figure on it comes from the committed
+data of the reference run, not from this text.
 
 # What was measured
 

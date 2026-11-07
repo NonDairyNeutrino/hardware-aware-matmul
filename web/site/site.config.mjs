@@ -14,7 +14,7 @@ export { results };
 export const repoUrl = 'https://github.com/NonDairyNeutrino/hardware-aware-matmul';
 
 // The site is laid out as a paper: abstract (the home page), introduction, methods (the
-// levels), and later results, discussion and conclusion. Pages rendered from docs/ (id =
+// levels), results, discussion and conclusion. Pages rendered from docs/ (id =
 // path under docs/, no extension), in reading order. `route` is relative to `base`.
 // `section` groups pages in the navigation: a section with several pages is shown as a
 // labelled group (see `sectionTitles`), a section with one page as a plain link.
@@ -27,6 +27,8 @@ export const chapters = [
   { id: 'levels/simd', title: 'Level 3: registers and SIMD', route: 'levels/simd/', section: 'methods' },
   { id: 'levels/streaming', title: 'Level 4: streaming', route: 'levels/streaming/', section: 'methods' },
   { id: 'paper/results', title: 'Results', route: 'results/', section: 'results' },
+  { id: 'paper/discussion', title: 'Discussion', route: 'discussion/', section: 'discussion' },
+  { id: 'paper/conclusion', title: 'Conclusion', route: 'conclusion/', section: 'conclusion' },
 ];
 
 // Pages that are not part of the paper's reading order but are linked from the navigation.
@@ -47,6 +49,9 @@ export const links = {
   cache_friendly: 'levels/cache_friendly/',
   simd: 'levels/simd/',
   streaming: 'levels/streaming/',
+  results: 'results/',
+  discussion: 'discussion/',
+  introduction: 'introduction/',
   playground: 'playground/',
   // API items and rustdoc-only pages.
   ...Object.fromEntries([
