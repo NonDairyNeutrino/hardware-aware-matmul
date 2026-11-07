@@ -171,3 +171,23 @@ web/
 ├── dev/                 dev server, benchmark reference run, results assembler
 └── site/                the Astro website
 ```
+
+## License
+
+The code, and the documentation compiled into the crate, are licensed under either of
+
+- the Apache License, Version 2.0 ([`LICENSE-APACHE`](LICENSE-APACHE)), or
+- the MIT license ([`LICENSE-MIT`](LICENSE-MIT)),
+
+at your option. Unless you state otherwise, any contribution you submit for inclusion is
+dual-licensed in the same way, without further terms.
+
+The paper's prose (`docs/paper/`) and the rendered animation videos
+(`anim/media/videos/`) are licensed under the Creative Commons Attribution 4.0
+International license ([`LICENSE-CC-BY-4.0`](LICENSE-CC-BY-4.0)). The animation scene
+sources (`anim/*.py`) are code, under the dual license above.
+
+The website bundles `coi-serviceworker` (MIT, Guido Zuidhof and contributors), whose
+notice stays in the file, and the compiled WebAssembly includes the Rust standard
+library and the crates listed in `web/wasm/Cargo.lock`, which are MIT and/or
+Apache-2.0 licensed.
