@@ -7,18 +7,18 @@ export const LIMITS = {
   sizes: [64, 128, 256, 512, 1024],
   maxThreads: 8,
   repeats: [1, 3, 5],
-  maxBlock: 1024, // cache block and level 4 tile edges
-  levels: [0, 1, 2, 3, 4],
+  maxBlock: 1024, // cache block and level 5 tile edges
+  levels: [0, 1, 2, 3, 4, 5],
 };
 
 /** What the controls start at. */
 export const DEFAULTS = {
   n: 256,
-  levels: [0, 1, 2, 3, 4],
+  levels: [0, 1, 2, 3, 4, 5],
   threads: 4,
   repeats: 3,
   block: [32, 64], // k, j: the crate's defaults
-  tile: [128, 128, 128], // level 4 output tile: rows, columns, depth
+  tile: [128, 128, 128], // level 5 output tile: rows, columns, depth
 };
 
 const whole = (value, fallback) => {
@@ -65,8 +65,8 @@ export const MAX_TIMEOUT_MS = 10 * 60 * 1000;
  */
 function fitBudget(request) {
   const edges = [
-    ...(request.levels.some((level) => level === 2 || level === 3 || level === 4) ? [['block', 0], ['block', 1]] : []),
-    ...(request.levels.includes(4) ? [['tile', 0], ['tile', 1], ['tile', 2]] : []),
+    ...(request.levels.some((level) => level >= 2) ? [['block', 0], ['block', 1]] : []),
+    ...(request.levels.includes(5) ? [['tile', 0], ['tile', 1], ['tile', 2]] : []),
   ];
   while (timeoutMs(request) > MAX_TIMEOUT_MS) {
     const growable = edges.filter(([field, i]) => request[field][i] < LIMITS.maxBlock);
@@ -81,12 +81,12 @@ function fitBudget(request) {
  * Seconds one single-threaded multiplication of each level takes at n = 512 in the slowest build
  * measured (the reference run's browser, with generous rounding up). Time grows with n cubed.
  */
-const SECONDS_AT_512 = { 0: 0.7, 1: 0.7, 2: 0.2, 3: 0.1, 4: 0.2 };
+const SECONDS_AT_512 = { 0: 0.7, 1: 0.7, 2: 0.2, 3: 0.1, 4: 0.1, 5: 0.2 };
 
 /**
  * The fixed cost of one call that the arithmetic above leaves out, in seconds, generously above
- * what native code measured: a level 4 tile (copying it in and out and claiming it from the
- * queue: about 0.04 µs natively at 1 × 1 × 1) and one cache block of a row at levels 2 and 3
+ * what native code measured: a level 5 tile (copying it in and out and claiming it from the
+ * queue: about 0.04 µs natively at 1 × 1 × 1) and one cache block of a row at levels 2 to 4
  * (about 6 ns natively at 1 × 1). Negligible at the default shapes, they dominate tiny ones.
  */
 const SECONDS_PER_TILE = 0.2e-6;
@@ -97,10 +97,10 @@ const ceilDiv = (a, b) => Math.ceil(a / b);
 /** Seconds one single-threaded multiplication of `level` takes, by the slowest build measured. */
 function levelSeconds(level, { n, block = DEFAULTS.block, tile = DEFAULTS.tile }) {
   let seconds = SECONDS_AT_512[level] * (n / 512) ** 3;
-  // Levels 2 and 3 visit every (row, k-block, j-block) of the matrix.
-  if (level === 2 || level === 3) seconds += n * ceilDiv(n, block[0]) * ceilDiv(n, block[1]) * SECONDS_PER_BLOCK;
-  if (level === 4) {
-    // Level 4 visits every tile, and runs the blocked kernel inside each one: every (row,
+  // Levels 2 to 4 visit every (row, k-block, j-block) of the matrix.
+  if (level >= 2 && level <= 4) seconds += n * ceilDiv(n, block[0]) * ceilDiv(n, block[1]) * SECONDS_PER_BLOCK;
+  if (level === 5) {
+    // Level 5 visits every tile, and runs the blocked kernel inside each one: every (row,
     // k-block, j-block) of the tile, so a tile thinner than a block still costs a block call
     // per row. Counting every tile at its full (clipped) size slightly overcounts edge tiles.
     const [rows, cols, depth] = tile.map((edge) => Math.min(edge, n));

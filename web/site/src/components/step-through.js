@@ -1,5 +1,5 @@
-// <step-through level="1"> (levels 1 to 4) draws how a level splits the output matrix C between
-// threads (or, at level 4, between tiles). The plan comes from the real Rust code
+// <step-through level="1"> (levels 1 to 3 and 5) draws how a level splits the output matrix C between
+// threads (or, at level 5, between tiles). The plan comes from the real Rust code
 // compiled to WebAssembly (`partition_plan`), so it is exactly what the level runs.
 // Optional attributes set the starting values: rows, cols, inner, threads, tile-k,
 // tile-j, tile-rows, tile-cols, tile-depth.
@@ -27,7 +27,7 @@ const FIELDS = {
 function fieldsFor(level) {
   const keys = ['rows', 'cols', 'inner', 'threads'];
   if (level === 2) keys.push('tileK', 'tileJ');
-  if (level === 4) keys.push('tileRows', 'tileCols', 'tileDepth');
+  if (level === 5) keys.push('tileRows', 'tileCols', 'tileDepth');
   return keys;
 }
 

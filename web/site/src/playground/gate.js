@@ -69,7 +69,7 @@ export async function runGate(name, context) {
       report.threads_control_disabled_after = ui.elements.form.elements.threads.disabled;
     } else if (name === 'recover') {
       // Cancel, time out, and then prove the page still works with a fresh worker.
-      const big = clampRequest({ n: 1024, levels: [0, 1, 2, 3, 4], threads: 2, repeats: 5 }, { pool: context.pool, build: context.build });
+      const big = clampRequest({ n: 1024, levels: [0, 1, 2, 3, 4, 5], threads: 2, repeats: 5 }, { pool: context.pool, build: context.build });
       const first = context.run(big, { timeout: 120000 });
       await waitFor(() => context.controller.running, 5000, 'the big run to start');
       await wait(800);

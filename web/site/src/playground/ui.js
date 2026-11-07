@@ -3,7 +3,7 @@
 import { LIMITS } from './request.mjs';
 import { summarise, verdict } from './summary.mjs';
 
-const LEVEL_NAMES = ['Level 0: naive', 'Level 1: threaded', 'Level 2: cache blocking', 'Level 3: SIMD', 'Level 4: streaming'];
+const LEVEL_NAMES = ['Level 0: naive', 'Level 1: threaded', 'Level 2: cache blocking', 'Level 3: SIMD', 'Level 4: packed B', 'Level 5: streaming'];
 
 const formatMs = (ms) => {
   if (ms >= 1000) return `${(ms / 1000).toFixed(2)} s`;

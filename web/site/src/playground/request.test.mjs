@@ -50,20 +50,20 @@ test('clamping is idempotent and never throws on hostile input', () => {
 });
 
 test('the timeout grows with the size, the levels and the repeats', () => {
-  const base = { n: 256, levels: [0, 1, 2, 3, 4], repeats: 3 };
+  const base = { n: 256, levels: [0, 1, 2, 3, 4, 5], repeats: 3 };
   assert.ok(timeoutMs({ ...base, n: 512 }) > timeoutMs(base));
   assert.ok(timeoutMs({ ...base, repeats: 5 }) > timeoutMs(base));
   assert.ok(timeoutMs({ ...base, levels: [3] }) < timeoutMs(base));
   // never below the 15 s of slack, and a size-1024 run of everything gets minutes
   assert.ok(timeoutMs({ n: 64, levels: [3], repeats: 1 }) >= 15000);
-  assert.ok(timeoutMs({ n: 1024, levels: [0, 1, 2, 3, 4], repeats: 5 }) > 120000);
+  assert.ok(timeoutMs({ n: 1024, levels: [0, 1, 2, 3, 4, 5], repeats: 5 }) > 120000);
 });
 
-test('the timeout counts the per-tile cost of tiny level 4 tiles', () => {
+test('the timeout counts the per-tile cost of tiny level 5 tiles', () => {
   // Natively, a 1 × 1 × 1 tile costs about 0.04 µs of bookkeeping on top of its one
   // multiply-add; at n = 1024 that is 1024³ tiles, about 43 s a run before any browser
   // slowdown, so one repeat plus the warm-up needs well over 86 s.
-  const tiny = { n: 1024, levels: [4], repeats: 1, block: [32, 64], tile: [1, 1, 1] };
+  const tiny = { n: 1024, levels: [5], repeats: 1, block: [32, 64], tile: [1, 1, 1] };
   assert.ok(timeoutMs(tiny) > 2 * 43000, `timeout ${timeoutMs(tiny)} ms`);
   assert.ok(timeoutMs(tiny) > timeoutMs({ ...tiny, tile: [128, 128, 128] }));
 });
@@ -75,12 +75,12 @@ test('the timeout counts the per-block cost of tiny cache blocks', () => {
   assert.ok(timeoutMs(tiny) > timeoutMs({ ...tiny, block: [32, 64] }));
 });
 
-test('the timeout counts level 4 blocks per tile when tiles are smaller than blocks', () => {
-  // Level 4 runs the blocked kernel inside each tile, so a tile thinner than a block still
+test('the timeout counts level 5 blocks per tile when tiles are smaller than blocks', () => {
+  // Level 5 runs the blocked kernel inside each tile, so a tile thinner than a block still
   // costs one block call per row of the tile: 1024 × 1024 tiles of 1024 × 1 × 1 make 1024³
   // block calls (about 6 s natively at 6 ns a call), against the 1024 · 32 · 16 calls a
   // whole-matrix count would give.
-  const thin = { n: 1024, levels: [4], repeats: 1, block: [32, 64], tile: [1024, 1, 1] };
+  const thin = { n: 1024, levels: [5], repeats: 1, block: [32, 64], tile: [1024, 1, 1] };
   // One repeat plus the warm-up, 6 s each natively, and 10× for the browser and the safety
   // factor (the whole-matrix count gives about 30 s in all).
   assert.ok(timeoutMs(thin) > 2 * 6000 * 10, `timeout ${timeoutMs(thin)} ms`);
@@ -89,7 +89,7 @@ test('the timeout counts level 4 blocks per tile when tiles are smaller than blo
 });
 
 test('a request is never allowed a budget above the ceiling: tiny tiles and blocks are grown', () => {
-  const tiny = clampRequest({ n: 1024, levels: [0, 1, 2, 3, 4], threads: 1, repeats: 5, block: [1, 1], tile: [1, 1, 1] });
+  const tiny = clampRequest({ n: 1024, levels: [0, 1, 2, 3, 4, 5], threads: 1, repeats: 5, block: [1, 1], tile: [1, 1, 1] });
   assert.ok(timeoutMs(tiny) <= MAX_TIMEOUT_MS, `timeout ${timeoutMs(tiny)} ms`);
   assert.ok(tiny.tile.every((edge) => edge > 1) && tiny.block.every((edge) => edge > 1), JSON.stringify(tiny));
   assert.deepEqual(clampRequest(tiny), tiny, 'fitting is idempotent');

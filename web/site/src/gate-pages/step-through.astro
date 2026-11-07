@@ -1,5 +1,5 @@
 ---
-// Gate C2: mounts one <step-through> per level 1 to 4 with fixed parameters, drives
+// Gate C2: mounts one <step-through> per level (1 to 3 and 5) with fixed parameters, drives
 // the first, and reports what the real wasm plan produced and what was drawn. Like
 // the chapters, it never loads the service worker.
 import StepThroughLoader from '../components/StepThroughLoader.astro';
@@ -14,14 +14,14 @@ import StepThroughLoader from '../components/StepThroughLoader.astro';
     <step-through id="l1" level="1" rows="10" cols="8" inner="6" threads="4"></step-through>
     <step-through id="l2" level="2" rows="8" cols="8" inner="6" threads="2" tile-k="3" tile-j="4"></step-through>
     <step-through id="l3" level="3" rows="8" cols="8" inner="6" threads="2"></step-through>
-    <step-through id="l4" level="4" rows="8" cols="8" inner="6" threads="2" tile-rows="4" tile-cols="4" tile-depth="3"></step-through>
+    <step-through id="l5" level="5" rows="8" cols="8" inner="6" threads="2" tile-rows="4" tile-cols="4" tile-depth="3"></step-through>
     <StepThroughLoader />
     <script>
       async function post(result) {
         await fetch('/report', { method: 'POST', body: JSON.stringify(result) });
       }
 
-      const ids = ['l1', 'l2', 'l3', 'l4'];
+      const ids = ['l1', 'l2', 'l3', 'l5'];
       const base = import.meta.env.BASE_URL;
 
       function ready(el) {

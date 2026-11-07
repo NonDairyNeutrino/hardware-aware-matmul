@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Gate C2: the step-through element, from an Astro production build under
 # /hardware-aware-matmul/ on a page with NO isolation headers and NO service worker, in
-# headless Firefox. The page at /gate/step-through/ mounts levels 1 to 4 on the lite
+# headless Firefox. The page at /gate/step-through/ mounts levels 1 to 3 and 5 on the lite
 # wasm module, reports the plans and what was drawn; check_report.py compares them
 # with what the core crate's own examples say they must be.
 # usage: gate-c2.sh [--no-build]        env: WASM_BINDGEN, NODE_IMAGE, PORT, TIMEOUT
