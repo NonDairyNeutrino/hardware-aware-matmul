@@ -134,7 +134,7 @@ async function main() {
       ui.lockThreads(true);
       ui.setMaxThreads(1);
       ui.writeForm(clampRequest(ui.readForm(), { pool: 1, build: 'lite' }));
-      ui.setBanner(`The multithreaded build failed to start (${why}), so the playground switched to the single-threaded build.`, 'warning');
+      ui.setBanner(`The multithreaded build failed to start (${why}), so the playground switched to the single-threaded build. Reload the page to try threads again.`, 'warning');
     },
     onMessage: (message) => {
       if (message.type === 'ready') {
