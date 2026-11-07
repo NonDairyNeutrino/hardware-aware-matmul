@@ -10,14 +10,15 @@
 //   - an unlinked intra-doc shortcut left as literal "[code]" text;
 //   - a landing page that is not headed by the site title and subtitle with the abstract
 //     under them;
-//   - a Results page with an unresolved `{{...}}` placeholder, a missing table or chart,
-//     or a NaN/undefined/Infinity where a number should be;
+//   - a Results page with an unresolved `{{...}}` placeholder, a count of tables or
+//     charts that differs from what site.config.mjs inserts, or a NaN/undefined/
+//     Infinity/null where a number should be;
 //   - a video the pages reference that was not copied into dist/media/.
 // Run it with `npm run check` after `npm run build`. Exits 1 on any problem.
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { base, chapters, demos, siteSubtitle, siteTitle } from './site.config.mjs';
+import { base, chapters, demos, insertions, siteSubtitle, siteTitle } from './site.config.mjs';
 
 const dist = fileURLToPath(new URL('./dist/', import.meta.url));
 const problems = [];
@@ -92,10 +93,16 @@ for (const chapter of chapters) {
   if (wanted.length === 0 && /<script/.test(html)) problems.push(`${where}: has no demo but loads a script`);
   if (chapter.id === 'paper/results') {
     if (html.includes('{{')) problems.push(`${where}: contains an unresolved "{{" placeholder`);
-    if (/\b(NaN|undefined|Infinity)\b/.test(html)) problems.push(`${where}: contains NaN, undefined or Infinity`);
+    if (/\b(NaN|undefined|Infinity|null)\b/.test(html)) problems.push(`${where}: contains NaN, undefined, Infinity or null`);
     const tables = (html.match(/<table class="results"/g) ?? []).length;
     const charts = (html.match(/<figure class="chart"/g) ?? []).length;
-    if (tables < 4 || charts < 3) problems.push(`${where}: ${tables} tables and ${charts} charts, expected at least 4 and 3`);
+    // Exactly what the generators in site.config.mjs insert on this page, no more or fewer.
+    const inserted = insertions.filter((i) => i.chapter === chapter.id).map((i) => i.html).join('');
+    const wantTables = (inserted.match(/<table class="results"/g) ?? []).length;
+    const wantCharts = (inserted.match(/<figure class="chart"/g) ?? []).length;
+    if (tables !== wantTables || charts !== wantCharts) {
+      problems.push(`${where}: ${tables} tables and ${charts} charts, expected ${wantTables} and ${wantCharts}`);
+    }
   }
 }
 
