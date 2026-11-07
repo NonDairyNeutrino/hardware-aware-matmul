@@ -13,9 +13,9 @@
 //   - a playground page that is missing, has no script, or whose scripts never load the service
 //     worker (it is the one reading page that may, so that readers can use the threaded build);
 //     and a Results page that does not link to it;
-//   - a Results page with an unresolved `{{...}}` placeholder, a count of tables or
-//     charts that differs from what site.config.mjs inserts, or a NaN/undefined/
-//     Infinity/null where a number should be;
+//   - a paper page (abstract, results, discussion, conclusion) with an unresolved `{{...}}`
+//     placeholder or a NaN/undefined/Infinity/null where a number should be, and a Results page
+//     whose count of tables or charts differs from what site.config.mjs inserts;
 //   - a video the pages reference that was not copied into dist/media/.
 // Run it with `npm run check` after `npm run build`. Exits 1 on any problem.
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
@@ -94,9 +94,12 @@ for (const chapter of chapters) {
   }
   if (wanted.length > 0 && reachableScripts(html).length === 0) problems.push(`${where}: has a demo but loads no script`);
   if (wanted.length === 0 && /<script/.test(html)) problems.push(`${where}: has no demo but loads a script`);
-  if (chapter.id === 'paper/results') {
+  if (chapter.id.startsWith('paper/')) {
+    // The pages written from the data must show real numbers.
     if (html.includes('{{')) problems.push(`${where}: contains an unresolved "{{" placeholder`);
     if (/\b(NaN|undefined|Infinity|null)\b/.test(html)) problems.push(`${where}: contains NaN, undefined, Infinity or null`);
+  }
+  if (chapter.id === 'paper/results') {
     const tables = (html.match(/<table class="results"/g) ?? []).length;
     const charts = (html.match(/<figure class="chart"/g) ?? []).length;
     // Exactly what the generators in site.config.mjs insert on this page, no more or fewer.
