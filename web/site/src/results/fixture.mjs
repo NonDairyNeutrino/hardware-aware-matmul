@@ -15,7 +15,8 @@ export const data = {
   environment: {
     cpu: 'Test CPU', logical_cores: 8, physical_cores: 4, governor: 'performance', os: 'TestOS',
     commit: 'abcdef0123456789', firefox: 'Mozilla Firefox 1.0', native_isa: 'SSE2',
-    browser_isa: 'WASM SIMD128', browser_pool: 8,
+    browser_isa: 'WASM SIMD128', browser_pool: 8, rustflags: '',
+    browser_isolated: { 'browser-lite': true, 'browser-threads': true },
     toolchains: { native: 'rustc N', 'browser-lite': 'rustc L', 'browser-threads': 'rustc T' },
   },
   parameters: {

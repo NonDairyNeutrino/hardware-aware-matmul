@@ -48,6 +48,46 @@ test('env facts', () => {
   assert.equal(resolvePlaceholder(data, 'env runs'), String(data.runs.length));
 });
 
+test('a null, undefined or empty env value throws instead of rendering', () => {
+  for (const [field, name] of [['governor', 'governor'], ['cpu', 'cpu'], ['os', 'os']]) {
+    for (const bad of [null, undefined, '']) {
+      const broken = structuredClone(data);
+      broken.environment[field] = bad;
+      if (bad === undefined) delete broken.environment[field];
+      assert.throws(() => resolvePlaceholder(broken, `env ${name}`), /the data has no value for it/, `${name}=${bad}`);
+    }
+  }
+});
+
+test('a dirty-tree commit keeps its suffix', () => {
+  const dirty = structuredClone(data);
+  dirty.environment.commit = 'abcdef0123 (with uncommitted changes)';
+  assert.equal(resolvePlaceholder(dirty, 'env commit'), 'abcdef0 (with uncommitted changes)');
+});
+
+test('inherited object keys are not fields, levels or aliases', () => {
+  assert.throws(() => resolvePlaceholder(data, 'env toString'), /unresolvable placeholder/);
+  assert.throws(() => resolvePlaceholder(data, 'env constructor'), /unresolvable placeholder/);
+  assert.throws(() => resolvePlaceholder(data, 'ms constructor'), /unknown level/);
+  assert.throws(() => resolvePlaceholder(data, 'ms simd constructor'), /unknown selector/);
+});
+
+test('duplicate selectors throw', () => {
+  for (const bad of ['ms simd n=64 n=128', 'ms simd t=1 t=2', 'ms simd native lite']) {
+    assert.throws(() => resolvePlaceholder(data, bad), /duplicate selector/, bad);
+  }
+});
+
+test('threads_* and rustflags env fields', () => {
+  assert.equal(resolvePlaceholder(data, 'env threads_native'), '2');
+  assert.equal(resolvePlaceholder(data, 'env threads_lite'), '1');
+  assert.equal(resolvePlaceholder(data, 'env threads_threaded'), '2');
+  assert.equal(resolvePlaceholder(data, 'env rustflags'), 'none');
+  const flags = structuredClone(data);
+  flags.environment.rustflags = '-C target-cpu=native';
+  assert.equal(resolvePlaceholder(flags, 'env rustflags'), '-C target-cpu=native');
+});
+
 test('anything that does not resolve throws and quotes the placeholder', () => {
   for (const bad of ['ms nonsense', 'ms simd n=999', 'ms simd t=64', 'ms simd weird', 'bogus simd', 'ms',
     'speedup simd', 'speedup simd/naive/x', 'env nothing', 'env cpu extra', 'ms simd lite t=2']) {
@@ -77,5 +117,15 @@ test('the committed results.json resolves every kind of placeholder the prose us
       }
     }
   }
+  // Facts the Results prose states unconditionally.
+  for (const n of real.parameters.sizes) {
+    const hashes = new Set(real.runs.filter((r) => r.n === n).map((r) => r.hash));
+    assert.equal(hashes.size, 1, `all runs at n=${n} share one hash`);
+  }
+  assert.deepEqual(real.environment.browser_isolated, { 'browser-lite': true, 'browser-threads': true });
+  assert.deepEqual(real.parameters.threads['browser-lite'], [1]);
+  assert.equal(real.environment.rustflags, '');
+  assert.equal(typeof real.environment.native_isa, 'string');
+  assert.ok(real.environment.native_isa.length > 0);
   assert.match(resolvePlaceholder(real, 'speedup simd/naive native'), /^\d+\.\d×$/);
 });

@@ -8,6 +8,15 @@
 //   {{speedup simd/naive n=512 native}}  how many times faster level 3 is than level 0
 //   {{iqr streaming t=4}}                noise of level 4 with 4 threads, native
 //   {{env cpu}}                          a fact about the reference run
+// Selectors: `n=<size>` (default: the largest), `t=<threads>` (default: the largest count
+// measured; ignored for level 0, which is always one thread), and one environment: native
+// (default), lite or browser-lite, threads or browser-threads. Giving a selector twice is
+// an error. `env` takes one field name: cpu, cores, physical_cores, governor, os, date,
+// commit (seven characters, plus a note if the tree was dirty), firefox, rustc_native,
+// rustc_lite, rustc_threads, native_isa, browser_isa, pool, runs, repeats, warmup, sizes,
+// largest, block, tile, rustflags (the recorded RUSTFLAGS, `none` if empty), and
+// threads_native, threads_lite, threads_threaded (the largest thread count measured in
+// that environment). An `env` value that is missing or empty is an error, never text.
 // Anything that does not resolve throws, so a stale or misspelt placeholder fails the
 // build instead of publishing a wrong number.
 
@@ -74,7 +83,13 @@ const ENV_FIELDS = {
   governor: (d) => d.environment.governor,
   os: (d) => d.environment.os,
   date: (d) => d.generated.slice(0, 10),
-  commit: (d) => d.environment.commit.slice(0, 7),
+  commit: (d) => {
+    const commit = d.environment.commit;
+    // The assembler appends ' (with uncommitted changes)' to the hash of a dirty tree.
+    return typeof commit === 'string' && commit.includes(' (')
+      ? `${commit.slice(0, 7)} (with uncommitted changes)`
+      : commit?.slice(0, 7);
+  },
   firefox: (d) => d.environment.firefox.replace(/^Mozilla /, ''),
   rustc_native: (d) => d.environment.toolchains.native,
   rustc_lite: (d) => d.environment.toolchains['browser-lite'],
@@ -89,6 +104,10 @@ const ENV_FIELDS = {
   largest: (d) => String(defaultSize(d)),
   block: (d) => d.parameters.block.join(' x '),
   tile: (d) => d.parameters.tile.join(' x '),
+  rustflags: (d) => d.environment.rustflags || 'none',
+  threads_native: (d) => String(Math.max(...threadCounts(d, 'native'))),
+  threads_lite: (d) => String(Math.max(...threadCounts(d, 'browser-lite'))),
+  threads_threaded: (d) => String(Math.max(...threadCounts(d, 'browser-threads'))),
 };
 
 /** The names `{{env ...}}` accepts. */
@@ -96,18 +115,31 @@ export const ENV_FIELD_NAMES = Object.keys(ENV_FIELDS);
 
 function parseSelectors(data, tokens, problem) {
   const selectors = { environment: 'native', n: defaultSize(data), threads: null };
+  const seen = new Set();
+  const once = (kind, token) => {
+    if (seen.has(kind)) problem(`duplicate selector "${token}"`);
+    seen.add(kind);
+  };
   for (const token of tokens) {
-    if (ENVIRONMENTS.includes(token)) selectors.environment = token;
-    else if (token in ENVIRONMENT_ALIASES) selectors.environment = ENVIRONMENT_ALIASES[token];
-    else if (/^n=\d+$/.test(token)) selectors.n = Number(token.slice(2));
-    else if (/^t=\d+$/.test(token)) selectors.threads = Number(token.slice(2));
-    else problem(`unknown selector "${token}" (use n=<size>, t=<threads>, or one of ${[...ENVIRONMENTS, ...Object.keys(ENVIRONMENT_ALIASES)].join(', ')})`);
+    if (ENVIRONMENTS.includes(token)) {
+      once('environment', token);
+      selectors.environment = token;
+    } else if (Object.hasOwn(ENVIRONMENT_ALIASES, token)) {
+      once('environment', token);
+      selectors.environment = ENVIRONMENT_ALIASES[token];
+    } else if (/^n=\d+$/.test(token)) {
+      once('n', token);
+      selectors.n = Number(token.slice(2));
+    } else if (/^t=\d+$/.test(token)) {
+      once('t', token);
+      selectors.threads = Number(token.slice(2));
+    } else problem(`unknown selector "${token}" (use n=<size>, t=<threads>, or one of ${[...ENVIRONMENTS, ...Object.keys(ENVIRONMENT_ALIASES)].join(', ')})`);
   }
   return selectors;
 }
 
 function level(name, problem) {
-  if (!(name in LEVELS)) problem(`unknown level "${name}" (use ${Object.keys(LEVELS).join(', ')})`);
+  if (!Object.hasOwn(LEVELS, name)) problem(`unknown level "${name}" (use ${Object.keys(LEVELS).join(', ')})`);
   return LEVELS[name];
 }
 
@@ -131,10 +163,14 @@ export function resolvePlaceholder(data, text) {
   };
   const [metric, subject, ...rest] = text.trim().split(/\s+/);
   if (metric === 'env') {
-    if (!(subject in ENV_FIELDS) || rest.length > 0) {
+    if (!Object.hasOwn(ENV_FIELDS, subject) || rest.length > 0) {
       return problem(`env needs one of: ${ENV_FIELD_NAMES.join(', ')}`);
     }
-    return ENV_FIELDS[subject](data);
+    const value = ENV_FIELDS[subject](data);
+    if (value === null || value === undefined || value === '' || /\b(undefined|null|NaN)\b/.test(value)) {
+      return problem(`the data has no value for it`);
+    }
+    return value;
   }
   if (!['ms', 'gflops', 'speedup', 'iqr'].includes(metric)) {
     return problem('the metric must be ms, gflops, speedup, iqr or env');
