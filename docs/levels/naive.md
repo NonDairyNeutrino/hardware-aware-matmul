@@ -58,7 +58,7 @@ touches memory and processors:
    `Matrix` stores rows contiguously, so consecutive reads are `p` elements
    apart: almost every access lands on a different cache line, and a line
    fetched for `B[k][j]` is mostly wasted when the loop moves on. For large
-   matrices the processor spends most of its time waiting for memory. Level 2
+   matrices the processor probably spends much of its time waiting for memory. Level 2
    fixes this.
 3. **A bounds check per element access.** `Index` asserts that the index is in
    range on every call. This is a constant-factor cost (the optimiser can

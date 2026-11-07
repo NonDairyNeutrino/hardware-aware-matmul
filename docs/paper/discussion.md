@@ -59,8 +59,8 @@ gain from the second four threads. Levels 2 and 4 do the same: level 2 takes
 {{ms cache_friendly t=4}} on four threads and {{ms cache_friendly t=8}} on eight, level 4
 takes {{ms streaming t=4}} and {{ms streaming t=8}}. For these three levels the scaling
 stops where the physical cores run out, not where the hardware threads do. The Methods
-attribute the limit of threading to a shared memory system, and the plateau is consistent
-with that. It is just as consistent with hyper-threads sharing the execution units of one
+say that threads stop helping when something they share is used up, such as the memory
+system, and the plateau is consistent with that. It is just as consistent with hyper-threads sharing the execution units of one
 core, and the experiment cannot tell the two apart. Hardware counters for memory traffic
 and for execution-unit use could.
 

@@ -1,5 +1,6 @@
 **Level 2 of 4.** Same threads, same partitioning, same results, but each
-thread's loops are rearranged so the processor stops waiting for memory.
+thread's loops are rearranged so that each thread reuses data while it is still in
+the cache.
 
 # What changed from level 1
 
@@ -103,6 +104,14 @@ exact equality with [`naive`](crate::naive) across shapes and thread counts.
 
 # What it costs
 
+- **`C` still moves through memory on every step.** The inner loop loads a
+  segment of `C`, adds to it and stores it back, once per `(i, k)` pair, even
+  though the data is now in the cache. Loads and stores can limit the speed as
+  much as the arithmetic does. Level 3 removes most of that traffic.
+- **Faster threads saturate sooner.** The quicker each thread gets, the sooner
+  the threads together use up something they share (memory bandwidth, cache, or
+  the arithmetic units of a core). A fast level may therefore gain less from
+  extra threads than a slow one does.
 - **Still three whole matrices in memory.** Neither blocking nor threading
   changes how much memory the problem needs.
 - **Not a BLAS.** There is no register-blocked micro-kernel, no packing of `B`,
@@ -113,6 +122,9 @@ exact equality with [`naive`](crate::naive) across shapes and thread counts.
 
 # Where to go next
 
-Every level so far assumes `A`, `B`, and `C` all fit in memory. For a
-`100 000 × 100 000` product that is 240 GB. [`streaming`](crate::streaming)
-removes that assumption.
+The inner loop still moves `C` through memory on every step.
+[`simd`](crate::simd) keeps a block of `C` in vector registers instead.
+
+After that, one assumption remains: every level so far needs `A`, `B`, and `C`
+to fit in memory. For a `100 000 × 100 000` product that is 240 GB.
+[`streaming`](crate::streaming) removes it.

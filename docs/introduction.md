@@ -5,9 +5,9 @@ Read them in order and the fast version never has to be met as one big blob.
 | Level | Module | What it adds | What that fixes | What still limits it |
 |-------|--------|--------------|-----------------|----------------------|
 | 0 | [`naive`] | The textbook triple loop | (nothing: the reference) | One core; strided access to `B`; all matrices in RAM |
-| 1 | [`threaded`] | Output rows split across threads | Idle cores | Memory-bound inner loop; all matrices in RAM |
-| 2 | [`cache_friendly`] | `i-k-j` loop order and cache blocking | Waiting on memory | `C` moves through memory on every step; all matrices in RAM |
-| 3 | [`simd`] | A register-blocked, vectorisable micro-kernel | The load/store bottleneck | Compile-time vector width; all matrices in RAM |
+| 1 | [`threaded`] | Output rows split across threads | Idle cores | Each thread is as slow as level 0 (probably waiting on memory); all matrices in RAM |
+| 2 | [`cache_friendly`] | `i-k-j` loop order and cache blocking | Wasted memory traffic | `C` moves through memory on every step; all matrices in RAM |
+| 3 | [`simd`] | A register-blocked, vectorisable micro-kernel | Excess loads and stores | Compile-time vector width; all matrices in RAM |
 | 4 | [`streaming`] | Output tiles, streamed sources and sinks | The memory limit | Rereads inputs; copies tiles |
 
 Every level computes **exactly the same result, bit for bit**. Each output

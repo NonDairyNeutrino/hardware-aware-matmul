@@ -69,8 +69,8 @@ partitioning on the other, is kept at every level from here on.
 
 # What it gets right
 
-- **Near-linear scaling is possible**, up to the number of cores, when the
-  work is not limited by memory bandwidth.
+- **Near-linear scaling is possible**, up to the number of cores, when nothing
+  the threads share is used up.
 - **Results are unchanged.** Each output element is still computed by exactly
   one thread, in exactly the same order as at level 0, so the result is
   bit-for-bit identical for any thread count.
@@ -79,11 +79,16 @@ partitioning on the other, is kept at every level from here on.
 
 # What it costs
 
-- **The hard limit is the hardware, and a bandwidth limit comes first.**
-  Every thread still walks a *column* of `B` for each output element
-  (the level-0 access pattern), and they all share the same memory system.
-  Adding threads to a memory-bound loop helps until the bandwidth is saturated,
-  and then stops helping. This is the main reason level 2 exists.
+- **Each thread is as slow as level 0, and the threads share the hardware.**
+  Every thread still walks a *column* of `B` for each output element (the
+  level-0 access pattern), and all of them share the same memory system and the
+  same cores. Threads help until something they share is used up, and which
+  resource that is depends on the machine and on how efficient each thread's
+  loop is. This loop probably spends much of its time waiting for memory, which would
+  leave idle time for other threads to use, so it can keep gaining for a long
+  time. What it cannot do is make any single thread faster. That is the main
+  reason level 2 exists: speed up what each thread does, and the threads go
+  further.
 - **Fixed, equal-sized blocks.** Work is divided in advance, with no
   rebalancing. For this problem every row costs the same, so equal blocks are
   fine, but if one thread were slowed by something else the others would idle

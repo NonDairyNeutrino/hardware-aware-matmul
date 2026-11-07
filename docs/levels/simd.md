@@ -11,11 +11,14 @@ for each row i, for each k:
     C[i][j_block] ← C[i][j_block] + A[i][k] × B[k][j_block]
 ```
 
-That loop is already vectorised by the compiler, but look at what each pass
-does: it *loads* a segment of `B`, *loads* a segment of `C`, performs one
-multiply and one add, and *stores* the segment of `C` back. Two loads and a
-store for one multiply-add. The arithmetic units spend most of their time
-waiting for the load/store units, however perfectly the data sits in cache.
+The compiler can vectorise that loop, because its iterations are independent,
+but look at what each pass does: it *loads* a segment of `B`, *loads* a segment
+of `C`, performs one multiply and one add, and *stores* the segment of `C`
+back. Two loads and a store for one multiply-add. The load/store units can
+limit the speed even when every access hits the cache, because the arithmetic
+cannot go faster than the data arrives. How much that costs depends on how well
+the processor overlaps the traffic with the arithmetic, so the gain from the fix
+varies from one machine to another.
 
 The fix is to stop moving `C` through memory on every `k`. Keep a small block
 of `C` in **registers** for the whole `k` loop, and do all the arithmetic on it
