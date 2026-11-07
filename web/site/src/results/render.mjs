@@ -60,7 +60,7 @@ export function bestTable(data, { environment, n }) {
   const id = `table-${ENVIRONMENT_SHORT[environment]}-best-${size}`;
   return `<figure class="results-figure"><figcaption id="${id}">${escape(ENVIRONMENT_LABELS[environment])}, n = ${size}: median of ${data.parameters.repeats} runs. ` +
     `"vs level 0" is the speedup over level 0 in the same environment; IQR is the noise.</figcaption>` +
-    `<div class="table-scroll"><table class="results" aria-labelledby="${id}">` +
+    `<div class="table-scroll" tabindex="0" role="region" aria-labelledby="${id}"><table class="results" aria-labelledby="${id}">` +
     `<thead><tr><th scope="col">Level</th><th scope="col">Threads</th><th scope="col">Median</th>` +
     `<th scope="col">Throughput</th><th scope="col">vs level 0</th><th scope="col">IQR</th></tr></thead>` +
     `<tbody>${rows.join('')}</tbody></table></div></figure>${anyNoisy ? NOISE_NOTE : ''}`;
@@ -87,7 +87,7 @@ export function scalingTable(data, { environment, n }) {
   const heads = counts.map((t) => `<th scope="col">${t} thread${t === 1 ? '' : 's'}</th>`).join('');
   const id = `table-${ENVIRONMENT_SHORT[environment]}-scaling-${size}`;
   return `<figure class="results-figure"><figcaption id="${id}">${escape(ENVIRONMENT_LABELS[environment])}, n = ${size}: median time, and speedup over one thread in brackets</figcaption>` +
-    `<div class="table-scroll"><table class="results" aria-labelledby="${id}">` +
+    `<div class="table-scroll" tabindex="0" role="region" aria-labelledby="${id}"><table class="results" aria-labelledby="${id}">` +
     `<thead><tr><th scope="col">Level</th>${heads}</tr></thead><tbody>${rows.join('')}</tbody></table></div></figure>${anyNoisy ? NOISE_NOTE : ''}`;
 }
 
@@ -134,10 +134,10 @@ export function throughputChart(data, { n }) {
     `<text class="legend" x="${M.left + e * 190 + 18}" y="20">${escape(ENVIRONMENT_LABELS[environment])}</text>`).join('');
   const description = environments.map((environment, e) =>
     `${ENVIRONMENT_LABELS[environment]}: ${values[e].map((v, level) => `level ${level} ${v.toFixed(1)}`).join(', ')}`).join('. ');
-  return `<figure class="chart"><svg viewBox="0 0 ${W} ${H}" role="img" aria-labelledby="throughput-title throughput-desc">` +
+  return `<figure class="chart"><div class="chart-scroll" tabindex="0" role="region" aria-labelledby="throughput-title"><svg viewBox="0 0 ${W} ${H}" role="img" aria-labelledby="throughput-title throughput-desc">` +
     `<title id="throughput-title">Throughput of each level, n = ${size}</title>` +
     `<desc id="throughput-desc">GFLOP/s at the largest thread count. ${escape(description)}.</desc>` +
-    `${legend}${parts.join('')}</svg>` +
+    `${legend}${parts.join('')}</svg></div>` +
     `<figcaption>Throughput in GFLOP/s (higher is faster) of each level at n = ${size}, at the largest thread count measured in each environment (level 0 always uses one).</figcaption></figure>`;
 }
 
@@ -174,9 +174,9 @@ export function scalingChart(data, { environment, n }) {
     `<line class="ideal" x1="${M.left + 4 * 130}" x2="${M.left + 4 * 130 + 16}" y1="16" y2="16"/><text class="legend" x="${M.left + 4 * 130 + 22}" y="20">ideal</text>`;
   const description = series.map((values, i) => `level ${i + 1}: ${counts.map((t, k) => `${t} threads ${values[k].toFixed(1)}×`).join(', ')}`).join('. ');
   const id = `scaling-${ENVIRONMENT_SHORT[environment]}`;
-  return `<figure class="chart"><svg viewBox="0 0 ${W} ${H}" role="img" aria-labelledby="${id}-title ${id}-desc">` +
+  return `<figure class="chart"><div class="chart-scroll" tabindex="0" role="region" aria-labelledby="${id}-title"><svg viewBox="0 0 ${W} ${H}" role="img" aria-labelledby="${id}-title ${id}-desc">` +
     `<title id="${id}-title">Thread scaling, ${escape(ENVIRONMENT_LABELS[environment])}, n = ${size}</title>` +
     `<desc id="${id}-desc">Speedup over one thread. ${escape(description)}.</desc>` +
-    `${legend}${parts.join('')}</svg>` +
+    `${legend}${parts.join('')}</svg></div>` +
     `<figcaption>${escape(ENVIRONMENT_LABELS[environment])}, n = ${size}: speedup over the same level with one thread against the number of threads. The dashed line is perfect scaling.</figcaption></figure>`;
 }

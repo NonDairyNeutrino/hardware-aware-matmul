@@ -11,6 +11,7 @@ test('the best-configuration table has one row per level with the numbers from t
   assert.equal(count(html, '<tr>'), 6); // header + 5 levels
   assert.match(html, /<figcaption id="table-native-best-128">Native, n = 128: median of 3 runs\. "vs level 0" is the speedup/);
   assert.match(html, /<table class="results" aria-labelledby="table-native-best-128">/);
+  assert.match(html, /<div class="table-scroll" tabindex="0" role="region" aria-labelledby="table-native-best-128">/);
   // level 3 at 2 threads: 1000 / 6 ms, 6.0 times faster than level 0 (1 s)
   assert.match(html, /<th scope="row">Level 3: SIMD<\/th><td>2<\/td><td>167 ms<\/td><td>[\d.]+ GFLOP\/s<\/td><td>6\.0×<\/td><td>2%<\/td>/);
   assert.match(html, /<th scope="row">Level 0: naive<\/th><td>1<\/td><td>1\.0 s<\/td>/);
@@ -32,10 +33,13 @@ test('the scaling table shows each thread count with the speedup over one thread
   // level 2: 500 ms with 1 thread, 250 ms with 2
   assert.match(html, /Level 2: cache blocking<\/th><td>500 ms \(1\.0×\)<\/td><td>250 ms \(2\.0×\)<\/td>/);
   assert.equal(count(html, '<tr>'), 5);
+  assert.match(html, /<div class="table-scroll" tabindex="0" role="region" aria-labelledby="table-native-scaling-64">/);
 });
 
 test('the throughput chart is an accessible SVG with a bar per level and environment', () => {
   const html = throughputChart(data, {});
+  assert.match(html, /<div class="chart-scroll" tabindex="0" role="region" aria-labelledby="throughput-title"><svg viewBox/);
+  assert.match(html, /<\/svg><\/div><figcaption>/);
   assert.match(html, /<svg viewBox="0 0 640 320" role="img" aria-labelledby="throughput-title throughput-desc">/);
   assert.match(html, /<title id="throughput-title">Throughput of each level, n = 128<\/title>/);
   // two environments in the fixture: 5 bars each, plus one legend swatch each
@@ -52,6 +56,7 @@ test('the scaling chart has a line per level over the measured thread counts, an
   for (const level of [1, 2, 3, 4]) assert.equal(count(html, `<polyline class="line line-${level}"`), 1);
   assert.equal(count(html, '<polyline class="ideal"'), 1);
   assert.equal(count(html, '<circle'), 8); // 4 levels x 2 thread counts
+  assert.match(html, /<div class="chart-scroll" tabindex="0" role="region" aria-labelledby="scaling-native-title"><svg/);
   assert.match(html, /<title id="scaling-native-title">Thread scaling, Native, n = 64<\/title>/);
   // every level in the fixture scales perfectly: 2 threads is 2.0x
   assert.match(html, /level 1: 1 threads 1\.0×, 2 threads 2\.0×/);
