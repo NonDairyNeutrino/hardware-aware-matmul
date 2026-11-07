@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
-import { data } from './fixture.mjs';
-import { NOISY, bestTable, scalingChart, scalingTable, throughputChart } from './render.mjs';
+import { data, run } from './fixture.mjs';
+import { NOISY, bestTable, scalingChart, scalingTable, sizeChart, throughputChart } from './render.mjs';
 
 const count = (haystack, needle) => haystack.split(needle).length - 1;
 
@@ -61,6 +61,42 @@ test('the scaling chart has a line per level over the measured thread counts, an
   // every level in the fixture scales perfectly: 2 threads is 2.0x
   assert.match(html, /level 1: 1 thread 1\.0×, 2 threads 2\.0×/);
   assert.doesNotMatch(html, /NaN|undefined|Infinity/);
+});
+
+// The fixture's own throughputs are tiny, so the numbers are checked on a copy 1000 times faster.
+const fastData = {
+  ...data,
+  runs: data.runs.map((r) => run(r.environment, r.level, r.n, r.threads, r.median_ms / 1000)),
+};
+
+test('the size chart has a line per level, a dot per size and the numbers in its description', () => {
+  const html = sizeChart(fastData, { environment: 'native' });
+  for (let level = 0; level <= 4; level += 1) {
+    assert.equal(count(html, `<polyline class="line line-${level}"`), 1);
+    assert.equal(count(html, `<circle class="dot line-${level}"`), 2);
+  }
+  assert.match(html, /<div class="chart-scroll" tabindex="0" role="region" aria-labelledby="size-native-1-title"><svg/);
+  assert.match(html, /<title id="size-native-1-title">Throughput against matrix size, native, one thread<\/title>/);
+  // 2n^3 / (1 ms) at n = 64 and 128 for level 0; level L at one thread takes 1/L of that time
+  assert.match(html, /level 0: n = 64 0\.5, n = 128 4\.2\./);
+  assert.match(html, /level 4: n = 64 2\.1, n = 128 16\.8\./);
+  assert.match(html, /matrix size n<\/text>/);
+  assert.match(html, />64<\/text>/);
+  assert.match(html, />128<\/text>/);
+  assert.match(html, /<figcaption>Native, one thread: throughput in GFLOP\/s \(higher is faster\) of each level against the matrix size\.<\/figcaption>/);
+  assert.doesNotMatch(html, /NaN|undefined|Infinity/);
+  assert.doesNotMatch(sizeChart(data, { environment: 'native' }), /NaN|undefined|Infinity/);
+});
+
+test('the size chart takes a thread count for levels 1 to 4 and keeps level 0 at one thread', () => {
+  const html = sizeChart(fastData, { environment: 'native', threads: 2 });
+  assert.match(html, /id="size-native-2-title"/);
+  assert.match(html, /Native, 2 threads: throughput/);
+  assert.match(html, /level 0: n = 64 0\.5, n = 128 4\.2\./);
+  assert.match(html, /level 1: n = 64 1\.0, n = 128 8\.4\./);
+  assert.match(html, /level 4: n = 64 4\.2, n = 128 33\.6\./);
+  assert.doesNotMatch(html, /NaN|undefined|Infinity/);
+  assert.throws(() => sizeChart(data, { environment: 'native', threads: 3 }), /no measurement/);
 });
 
 test('chart ids are unique when two sizes are rendered', () => {

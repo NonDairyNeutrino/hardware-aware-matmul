@@ -128,12 +128,12 @@ step-through:not([data-state]) { display: none; }
 /* Results page: generated tables and charts */
 :root {
   --series-0: hsl(210 75% 40%); --series-1: hsl(28 90% 36%);
-  --series-2: hsl(140 65% 28%); --series-3: hsl(330 65% 42%);
+  --series-2: hsl(140 65% 28%); --series-3: hsl(330 65% 42%); --series-4: hsl(265 55% 48%);
 }
 @media (prefers-color-scheme: dark) {
   :root {
     --series-0: hsl(210 75% 62%); --series-1: hsl(30 90% 58%);
-    --series-2: hsl(140 55% 50%); --series-3: hsl(330 70% 66%);
+    --series-2: hsl(140 55% 50%); --series-3: hsl(330 70% 66%); --series-4: hsl(265 65% 70%);
   }
 }
 .results-figure { margin: 0 0 1.25rem; }
@@ -161,6 +161,8 @@ figure.chart figcaption { font-size: 0.9rem; color: var(--muted); }
 .chart polyline.line-2, .chart line.line-2 { stroke: var(--series-1); }
 .chart polyline.line-3, .chart line.line-3 { stroke: var(--series-2); }
 .chart polyline.line-4, .chart line.line-4 { stroke: var(--series-3); }
+.chart polyline.line-0, .chart line.line-0 { stroke: var(--series-4); }
+.chart circle.line-0 { fill: var(--series-4); }
 .chart circle.line-1 { fill: var(--series-0); }
 .chart circle.line-2 { fill: var(--series-1); }
 .chart circle.line-3 { fill: var(--series-2); }

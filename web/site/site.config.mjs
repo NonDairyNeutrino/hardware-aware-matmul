@@ -3,7 +3,7 @@
 
 import results from './src/data/results.json' with { type: 'json' };
 import { cacheLineFigure } from './src/components/cache-figure.mjs';
-import { bestTable, scalingChart, scalingTable, throughputChart } from './src/results/render.mjs';
+import { bestTable, scalingChart, scalingTable, sizeChart, throughputChart } from './src/results/render.mjs';
 
 // GitHub Pages serves this repository at /hardware-aware-matmul/.
 export const base = '/hardware-aware-matmul/';
@@ -108,11 +108,13 @@ export const insertions = [
     html: cacheLineFigure() },
   // The Results page: tables and charts generated from the data, after the paragraph that
   // introduces each.
-  { chapter: 'paper/results', afterHeading: 'Native', blocksAfter: 1,
-    html: bestTable(results, { environment: 'native' }) },
-  { chapter: 'paper/results', afterHeading: 'Thread scaling, native', blocksAfter: 1,
+  { chapter: 'paper/results', afterHeading: 'Native', blocksAfter: 2,
+    html: bestTable(results, { environment: 'native', n: 512 }) + bestTable(results, { environment: 'native' }) },
+  { chapter: 'paper/results', afterHeading: 'Throughput against matrix size, native', blocksAfter: 2,
+    html: sizeChart(results, { environment: 'native', threads: 1 }) },
+  { chapter: 'paper/results', afterHeading: 'Thread scaling, native', blocksAfter: 2,
     html: scalingTable(results, { environment: 'native' }) + scalingChart(results, { environment: 'native' }) },
-  { chapter: 'paper/results', afterHeading: 'In the browser', blocksAfter: 1,
+  { chapter: 'paper/results', afterHeading: 'In the browser', blocksAfter: 2,
     html: bestTable(results, { environment: 'browser-lite' }) + bestTable(results, { environment: 'browser-threads' }) +
       throughputChart(results, {}) },
   { chapter: 'paper/results', afterHeading: 'Thread scaling in the browser', blocksAfter: 1,

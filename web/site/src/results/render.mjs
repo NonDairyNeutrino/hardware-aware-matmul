@@ -181,3 +181,42 @@ export function scalingChart(data, { environment, n }) {
     `${legend}${parts.join('')}</svg></div>` +
     `<figcaption>${escape(ENVIRONMENT_LABELS[environment])}, n = ${size}: speedup over the same level with one thread against the number of threads. The dashed line is perfect scaling.</figcaption></figure>`;
 }
+
+/** Lines: throughput against the matrix size (log scale), one line per level, levels 1 to 4 at `threads` threads. */
+export function sizeChart(data, { environment, threads = 1 }) {
+  const sizes = data.parameters.sizes;
+  const series = [0, 1, 2, 3, 4].map((level) =>
+    sizes.map((n) => mustFind(data, environment, level, n, level === 0 ? 1 : threads).gflops));
+  const top = niceMax(Math.max(...series.flat()));
+  const plotW = W - M.left - M.right;
+  const plotH = H - M.top - M.bottom;
+  const lo = Math.log2(Math.min(...sizes));
+  const span = Math.log2(Math.max(...sizes)) - lo;
+  const x = (n) => M.left + (span === 0 ? plotW / 2 : (plotW * (Math.log2(n) - lo)) / span);
+  const y = (v) => M.top + plotH - (v / top) * plotH;
+  const parts = [];
+  for (let i = 0; i <= 4; i += 1) {
+    const v = (top / 4) * i;
+    parts.push(`<line class="grid" x1="${M.left}" x2="${W - M.right}" y1="${y(v)}" y2="${y(v)}"/>` +
+      `<text class="tick" x="${M.left - 6}" y="${y(v) + 4}" text-anchor="end">${Number(v.toFixed(1))}</text>`);
+  }
+  sizes.forEach((n) => parts.push(`<text class="axis" x="${x(n).toFixed(1)}" y="${H - M.bottom + 18}" text-anchor="middle">${n}</text>`));
+  parts.push(`<text class="axis" x="${(M.left + plotW / 2).toFixed(1)}" y="${H - 8}" text-anchor="middle">matrix size n</text>`);
+  series.forEach((values, level) => {
+    const points = values.map((v, i) => `${x(sizes[i]).toFixed(1)},${y(v).toFixed(1)}`);
+    parts.push(`<polyline class="line line-${level}" fill="none" points="${points.join(' ')}"/>` +
+      values.map((v, i) => `<circle class="dot line-${level}" cx="${x(sizes[i]).toFixed(1)}" cy="${y(v).toFixed(1)}" r="3.5"/>`).join(''));
+  });
+  const legend = [0, 1, 2, 3, 4].map((level) =>
+    `<line class="line line-${level}" x1="${M.left + level * 110}" x2="${M.left + level * 110 + 16}" y1="16" y2="16"/>` +
+    `<text class="legend" x="${M.left + level * 110 + 22}" y="20">Level ${level}</text>`).join('');
+  const description = series.map((values, level) =>
+    `level ${level}: ${sizes.map((n, i) => `n = ${n} ${values[i].toFixed(1)}`).join(', ')}`).join('. ');
+  const id = `size-${ENVIRONMENT_SHORT[environment]}-${threads}`;
+  const label = `${ENVIRONMENT_LABELS[environment]}, ${threads === 1 ? 'one thread' : `${threads} threads`}`;
+  return `<figure class="chart"><div class="chart-scroll" tabindex="0" role="region" aria-labelledby="${id}-title"><svg viewBox="0 0 ${W} ${H}" role="img" aria-labelledby="${id}-title ${id}-desc">` +
+    `<title id="${id}-title">Throughput against matrix size, ${escape(label.toLowerCase())}</title>` +
+    `<desc id="${id}-desc">GFLOP/s of each level at each matrix size. ${escape(description)}.</desc>` +
+    `${legend}${parts.join('')}</svg></div>` +
+    `<figcaption>${escape(label)}: throughput in GFLOP/s (higher is faster) of each level against the matrix size.</figcaption></figure>`;
+}
