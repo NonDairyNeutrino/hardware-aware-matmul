@@ -7,6 +7,8 @@
 #   lite     service workers disabled: the page falls back to the single-threaded build,
 #            locks the threads control, shows the banner, and still gives the native answer
 #   recover  a run is cancelled, another times out, and a third still completes correctly
+#   fallback the threaded worker fails to start (the page is told to load a missing one): the
+#            run moves to the lite build by itself, with a note, and gives the native answer
 # usage: gate-c3.sh [--no-build]
 # env: WASM_BINDGEN, NODE_IMAGE (default node:latest), PORT, TIMEOUT (seconds per scenario)
 set -euo pipefail
@@ -44,7 +46,7 @@ ROOT=$(mktemp -d)
 trap 'rm -rf "$ROOT"' EXIT
 ln -s "$SITE/dist" "$ROOT/hardware-aware-matmul"
 export NO_ISOLATION=1
-for SCENARIO in threads lite recover; do
+for SCENARIO in threads lite recover fallback; do
   echo "== playground, scenario $SCENARIO"
   export REPORT="$WASM/target/c3-$SCENARIO-report.json" LOG="$WASM/target/c3-$SCENARIO-server.log"
   rm -f "$LOG"

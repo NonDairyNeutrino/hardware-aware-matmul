@@ -1,5 +1,6 @@
 // Automated runs of the playground for the browser gates (web/site/gate-c3.sh), chosen by
-// `?gate=threads|lite|recover` in the URL. They drive the real page and POST a report that
+// `?gate=threads|lite|recover|fallback` in the URL (fallback: main.js makes the first worker
+// fail to load, so the threaded start fails and the page must move to the lite build). They drive the real page and POST a report that
 // web/dev/check_report.py judges. A normal visit never uses this module.
 import { DEFAULTS, clampRequest } from './request.mjs';
 
@@ -35,7 +36,7 @@ export async function runGate(name, context) {
     report.threads_control_disabled = ui.elements.form.elements.threads.disabled;
     report.banner = ui.elements.banner.hidden ? null : ui.elements.banner.textContent;
 
-    if (name === 'threads' || name === 'lite') {
+    if (name === 'threads' || name === 'lite' || name === 'fallback') {
       // The real page path: fill the form, press Run, read what the page shows.
       ui.writeForm(small);
       ui.elements.form.requestSubmit();
@@ -52,6 +53,10 @@ export async function runGate(name, context) {
       report.verdict_ok = ui.elements.verdict.dataset.ok === 'true';
       report.verdict_text = ui.elements.verdict.textContent;
       report.build_text = ui.elements.build.textContent;
+      report.fallback = outcome.fallback ?? null;
+      report.build_after = context.build;
+      report.banner_after = ui.elements.banner.hidden ? null : ui.elements.banner.textContent;
+      report.threads_control_disabled_after = ui.elements.form.elements.threads.disabled;
     } else if (name === 'recover') {
       // Cancel, time out, and then prove the page still works with a fresh worker.
       const big = clampRequest({ n: 1024, levels: [0, 1, 2, 3, 4], threads: 2, repeats: 5 }, { pool: context.pool, build: context.build });

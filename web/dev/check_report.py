@@ -8,10 +8,11 @@ Exits 0 on pass, 1 on failure. Gates:
          isolation supplied by the service worker rather than server headers
   probe  informational: records whether StdRunner works in the browser
   lite   g2's cases on the stable single-threaded build, on a page that is NOT isolated
-  playground-threads | playground-lite | playground-recover
+  playground-threads | playground-lite | playground-recover | playground-fallback
          the playground page of the Astro production build, on a page with no isolation
          headers: the threaded build after the service worker enables isolation, the
-         single-threaded fallback with service workers disabled, and cancel/timeout recovery
+         single-threaded fallback with service workers disabled, cancel/timeout recovery,
+         and the automatic move to the lite build when the threaded worker fails to start
   stepthrough  the chapters' <step-through> element on the lite build, from the Astro
          production build, with no isolation and no service worker
   g5     informational: records limits (pool start-up, re-init, panic, memory)
@@ -102,7 +103,7 @@ def check_playground(gate, report):
     if report.get("build") != want_build:
         problems.append("the page chose the %r build, expected %r" % (report.get("build"), want_build))
     levels = [0, 1, 2, 3, 4]
-    if gate in ("playground-threads", "playground-lite"):
+    if gate in ("playground-threads", "playground-lite", "playground-fallback"):
         if report.get("status") != "done":
             problems.append("the run ended with status %r" % report.get("status"))
         results = report.get("results", [])
@@ -142,6 +143,18 @@ def check_playground(gate, report):
             problems.append("no single-threaded banner was shown: %r" % report.get("banner"))
         if (report.get("env") or {}).get("threads") is not False:
             problems.append("the module is not the lite build")
+    if gate == "playground-fallback":
+        if (report.get("fallback") or {}).get("to") != "lite" or report.get("build_after") != "lite":
+            problems.append("the page did not move to the lite build: fallback %r, build after %r"
+                            % (report.get("fallback"), report.get("build_after")))
+        if "failed to start" not in (report.get("banner_after") or ""):
+            problems.append("no fallback note was shown: %r" % report.get("banner_after"))
+        if not report.get("threads_control_disabled_after"):
+            problems.append("the threads control should be locked after the fallback")
+        if report.get("threads_used") != 1:
+            problems.append("the fallback run used %r threads, expected 1" % report.get("threads_used"))
+        if (report.get("env") or {}).get("threads") is not False:
+            problems.append("the fallback run's module is not the lite build")
     if gate == "playground-recover":
         for key, want in (("cancel_status", "cancelled"), ("timeout_status", "timeout"), ("recovery_status", "done")):
             if report.get(key) != want:

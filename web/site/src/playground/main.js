@@ -19,7 +19,7 @@ const supportsSimd = () => {
   try { return WebAssembly.validate(SIMD_PROBE); } catch { return false; }
 };
 
-const GATES = ['threads', 'lite', 'recover'];
+const GATES = ['threads', 'lite', 'recover', 'fallback'];
 // The gates serve the page from http://127.0.0.1; on a real site `?gate=` does nothing.
 const gate = ['127.0.0.1', 'localhost'].includes(location.hostname) && GATES.includes(query.get('gate')) ? query.get('gate') : null;
 
@@ -62,7 +62,7 @@ async function main() {
   ui.disableAll('Choosing how to run…');
   const { build, reason } = await chooseBuild();
   context.build = build;
-  const maxThreads = build === 'threads' ? Math.min(navigator.hardwareConcurrency || 1, 8) : 1;
+  let maxThreads = build === 'threads' ? Math.min(navigator.hardwareConcurrency || 1, 8) : 1;
   context.pool = maxThreads;
   for (const control of root.querySelectorAll('input, select, button')) control.disabled = false;
   ui.setRunning(false);
@@ -82,13 +82,30 @@ async function main() {
   // The run being shown, and the results that arrived for it so far (reset by run()).
   let seen = [];
   let current = null;
+  // The fallback gate makes the first worker fail to load, as a broken threaded start would.
+  let failNextWorker = gate === 'fallback';
   const controller = createController({
-    makeWorker: () => new Worker(new URL('./worker.js', import.meta.url), { type: 'module' }),
+    makeWorker: () => {
+      if (failNextWorker) {
+        failNextWorker = false;
+        return new Worker(`${base}no-such-worker.js`, { type: 'module' });
+      }
+      return new Worker(new URL('./worker.js', import.meta.url), { type: 'module' });
+    },
     build,
+    onFallback: ({ reason: why }) => {
+      // The threaded build failed to start: the controller reruns on the lite build from now on.
+      context.build = 'lite';
+      context.pool = maxThreads = 1;
+      ui.lockThreads(true);
+      ui.setMaxThreads(1);
+      ui.writeForm(clampRequest(ui.readForm(), { pool: 1, build: 'lite' }));
+      ui.setBanner(`The multithreaded build failed to start (${why}), so the playground switched to the single-threaded build.`, 'warning');
+    },
     onMessage: (message) => {
       if (message.type === 'ready') {
         const e = message.env;
-        ui.setBuild(`${build === 'threads' ? `Threaded build, pool of ${message.pool} threads` : 'Single-threaded (lite) build'}; ${e.isa}; micro-tile ${e.micro_tile[0]}×${e.micro_tile[1]}`);
+        ui.setBuild(`${message.build === 'threads' ? `Threaded build, pool of ${message.pool} threads` : 'Single-threaded (lite) build'}; ${e.isa}; micro-tile ${e.micro_tile[0]}×${e.micro_tile[1]}`);
         ui.setStatus('Running…');
       } else if (message.type === 'result' && current) {
         // The controller forwards only the current run's messages, and run() resets `seen`.
@@ -131,7 +148,7 @@ async function main() {
   ui.elements.form.addEventListener('submit', (event) => {
     event.preventDefault();
     if (controller.running) return;
-    const request = clampRequest(ui.readForm(), { pool: maxThreads, build });
+    const request = clampRequest(ui.readForm(), { pool: maxThreads, build: controller.build });
     ui.writeForm(request);
     run(request, timeoutOverride > 0 ? { timeout: timeoutOverride } : undefined);
   });
