@@ -1,7 +1,7 @@
 """Assembles the reference run's results.json from the native and browser reports.
 
 usage: python3 -I results.py --native N.json --lite L.json --threads T.json --out OUT.json
-                             [--probe P.json] [--allow-unknown]
+                             [--probe P.json] [--counters C.json] [--allow-unknown]
        python3 -I results.py --check results.json
 
 The inputs are the JSON the native bench example and the two browser bench pages print
@@ -16,11 +16,13 @@ The inputs are the JSON the native bench example and the two browser bench pages
                        browser-lite, browser-threads), wasm_bindgen_cli,
                        wasm_target_features (per browser build), rustflags, firefox,
                        commit, native_isa, native_micro_tile, browser_isa, browser_pool.
-                       Two optional keys: caches (the CPU's cache levels from Linux sysfs:
+                       Three optional keys: caches (the CPU's cache levels from Linux sysfs:
                        level, type, size_bytes, shared_cpu_list) and hardware (the
                        examples/hw_probe.rs report given with --probe: triad_gbs and
-                       peak_gflops keyed by native thread count, and params); older files
-                       have neither, and both are validated only when present
+                       peak_gflops keyed by native thread count, and params), and counters (the
+                       web/dev/perf_counters.py report given with --counters: hardware event
+                       counts per multiplication for each level, at one size and thread count);
+                       older files lack them, and each is validated only when present
   parameters           sizes, repeats, warmup, block, tile and the thread counts per
                        environment
   runs                 one per measured case: environment, level, n, threads, repeats,
@@ -132,7 +134,7 @@ def _check(document):
         expected = set()
         for n in sizes:
             expected.add((0, n, 1))
-            for level in range(1, 5):
+            for level in range(1, 6):
                 for t in threads:
                     expected.add((level, n, t))
         found = [(r["level"], r["n"], r["threads"]) for r in runs if r["environment"] == environment]
@@ -168,7 +170,7 @@ def _positive_number(value):
 
 
 def _check_optional_environment(document):
-    """Validates environment.caches and environment.hardware when they are present."""
+    """Validates environment.caches, .hardware and .counters when they are present."""
     environment = document["environment"]
     if "caches" in environment:
         caches = environment["caches"]
@@ -183,6 +185,11 @@ def _check_optional_environment(document):
                     and cache["size_bytes"] > 0
                     and isinstance(cache.get("shared_cpu_list"), str)):
                 raise ResultsError("environment.caches has a malformed entry: %r" % (cache,))
+    if "counters" in environment:
+        _check_counters(environment["counters"])
+        if environment["counters"]["n"] not in document["parameters"]["sizes"]:
+            raise ResultsError("environment.counters.n (%r) is not one of the measured sizes %r"
+                               % (environment["counters"]["n"], document["parameters"]["sizes"]))
     if "hardware" in environment:
         hardware = environment["hardware"]
         native_threads = {str(t) for t in document["parameters"]["threads"]["native"]}
@@ -201,6 +208,39 @@ def _check_optional_environment(document):
                                        % (name, key, value))
 
 
+COUNTER_LEVELS = ("naive", "threaded", "cache_friendly", "simd", "packed", "streaming")
+COUNTER_KEYS = ("cycles", "instructions", "L1-dcache-loads", "L1-dcache-load-misses", "LLC-loads",
+                "LLC-load-misses", "dTLB-loads", "dTLB-load-misses")
+
+
+def _check_counters(counters):
+    """environment.counters: a size, a thread count, and non-negative counts (or null: the CPU
+    could not count that event) for every level. Null is allowed, a made-up zero is not."""
+    if not isinstance(counters, dict):
+        raise ResultsError("environment.counters must be an object")
+    for key in ("n", "threads", "reps"):
+        value = counters.get(key)
+        if not (isinstance(value, int) and not isinstance(value, bool) and value > 0):
+            raise ResultsError("environment.counters.%s must be a positive integer, not %r" % (key, value))
+    pct = counters.get("min_counted_pct")
+    if not (_positive_number(pct) and pct <= 100):
+        raise ResultsError("environment.counters.min_counted_pct must be in (0, 100], not %r" % (pct,))
+    table = counters.get("per_multiplication")
+    if not isinstance(table, dict) or sorted(table) != sorted(COUNTER_LEVELS):
+        raise ResultsError("environment.counters.per_multiplication must have exactly the levels %s" % (COUNTER_LEVELS,))
+    for level, values in table.items():
+        if not isinstance(values, dict):
+            raise ResultsError("environment.counters.per_multiplication.%s must be an object" % level)
+        for key in COUNTER_KEYS:
+            if key not in values:
+                raise ResultsError("environment.counters.per_multiplication.%s lacks %s" % (level, key))
+        for key, value in values.items():
+            if value is not None and not (isinstance(value, (int, float)) and not isinstance(value, bool)
+                                          and math.isfinite(value) and value >= 0):
+                raise ResultsError("environment.counters.per_multiplication.%s.%s must be null or a count, not %r"
+                                   % (level, key, value))
+
+
 def _unknown(value):
     return value is None or value == "unknown" or value == ""
 
@@ -214,10 +254,11 @@ def _check_known(environment):
                            % ", ".join(unknown))
 
 
-def assemble(native, lite, threads, environment, generated, allow_unknown=False, probe=None):
+def assemble(native, lite, threads, environment, generated, allow_unknown=False, probe=None, counters=None):
     """The results document from the three reports and the recorded environment.
 
-    probe is the hw_probe report (or None); it is recorded as environment.hardware."""
+    probe is the hw_probe report (or None); it is recorded as environment.hardware. counters is
+    the perf_counters.py report (or None); it is recorded as environment.counters."""
     slots = (("native", native), ("browser-lite", lite), ("browser-threads", threads))
     for name, report in slots:
         if report.get("ok") is False:
@@ -246,6 +287,9 @@ def assemble(native, lite, threads, environment, generated, allow_unknown=False,
                                        "browser-threads": threads.get("isolated")}
     if probe is not None:
         environment["hardware"] = {key: probe.get(key) for key in ("triad_gbs", "peak_gflops", "params")}
+    if counters is not None:
+        environment["counters"] = {key: counters.get(key) for key in
+                                   ("n", "threads", "reps", "repeats", "min_counted_pct", "checksum", "per_multiplication")}
     document = {
         "schema": SCHEMA,
         "generated": generated,
@@ -397,6 +441,7 @@ def main(argv):
     parser.add_argument("--lite")
     parser.add_argument("--threads")
     parser.add_argument("--probe", help="the JSON of examples/hw_probe.rs, recorded as environment.hardware")
+    parser.add_argument("--counters", help="the JSON of web/dev/perf_counters.py, recorded as environment.counters")
     parser.add_argument("--out")
     parser.add_argument("--check")
     parser.add_argument("--allow-unknown", action="store_true",
@@ -412,9 +457,10 @@ def main(argv):
             parser.error("give --native, --lite, --threads and --out, or --check")
         native, lite, threads = (json.load(open(path)) for path in (args.native, args.lite, args.threads))
         probe = json.load(open(args.probe)) if args.probe else None
+        counters = json.load(open(args.counters)) if args.counters else None
         generated = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
         document = assemble(native, lite, threads, collect_environment(native), generated,
-                            allow_unknown=args.allow_unknown, probe=probe)
+                            allow_unknown=args.allow_unknown, probe=probe, counters=counters)
         with open(args.out, "w") as out:
             json.dump(document, out, indent=1)
             out.write("\n")

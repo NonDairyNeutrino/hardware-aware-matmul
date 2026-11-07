@@ -17,7 +17,7 @@ def report(kind, threads, **extra):
     runs = []
     for n in (64, 128):
         runs.append({"level": 0, "n": n, "threads": 1, "times_ms": [4.0, 2.0, 3.0], "hash": HASHES[n]})
-        for level in range(1, 5):
+        for level in range(1, 6):
             for t in threads:
                 runs.append({"level": level, "n": n, "threads": t, "times_ms": [2.0, 1.0, 1.5], "hash": HASHES[n]})
     out = {"kind": kind, "ok": True, "cores": 8, "runs": runs,
@@ -33,6 +33,16 @@ def reports():
                      isolated=True)
     return native, lite, threads
 
+
+COUNTER_KEYS = ("cycles", "instructions", "L1-dcache-loads", "L1-dcache-load-misses", "LLC-loads",
+                "LLC-load-misses", "dTLB-loads", "dTLB-load-misses")
+COUNTERS = {
+    "n": 64, "threads": 1, "reps": 3, "repeats": 3, "min_counted_pct": 100.0, "checksum": "00ff",
+    "per_multiplication": {
+        level: {**{key: 100.0 for key in COUNTER_KEYS}, "ipc": 1.5, "l1d_miss_rate": 0.1}
+        for level in ("naive", "threaded", "cache_friendly", "simd", "packed", "streaming")
+    },
+}
 
 ENV = {
     "cpu": "test cpu",
@@ -51,8 +61,8 @@ class AssembleTests(unittest.TestCase):
         self.assertEqual(document["schema"], 1)
         self.assertEqual(document["parameters"]["threads"],
                          {"native": [1, 2], "browser-lite": [1], "browser-threads": [1, 2]})
-        # native: 2 sizes x (1 + 4 levels x 2 threads); lite: 2 x (1 + 4); threads: like native
-        self.assertEqual(len(document["runs"]), 18 + 10 + 18)
+        # native: 2 sizes x (1 + 5 levels x 2 threads); lite: 2 x (1 + 5); threads: like native
+        self.assertEqual(len(document["runs"]), 22 + 12 + 22)
         first = document["runs"][0]
         self.assertEqual((first["environment"], first["level"], first["n"]), ("native", 0, 64))
         self.assertEqual(first["median_ms"], 3.0)
@@ -202,11 +212,11 @@ COMMITTED = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "site
 
 
 class ProbeTests(unittest.TestCase):
-    def build(self, probe=None, caches=None):
+    def build(self, probe=None, caches=None, counters=None):
         env = dict(ENV)
         if caches is not None:
             env["caches"] = caches
-        return results.assemble(*reports(), env, "2026-01-01T00:00:00Z", probe=probe)
+        return results.assemble(*reports(), env, "2026-01-01T00:00:00Z", probe=probe, counters=counters)
 
     def test_without_a_probe_there_is_no_hardware_key(self):
         env = self.build()["environment"]
@@ -246,6 +256,37 @@ class ProbeTests(unittest.TestCase):
         probe["triad_gbs"]["1"] = float("nan")
         with self.assertRaisesRegex(results.ResultsError, "hardware"):
             self.build(probe=probe)
+
+    def test_counters_are_recorded_and_checked(self):
+        document = self.build(counters=copy.deepcopy(COUNTERS))
+        self.assertEqual(document["environment"]["counters"]["n"], 64)
+        self.assertEqual(document["environment"]["counters"]["per_multiplication"]["simd"]["cycles"], 100.0)
+        results.check(document)
+        self.assertNotIn("counters", self.build()["environment"])
+
+    def test_an_event_the_cpu_could_not_count_may_be_null_but_not_negative(self):
+        counters = copy.deepcopy(COUNTERS)
+        counters["per_multiplication"]["simd"]["LLC-loads"] = None
+        self.build(counters=counters)
+        counters["per_multiplication"]["simd"]["LLC-loads"] = -1.0
+        with self.assertRaisesRegex(results.ResultsError, "counters"):
+            self.build(counters=counters)
+
+    def test_malformed_counters_are_refused(self):
+        def broken(mutate):
+            counters = copy.deepcopy(COUNTERS)
+            mutate(counters)
+            with self.assertRaisesRegex(results.ResultsError, "counters"):
+                self.build(counters=counters)
+        broken(lambda c: c.update({"n": 99}))  # not a measured size
+        broken(lambda c: c.update({"threads": 0}))
+        broken(lambda c: c.update({"min_counted_pct": 0}))
+        broken(lambda c: c.update({"min_counted_pct": 140}))
+        broken(lambda c: c["per_multiplication"].pop("packed"))
+        broken(lambda c: c["per_multiplication"].update({"extra": {}}))
+        broken(lambda c: c["per_multiplication"]["simd"].pop("cycles"))
+        broken(lambda c: c["per_multiplication"]["simd"].update({"cycles": "many"}))
+        broken(lambda c: c["per_multiplication"]["simd"].update({"cycles": float("nan")}))
 
     def test_the_committed_results_still_pass_check(self):
         result = subprocess.run([sys.executable, "-I", os.path.join(os.path.dirname(results.__file__), "results.py"),

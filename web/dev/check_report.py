@@ -3,7 +3,7 @@
 Usage: python3 -I check_report.py GATE REPORT.json
 Exits 0 on pass, 1 on failure. Gates:
   g1     the thread pool starts and a parallel sum is right
-  g2     every case's hash equals the native hash (levels 0 to 4)
+  g2     every case's hash equals the native hash (levels 0 to 5)
   g3     g2, run from the Astro production build under /hardware-aware-matmul/ with
          isolation supplied by the service worker rather than server headers
   probe  informational: records whether StdRunner works in the browser
@@ -22,8 +22,8 @@ Exits 0 on pass, 1 on failure. Gates:
 import json
 import sys
 
-G2_CASES = 29
-SPEEDUP_LEVELS = (1, 2, 3, 4)
+G2_CASES = 36
+SPEEDUP_LEVELS = (1, 2, 3, 4, 5)
 
 
 def rows(blocks):
@@ -38,8 +38,8 @@ def check_stepthrough(report):
     if report.get("sw_scopes") != []:
         problems.append("a service worker was registered (%r); the demo must not need one" % report.get("sw_scopes"))
     elements = {e["level"]: e for e in report.get("elements", [])}
-    if sorted(elements) != [1, 2, 3, 4]:
-        return problems + ["expected elements for levels 1 to 4, got %r" % sorted(elements)]
+    if sorted(elements) != [1, 2, 3, 5]:
+        return problems + ["expected elements for levels 1 to 3 and 5, got %r" % sorted(elements)]
     for level, e in elements.items():
         env = e["env"]
         ok_tile = isinstance(env.get("micro_tile"), list) and len(env["micro_tile"]) == 2 and all(
@@ -78,15 +78,15 @@ def check_stepthrough(report):
     want = 2 * (len(range(mr, 4, mr)) + len(range(nr, 8, nr)))
     if elements[3]["micro_lines"] != want:
         problems.append("level 3 drew %r micro-tile lines, expected %d for %dx%d" % (elements[3]["micro_lines"], want, mr, nr))
-    four = elements[4]
+    five = elements[5]
     want_tiles = [{"rows": [0, 4], "cols": [0, 4]}, {"rows": [0, 4], "cols": [4, 8]},
                   {"rows": [4, 8], "cols": [0, 4]}, {"rows": [4, 8], "cols": [4, 8]}]
-    if four["plan"].get("kind") != "tiles" or four["plan"].get("tiles") != want_tiles:
-        problems.append("level 4 plan is %r" % four["plan"])
-    elif four["plan"]["depth"] != [[0, 3], [3, 6]] or four["plan"]["workers"] != 2:
-        problems.append("level 4 depth/workers are %r / %r" % (four["plan"]["depth"], four["plan"]["workers"]))
-    if four["tiles_drawn"] != 4:
-        problems.append("level 4 drew %r tiles" % four["tiles_drawn"])
+    if five["plan"].get("kind") != "tiles" or five["plan"].get("tiles") != want_tiles:
+        problems.append("level 5 plan is %r" % five["plan"])
+    elif five["plan"]["depth"] != [[0, 3], [3, 6]] or five["plan"]["workers"] != 2:
+        problems.append("level 5 depth/workers are %r / %r" % (five["plan"]["depth"], five["plan"]["workers"]))
+    if five["tiles_drawn"] != 4:
+        problems.append("level 5 drew %r tiles" % five["tiles_drawn"])
     return problems
 
 
@@ -104,7 +104,7 @@ def check_playground(gate, report):
     want_build = "lite" if gate == "playground-lite" else "threads"
     if report.get("build") != want_build:
         problems.append("the page chose the %r build, expected %r" % (report.get("build"), want_build))
-    levels = [0, 1, 2, 3, 4]
+    levels = [0, 1, 2, 3, 4, 5]
     if gate in ("playground-threads", "playground-lite", "playground-fallback", "playground-migrate"):
         if report.get("status") != "done":
             problems.append("the run ended with status %r" % report.get("status"))
@@ -114,8 +114,8 @@ def check_playground(gate, report):
         for r in results:
             if r["hash"] != expected:
                 problems.append("level %d hash %s differs from the native %s" % (r["level"], r["hash"], expected))
-        if report.get("rows") is None or len(report["rows"]) != 5:
-            problems.append("the page's table shows %r rows, expected 5" % (None if report.get("rows") is None else len(report["rows"])))
+        if report.get("rows") is None or len(report["rows"]) != 6:
+            problems.append("the page's table shows %r rows, expected 6" % (None if report.get("rows") is None else len(report["rows"])))
         if not report.get("verdict_ok") or not str(report.get("verdict_text", "")).startswith("\u2713"):
             problems.append("the same-answer verdict is %r" % report.get("verdict_text"))
         table = report.get("table_text") or ""
