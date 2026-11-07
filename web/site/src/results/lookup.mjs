@@ -9,8 +9,9 @@
 //   {{iqr streaming t=4}}                noise of level 4 with 4 threads, native
 //   {{env cpu}}                          a fact about the reference run
 //   {{triad t=4}}, {{peak t=4}}          the hardware probe at 4 threads: triad bandwidth
-//                                        (GB/s) and arithmetic peak (GFLOP/s), native
-//   {{frac simd t=4}}                    level 3's throughput as a share of that peak
+//                                        (GB/s) and the rate of an arithmetic test loop
+//                                        (GFLOP/s), native
+//   {{frac simd t=4}}                    level 3's throughput as a share of that rate
 // Selectors: `n=<size>` (default: the largest), `t=<threads>` (default: the largest count
 // measured; ignored for level 0, which is always one thread), and one environment: native
 // (default), lite or browser-lite, threads or browser-threads. Giving a selector twice is
@@ -21,8 +22,8 @@
 // tile, rustflags (the recorded RUSTFLAGS, `none` if empty), and
 // threads_native, threads_lite, threads_threaded (the largest thread count measured in
 // that environment), l1d, l2, l3 (the cache sizes, in KiB below 1 MiB, else MiB), and
-// triad_max, peak_max (the largest triad bandwidth and arithmetic peak over the thread
-// counts probed). `triad` and `peak` take only `t=` (default: the largest native count);
+// triad_max, peak_max (the largest triad bandwidth and the largest rate of the arithmetic
+// test loop over the thread counts probed). `triad` and `peak` take only `t=` (default: the largest native count);
 // `frac` takes a level and the usual selectors but only the native environment, because
 // the probe ran natively. An `env` value that is missing or empty is an error, never text.
 // Anything that does not resolve throws, so a stale or misspelt placeholder fails the
