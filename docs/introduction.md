@@ -37,8 +37,9 @@ cargo run --release --bin out_of_core  # level 4 on matrices stored in files
 
 The first command multiplies two `n × n` matrices at every level, verifies that
 all five results are identical, and prints a table of times. This documentation
-deliberately contains no benchmark numbers: throughput depends heavily on your
-CPU, memory, and storage, so measure on your own hardware. Use `--release`;
+contains no benchmark numbers: throughput depends heavily on your CPU, memory, and
+storage, so measure on your own hardware. (The project's website publishes one
+reference run, as generated data, with the machine it was taken on.) Use `--release`;
 debug builds say nothing useful about the differences between the levels.
 
 The SIMD level uses the vector instructions the crate was *compiled* for, which
