@@ -17,6 +17,10 @@
 # After the native run it also runs examples/hw_probe.rs (memory bandwidth and peak
 # arithmetic per thread count, with the machine's cache sizes recorded by results.py), so
 # the Discussion can test its cache and bandwidth explanations against the machine.
+# It then counts cache and TLB misses per level with web/dev/perf_counters.py (one thread, at
+# 1024, see COUNTERS_N) so the Discussion can test whether a level is faster because it misses
+# less. That step needs `perf` and perf_event_paranoid <= 2; without them it is skipped, and
+# results.json simply has no `environment.counters` (set REQUIRE_COUNTERS=1 to refuse that).
 # Smaller values are for rehearsing the pipeline, e.g.
 #   SIZES="64 128" THREADS="1 2" REPEATS=2 ALLOW_BUSY=1 OUT=/tmp/rehearsal.json web/dev/bench-reference.sh
 # Thread counts above the machine's cores are dropped (natively) or above the pool size
@@ -58,6 +62,20 @@ PROBE_THREADS=""
 for t in $THREADS; do [ "$t" -le "$CORES" ] && PROBE_THREADS="${PROBE_THREADS:+$PROBE_THREADS,}$t"; done
 cargo run --release --example hw_probe -- --threads "$PROBE_THREADS" > "$WORK/hw_probe.json"
 
+echo "== hardware event counts (perf stat)"
+# 1024 if it is one of the sizes (the three matrices then outgrow the L3 cache, and level 0 still
+# finishes in seconds), else the largest size. COUNTERS_N overrides it.
+LARGEST=$(printf '%s\n' $SIZES | sort -n | tail -1)
+COUNTERS_N=${COUNTERS_N:-$(printf '%s\n' $SIZES | grep -qx 1024 && echo 1024 || echo "$LARGEST")}
+COUNTERS_ARGS=()
+if python3 -I web/dev/perf_counters.py --n "$COUNTERS_N" --threads 1 --out "$WORK/counters.json"; then
+  COUNTERS_ARGS=(--counters "$WORK/counters.json")
+elif [ "${REQUIRE_COUNTERS:-0}" = 1 ]; then
+  echo "REFUSING: the event counts failed and REQUIRE_COUNTERS=1"; exit 1
+else
+  echo "skipping the event counts (see the message above); results.json will have no environment.counters"
+fi
+
 echo "== browser, lite build"
 web/wasm/bench-browser.sh lite "$WORK/lite.json"
 echo "== browser, threaded build"
@@ -65,4 +83,4 @@ web/wasm/bench-browser.sh threads "$WORK/threads.json"
 
 echo "== assembling"
 python3 -I web/dev/results.py --native "$WORK/native.json" --lite "$WORK/lite.json" \
-  --threads "$WORK/threads.json" --probe "$WORK/hw_probe.json" --out "$OUT"
+  --threads "$WORK/threads.json" --probe "$WORK/hw_probe.json" ${COUNTERS_ARGS[@]+"${COUNTERS_ARGS[@]}"} --out "$OUT"
