@@ -1,0 +1,53 @@
+#!/usr/bin/env bash
+# Gate C3: the playground page of the Astro production build, served under
+# /hardware-aware-matmul/ WITHOUT cross-origin-isolation headers (as GitHub Pages would), in
+# headless Firefox. Three scenarios, each a fresh browser profile:
+#   threads  the page enables isolation through the service worker (one reload), uses the
+#            threaded build and every level gives the native answer
+#   lite     service workers disabled: the page falls back to the single-threaded build,
+#            locks the threads control, shows the banner, and still gives the native answer
+#   recover  a run is cancelled, another times out, and a third still completes correctly
+# usage: gate-c3.sh [--no-build]
+# env: WASM_BINDGEN, NODE_IMAGE (default node:latest), PORT, TIMEOUT (seconds per scenario)
+set -euo pipefail
+cd "$(dirname "$0")"
+SITE=$PWD
+WASM=$SITE/../wasm
+
+if [ "${1:-}" = "--no-build" ]; then
+  if [ "$(cat "$WASM/pkg/.features" 2>/dev/null || echo unknown)" != "threads" ]; then
+    echo "REFUSING: pkg/ was not built for the bundler; run ./gate-c3.sh without --no-build"; exit 1
+  fi
+  if [ ! -f "$WASM/pkg-lite/hardware_aware_matmul_web.js" ]; then
+    echo "REFUSING: pkg-lite/ is missing; run ./gate-c3.sh without --no-build"; exit 1
+  fi
+else
+  (cd "$WASM" && ./build-lite.sh && FEATURES=threads ./build.sh)
+fi
+
+mkdir -p "$WASM/target" "$SITE/public"
+if ! (cd "$WASM" && cargo run --release --example expected 2> target/expected-build.log) > "$SITE/public/expected.json"; then
+  cat "$WASM/target/expected-build.log"
+  echo "FAIL: could not generate the expected hashes"
+  exit 1
+fi
+
+[ -d node_modules ] || ../dev/node.sh site npm ci --no-audit --no-fund
+../dev/node.sh site npm run build
+../dev/node.sh site npm run check
+
+ROOT=$(mktemp -d)
+trap 'rm -rf "$ROOT"' EXIT
+ln -s "$SITE/dist" "$ROOT/hardware-aware-matmul"
+export NO_ISOLATION=1
+for SCENARIO in threads lite recover; do
+  echo "== playground, scenario $SCENARIO"
+  export REPORT="$WASM/target/c3-$SCENARIO-report.json" LOG="$WASM/target/c3-$SCENARIO-server.log"
+  rm -f "$LOG"
+  PREFS=""
+  if [ "$SCENARIO" = lite ]; then PREFS='user_pref("dom.serviceWorkers.enabled", false);'; fi
+  FIREFOX_PREFS="$PREFS" ../dev/run_page.sh "$ROOT" "hardware-aware-matmul/playground/?gate=$SCENARIO" "${TIMEOUT:-240}" \
+    || { echo "FAIL: the page never reported (see $LOG)"; exit 1; }
+  python3 -I ../dev/check_report.py "playground-$SCENARIO" "$REPORT"
+done
+echo "GATE C3: ALL SCENARIOS PASS"

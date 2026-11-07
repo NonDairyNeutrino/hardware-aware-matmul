@@ -8,6 +8,10 @@ Exits 0 on pass, 1 on failure. Gates:
          isolation supplied by the service worker rather than server headers
   probe  informational: records whether StdRunner works in the browser
   lite   g2's cases on the stable single-threaded build, on a page that is NOT isolated
+  playground-threads | playground-lite | playground-recover
+         the playground page of the Astro production build, on a page with no isolation
+         headers: the threaded build after the service worker enables isolation, the
+         single-threaded fallback with service workers disabled, and cancel/timeout recovery
   stepthrough  the chapters' <step-through> element on the lite build, from the Astro
          production build, with no isolation and no service worker
   g5     informational: records limits (pool start-up, re-init, panic, memory)
@@ -83,6 +87,74 @@ def check_stepthrough(report):
     return problems
 
 
+def check_playground(gate, report):
+    """Judges a playground run: which build ran, that every level gave the native answer, and
+    that cancel and timeout leave the page able to run again."""
+    problems = []
+    if report.get("base") != "/hardware-aware-matmul/":
+        problems.append("wrong base path: %r" % report.get("base"))
+    if report.get("unsupported"):
+        problems.append("the browser reported no WebAssembly SIMD support")
+    expected = report.get("expected_hash")
+    if not expected:
+        problems.append("no expected hash in the report")
+    want_build = "lite" if gate == "playground-lite" else "threads"
+    if report.get("build") != want_build:
+        problems.append("the page chose the %r build, expected %r" % (report.get("build"), want_build))
+    levels = [0, 1, 2, 3, 4]
+    if gate in ("playground-threads", "playground-lite"):
+        if report.get("status") != "done":
+            problems.append("the run ended with status %r" % report.get("status"))
+        results = report.get("results", [])
+        if [r["level"] for r in results] != levels:
+            problems.append("results for levels %r, expected %r" % ([r["level"] for r in results], levels))
+        for r in results:
+            if r["hash"] != expected:
+                problems.append("level %d hash %s differs from the native %s" % (r["level"], r["hash"], expected))
+        if report.get("rows") is None or len(report["rows"]) != 5:
+            problems.append("the page's table shows %r rows, expected 5" % (None if report.get("rows") is None else len(report["rows"])))
+        if not report.get("verdict_ok") or not str(report.get("verdict_text", "")).startswith("\u2713"):
+            problems.append("the same-answer verdict is %r" % report.get("verdict_text"))
+        table = report.get("table_text") or ""
+        for bad in ("NaN", "Infinity", "too fast to time"):
+            if bad in table:
+                problems.append("the results table shows %r: %r" % (bad, table[:200]))
+        env = report.get("env") or {}
+        if env.get("isa") != "WASM SIMD128":
+            problems.append("the module reports instruction set %r" % env.get("isa"))
+    if gate == "playground-threads":
+        if (report.get("pool") or 0) < 2:
+            problems.append("the thread pool has %r threads" % report.get("pool"))
+        if report.get("threads_used") != 2:
+            problems.append("the run used %r threads, expected 2" % report.get("threads_used"))
+        if (report.get("env") or {}).get("threads") is not True:
+            problems.append("the module is not the threaded build")
+        if report.get("threads_control_disabled"):
+            problems.append("the threads control is disabled in the threaded build")
+    if gate == "playground-lite":
+        if report.get("service_workers"):
+            problems.append("service workers were available; this gate must run with them disabled")
+        if report.get("threads_used") != 1:
+            problems.append("the lite run used %r threads, expected 1" % report.get("threads_used"))
+        if not report.get("threads_control_disabled"):
+            problems.append("the threads control should be locked in the lite build")
+        if "Single-threaded mode" not in (report.get("banner") or ""):
+            problems.append("no single-threaded banner was shown: %r" % report.get("banner"))
+        if (report.get("env") or {}).get("threads") is not False:
+            problems.append("the module is not the lite build")
+    if gate == "playground-recover":
+        for key, want in (("cancel_status", "cancelled"), ("timeout_status", "timeout"), ("recovery_status", "done")):
+            if report.get(key) != want:
+                problems.append("%s is %r, expected %r" % (key, report.get(key), want))
+        if report.get("recovery_levels") != levels:
+            problems.append("the recovery run covered levels %r" % report.get("recovery_levels"))
+        if any(h != expected for h in report.get("recovery_hashes", [])) or not report.get("recovery_hashes"):
+            problems.append("the recovery run's hashes are wrong: %r" % report.get("recovery_hashes"))
+        if not report.get("verdict_ok"):
+            problems.append("the recovery run's same-answer verdict is not ok")
+    return problems
+
+
 def main(gate, path):
     report = json.load(open(path))
     cases = report.pop("cases", [])
@@ -92,12 +164,12 @@ def main(gate, path):
 
     if not report.get("ok"):
         problems.append("page reported an error: " + str(report.get("error")))
-    if gate in ("lite", "stepthrough"):
+    if gate in ("lite", "stepthrough", "playground-lite"):
         if report.get("isolated"):
             problems.append("the %s gate must run on a page that is NOT cross-origin isolated" % gate)
     elif not report.get("isolated"):
         problems.append("page is not cross-origin isolated")
-    if gate not in ("g5", "lite", "stepthrough") and report.get("pool_threads") != 4:
+    if gate not in ("g5", "lite", "stepthrough") and not gate.startswith("playground-") and report.get("pool_threads") != 4:
         problems.append("expected a pool of 4 threads, got %r" % report.get("pool_threads"))
 
     if gate == "probe":
@@ -135,6 +207,8 @@ def main(gate, path):
 
     if gate == "stepthrough":
         problems.extend(check_stepthrough(report))
+    if gate.startswith("playground-"):
+        problems.extend(check_playground(gate, report))
 
     if gate == "g5":
         if not probes:

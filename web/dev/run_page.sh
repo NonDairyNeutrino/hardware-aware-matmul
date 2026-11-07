@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 # Serve ROOT, open URLPATH in headless Firefox, wait for the page to POST its
 # report, then stop both. Prints nothing; the report is left in $REPORT.
-# usage: run_page.sh ROOT URLPATH [TIMEOUT_SECONDS]      env: PORT, REPORT, LOG
+# usage: run_page.sh ROOT URLPATH [TIMEOUT_SECONDS]      env: PORT, REPORT, LOG, FIREFOX_PREFS
+# FIREFOX_PREFS, if set, is written to the throwaway profile's user.js (for example
+# 'user_pref("dom.serviceWorkers.enabled", false);' to test a browser without service workers).
 set -u
 ROOT=$1
 URLPATH=$2
@@ -15,6 +17,7 @@ export REPORT LOG
 ( cd "$ROOT" && exec python3 -I "$HERE/serve.py" "$PORT" ) &
 SERVER=$!
 PROFILE=$(mktemp -d)
+if [ -n "${FIREFOX_PREFS:-}" ]; then printf '%s\n' "$FIREFOX_PREFS" > "$PROFILE/user.js"; fi
 firefox --headless --no-remote --profile "$PROFILE" "http://127.0.0.1:$PORT/$URLPATH" >/dev/null 2>&1 &
 BROWSER=$!
 
