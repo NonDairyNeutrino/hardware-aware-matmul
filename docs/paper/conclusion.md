@@ -40,3 +40,44 @@ come from one machine on one day, the explanations are readings of the numbers r
 measurements of their causes, and none of the levels is a replacement for a tuned linear
 algebra library. The [playground](crate::playground) is there so that a reader can run the
 comparison on their own hardware, and see whether the same shape appears.
+
+# Four questions to take with you
+
+The [primer](crate::primer) listed four questions, and every level answered one of them
+better than the one before. They are the part of this paper that is not specific to matrix
+multiplication:
+
+1. **Is the access contiguous?** Does the code use every byte of the cache lines it fetches,
+   or does it jump over data? (The reordered loops of level 2.)
+2. **What is reused, and how far apart are the uses?** Does a value stay in a fast memory
+   until it is used again? (The blocks of level 2, the register block of level 3, the tiles
+   of level 4.)
+3. **How many bytes move per operation?** Is that more than the memory bandwidth of the
+   machine can supply? (The register block of level 3 cuts the traffic of the inner loop.)
+4. **Is there independent work for every core and every lane?** (The row blocks of level 1,
+   the vector lanes of level 3.)
+
+Asking them of a loop before measuring it tells you where to look. Measuring it afterwards
+tells you whether you were right, as the Discussion tried to do for these five levels.
+
+# Beyond matrix multiplication
+
+The same questions apply wherever code moves a lot of data. A stencil or a convolution
+reuses neighbouring elements, so it asks question 2. A program that stores its records as an
+array of structures and reads one field of each walks memory with a stride, which is
+question 1; storing each field in its own array makes the walk contiguous. A transpose
+writes with a stride however it reads. A scan over a column of a large table is
+question 3. An aggregation over more data than fits in memory is the situation level 4
+was built for.
+
+# Further reading
+
+- Ulrich Drepper, *What Every Programmer Should Know About Memory* (2007): the memory
+  hierarchy in depth.
+- Kazushige Goto and Robert van de Geijn, *Anatomy of High-Performance Matrix
+  Multiplication*, ACM Transactions on Mathematical Software 34(3), 2008: how production
+  libraries multiply matrices, including the packing and register blocking that this
+  project leaves out.
+- Samuel Williams, Andrew Waterman and David Patterson, *Roofline: An Insightful Visual
+  Performance Model for Multicore Architectures*, Communications of the ACM 52(4), 2009: a
+  way to predict whether a loop is limited by memory or by arithmetic.
