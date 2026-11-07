@@ -13,7 +13,7 @@ cargo test
 ```
 
 `cargo test` runs three kinds of tests: unit tests inside each module,
-integration tests in `tests/` (including one that checks all five levels
+integration tests in `tests/` (including one that checks all six levels
 agree), and **the examples embedded in this documentation**, which are compiled
 and, unless marked otherwise, run. To run only the documentation examples:
 
@@ -29,8 +29,8 @@ This documentation is built by `cargo doc`:
 cargo doc --open
 ```
 
-The five implementations are the modules `naive`, `threaded`,
-`cache_friendly`, `simd`, and `streaming`, and each module's page is one chapter of
+The six implementations are the modules `naive`, `threaded`,
+`cache_friendly`, `simd`, `packed`, and `streaming`, and each module's page is one chapter of
 the story, so read them in that order. The `guide` and `design` modules hold
 the other pages. Pass `--document-private-items` to include the
 private streaming kernel.
@@ -39,7 +39,7 @@ private streaming kernel.
 
 There are two binaries.
 
-**`compare`** (the default) times all five levels on the same problem:
+**`compare`** (the default) times all six levels on the same problem:
 
 ```sh
 cargo run --release                # n = 512, one thread per core
@@ -47,12 +47,12 @@ cargo run --release -- 1024        # n = 1024
 cargo run --release -- 1024 4      # n = 1024, 4 threads
 ```
 
-It multiplies two `n × n` matrices with every level, verifies that the five
+It multiplies two `n × n` matrices with every level, verifies that the six
 results are identical, and prints a table showing each level's time and its
 speed relative to the previous level and to the naive baseline. Always use
 `--release`.
 
-**`out_of_core`** runs level 4 on matrices stored in files:
+**`out_of_core`** runs level 5 on matrices stored in files:
 
 ```sh
 cargo run --release --bin out_of_core          # n = 1024

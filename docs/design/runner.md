@@ -1,7 +1,7 @@
 # Running the jobs on your own executor
 
-Levels 1 to 3 split the output rows into blocks (see
-[`row_block_plan`](crate::threaded::row_block_plan)) and level 4 splits its
+Levels 1 to 4 split the output rows into blocks (see
+[`row_block_plan`](crate::threaded::row_block_plan)) and level 5 splits its
 work into workers; each block or worker is an independent job. By default every
 job gets a scoped standard-library thread.
 A [`Runner`] replaces that step, so the same kernels can run on a thread pool, in
@@ -45,7 +45,7 @@ assert_eq!(c, Matrix::new(2, 2, vec![58.0, 64.0, 139.0, 154.0]));
 # Ok::<(), hardware_aware_matmul::DimensionMismatch>(())
 ```
 
-Level 4 takes a runner too:
+Level 5 takes a runner too:
 [`streaming::matmul_streaming_with_runner`](crate::streaming::matmul_streaming_with_runner)
 hands it one job per worker. Each worker claims output tiles from a shared
 counter, so a runner that runs its jobs one after another simply lets the first

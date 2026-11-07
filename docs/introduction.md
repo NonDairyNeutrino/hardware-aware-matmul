@@ -1,4 +1,4 @@
-Dense matrix multiplication in Rust, presented as a **sequence of five
+Dense matrix multiplication in Rust, presented as a **sequence of six
 implementations**, each a small, understandable step beyond the one before.
 Read them in order and the fast version never has to be met as one big blob.
 
@@ -8,12 +8,13 @@ Read them in order and the fast version never has to be met as one big blob.
 | 1 | [`threaded`] | Output rows split across threads | Idle cores | Each thread is as slow as level 0 (probably waiting on memory); all matrices in RAM |
 | 2 | [`cache_friendly`] | `i-k-j` loop order and cache blocking | Wasted memory traffic | `C` moves through memory on every step; all matrices in RAM |
 | 3 | [`simd`] | A register-blocked, vectorisable micro-kernel | Excess loads and stores | Compile-time vector width; all matrices in RAM |
-| 4 | [`streaming`] | Output tiles, streamed sources and sinks | The memory limit | Rereads inputs; copies tiles |
+| 4 | [`packed`] | Each cache block of `B` copied into a contiguous buffer first | Strided reads of `B` (cache lines, pages, cache sets) | Copies `B` once per thread; all matrices in RAM |
+| 5 | [`streaming`] | Output tiles, streamed sources and sinks | The memory limit | Rereads inputs; copies tiles |
 
 Every level computes **exactly the same result, bit for bit**. Each output
 element is summed in increasing `k` order starting from zero at every level, so
 the story is purely about *how* the work is done, never about *what* is
-computed. The test suite asserts exact equality across all five.
+computed. The test suite asserts exact equality across all six.
 
 # Reading order
 
@@ -25,18 +26,19 @@ from the previous level, how it works, what it gets right, and what it costs
 2. [`threaded`]: the smallest change that uses every core.
 3. [`cache_friendly`]: make each core's loop nest respect the memory hierarchy.
 4. [`simd`]: keep the output block in vector registers.
-5. [`streaming`]: stop requiring the matrices to fit in memory.
+5. [`packed`]: feed that kernel from a contiguous copy of `B`.
+6. [`streaming`]: stop requiring the matrices to fit in memory.
 
 # Try it
 
 ```sh
-cargo run --release                    # times all five levels on one problem
+cargo run --release                    # times all six levels on one problem
 cargo run --release -- 1024 8          # n = 1024, 8 threads
-cargo run --release --bin out_of_core  # level 4 on matrices stored in files
+cargo run --release --bin out_of_core  # level 5 on matrices stored in files
 ```
 
 The first command multiplies two `n × n` matrices at every level, verifies that
-all five results are identical, and prints a table of times. This documentation
+all six results are identical, and prints a table of times. This documentation
 contains no benchmark numbers: throughput depends heavily on your CPU, memory, and
 storage, so measure on your own hardware. (The project's website publishes one
 reference run, as generated data, with the machine it was taken on.) Use `--release`;
@@ -53,18 +55,18 @@ RUSTFLAGS="-C target-cpu=native" cargo run --release
 The `compare` binary prints which instruction set the SIMD level was compiled
 for.
 
-> Level 4 is not designed to beat level 3 on matrices that fit in memory. It
+> Level 5 is not designed to beat level 3 on matrices that fit in memory. It
 > copies tiles into small buffers, and what it provides is bounded memory. How
 > close it comes to level 3 depends on the machine, so measure on yours; the
 > website's results page shows one reference run.
 
 # Quick start
 
-All five levels on the same input:
+All six levels on the same input:
 
 ```rust
 use std::num::NonZeroUsize;
-use hardware_aware_matmul::{cache_friendly, naive, simd, streaming, threaded, Matrix};
+use hardware_aware_matmul::{cache_friendly, naive, packed, simd, streaming, threaded, Matrix};
 
 let a = Matrix::new(2, 3, vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
 let b = Matrix::new(3, 2, vec![7.0, 8.0, 9.0, 10.0, 11.0, 12.0]);
@@ -74,27 +76,30 @@ let c0 = naive::matmul(&a, &b)?;
 let c1 = threaded::matmul(&a, &b, threads)?;
 let c2 = cache_friendly::matmul(&a, &b, threads)?;
 let c3 = simd::matmul(&a, &b, threads)?;
-let c4 = streaming::matmul(&a, &b, threads)?;
+let c4 = packed::matmul(&a, &b, threads)?;
+let c5 = streaming::matmul(&a, &b, threads)?;
 
 assert_eq!(c0, Matrix::new(2, 2, vec![58.0, 64.0, 139.0, 154.0]));
 assert_eq!(c0, c1);
 assert_eq!(c0, c2);
 assert_eq!(c0, c3);
 assert_eq!(c0, c4);
+assert_eq!(c0, c5);
 # Ok::<(), Box<dyn std::error::Error>>(())
 ```
 
 # Which level should I use?
 
-- **Your matrices fit in memory:** [`simd`], the simpler of the two fast
-  levels. [`streaming`] can come close on large matrices, so time both on
-  yours. Use [`naive`] only as a reference or to learn from.
+- **Your matrices fit in memory:** [`simd`] or [`packed`], the two fast
+  in-memory levels; which is faster depends on the machine and the matrix
+  size, so time both on yours. [`streaming`] can come close on large
+  matrices. Use [`naive`] only as a reference or to learn from.
 - **They do not, or you want to consume the product without storing it:**
   [`streaming`], with [`FileMatrix`](crate::streaming::FileMatrix) or your own
   [`TileSource`](crate::streaming::TileSource) and
   [`TileSink`](crate::streaming::TileSink).
 
-It is deliberately *not* a high-performance BLAS replacement: no packing of `B`,
+It is deliberately *not* a high-performance BLAS replacement: no packing of `A`,
 no explicit SIMD intrinsics or run-time dispatch, no fused multiply-add. Each level's chapter says what it leaves undone.
 
 # Where to go next
@@ -114,7 +119,8 @@ no explicit SIMD intrinsics or run-time dispatch, no fused multiply-add. Each le
 | [`threaded`]           | Level 1                                                               |
 | [`cache_friendly`]     | Level 2                                                               |
 | [`simd`]               | Level 3                                                               |
-| [`streaming`]          | Level 4, with submodules `tile` (sources and sinks), `file` (disk-backed matrices), and `multiply` |
+| [`packed`]             | Level 4                                                               |
+| [`streaming`]          | Level 5, with submodules `tile` (sources and sinks), `file` (disk-backed matrices), and `multiply` |
 | [`error`]              | [`MatmulError`] and [`DimensionMismatch`]                             |
 | [`guide`], [`design`]  | The prose pages (visible in `cargo doc`)                              |
 
