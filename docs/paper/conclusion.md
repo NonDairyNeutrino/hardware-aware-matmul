@@ -4,14 +4,16 @@ chosen because the algorithm is easy to state and its performance is not.
 
 # What was done
 
-The [Introduction](crate::introduction) set the rule: five implementations of the same
+The [Introduction](crate::introduction) set the rule: six implementations of the same
 product, each computing the same result bit for bit, so that nothing but the use of the
 hardware can explain a difference. The Methods then added one idea at a time:
 
 - [Level 1](crate::threaded) splits the output rows across threads.
 - [Level 2](crate::cache_friendly) reorders the loops and blocks them for the cache.
 - [Level 3](crate::simd) keeps a block of the output in vector registers.
-- [Level 4](crate::streaming) streams tiles of the matrices through small buffers, so that
+- [Level 4](crate::packed) copies each block of the second matrix into a contiguous buffer
+  before the vector kernel reads it.
+- [Level 5](crate::streaming) streams tiles of the matrices through small buffers, so that
   the problem no longer has to fit in memory.
 
 Each is a small change to the previous level, written in safe Rust without dependencies,
@@ -22,16 +24,16 @@ and each chapter says what it fixes and what it still costs.
 The [Results](crate::results) timed every level, natively and in a web browser, on one
 machine, and the [Discussion](crate::discussion) compared them. In that run every case
 returned the same result, whatever the level, the thread count or the environment. At n = {{env largest}}, natively, level 3 with all of its threads was {{speedup simd/naive}}
-faster than the textbook loop, and level 4 on four threads {{speedup streaming/naive t=4}};
+faster than the textbook loop, and level 5 on four threads {{speedup streaming/naive t=4}};
 each divides by the textbook loop's median, whose runs varied, so both are
 approximate. On one thread, most of the gain arrived with level 2, which
 reorders the loops and blocks for the cache ({{speedup cache_friendly/naive t=1}}); the
 vector micro-kernel added a further {{speedup simd/cache_friendly t=1}}. Threads helped the
 blocked, vector and streaming levels until the physical cores ran out, and little beyond.
-Level 4, built for matrices that do not fit in memory, was about as fast as level 3 on
+Level 5, built for matrices that do not fit in memory, was about as fast as level 3 on
 matrices that do at the two smaller sizes, and faster at every thread count at the two
 largest; the run does not say why. In the browser, at the largest size, the single-threaded
-build ran more slowly than native code at levels 2 to 4, by an amount that depended on the level; level 3,
+build ran more slowly than native code at levels 2 to 5, by an amount that depended on the level; level 3,
 which is written around vector registers, came closest of those three, at
 {{gflops simd lite}} against {{gflops simd t=1}} natively. Levels 0 and 1 were no slower in
 the browser at the largest size, where their native one-thread times are uncertain.
@@ -52,7 +54,7 @@ The [primer](crate::primer) listed four questions, and the levels answer them on
 another. They are the part of this paper that is not specific to matrix multiplication:
 
 1. **Is the access contiguous?** Does the code use every byte of the cache lines it fetches,
-   or does it jump over data? (The reordered loops of level 2.)
+   or does it jump over data? (The reordered loops of level 2, the packed strips of level 4.)
 2. **What is reused, and how far apart are the uses?** Does a value stay in a fast memory
    until it is used again? (The blocks of level 2, the register block of level 3.)
 3. **How many bytes move per operation?** Is that more than the memory bandwidth of the
@@ -61,7 +63,7 @@ another. They are the part of this paper that is not specific to matrix multipli
    the vector lanes of level 3.)
 
 Asking them of a loop before measuring it tells you where to look. Measuring it afterwards
-tells you whether you were right, as the Discussion tried to do for these five levels.
+tells you whether you were right, as the Discussion tried to do for these six levels.
 
 # Beyond matrix multiplication
 
@@ -70,7 +72,7 @@ reuses neighbouring elements, so it asks question 2. A program that stores its r
 array of structures and reads one field of each walks memory with a stride, which is
 question 1; storing each field in its own array makes the walk contiguous. A transpose
 writes with a stride however it reads. A scan over a column of a large table is
-question 3. An aggregation over more data than fits in memory is the situation level 4
+question 3. An aggregation over more data than fits in memory is the situation level 5
 was built for.
 
 # Further reading
@@ -79,8 +81,8 @@ was built for.
   hierarchy in depth.
 - Kazushige Goto and Robert van de Geijn, *Anatomy of High-Performance Matrix
   Multiplication*, ACM Transactions on Mathematical Software 34(3), 2008: how production
-  libraries multiply matrices, including the packing and register blocking that this
-  project leaves out.
+  libraries multiply matrices, including the packing and register blocking. This project
+  does both for the second matrix and the output, and leaves the first matrix unpacked.
 - Samuel Williams, Andrew Waterman and David Patterson, *Roofline: An Insightful Visual
   Performance Model for Multicore Architectures*, Communications of the ACM 52(4), 2009: a
   way to predict whether a loop is limited by memory or by arithmetic.

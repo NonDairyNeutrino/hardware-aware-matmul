@@ -35,7 +35,7 @@ cache blocking, and the run cannot separate them from other effects. The Methods
 likely reasons, and the [Discussion](crate::discussion) says how far the measurements
 support each.
 
-# The five levels
+# The six levels
 
 Each level changes how the hardware is used in one main way, and targets the bottleneck the
 previous level ran into. Every level returns exactly the same bits as the one before. The times are for
@@ -47,9 +47,10 @@ previous level ran into. Every level returns exactly the same bits as the one be
 | [Level 1](crate::threaded) | the other cores sit idle | split the output rows across threads | {{ms threaded t=1}} | {{ms threaded}} |
 | [Level 2](crate::cache_friendly) | reading memory in an order the hardware handles badly, and re-fetching data | reorder the loops and work on small blocks that stay in the cache | {{ms cache_friendly t=1}} | {{ms cache_friendly}} |
 | [Level 3](crate::simd) | the output block travelling through memory on every step | keep a block of the output in vector registers | {{ms simd t=1}} | {{ms simd}} |
-| [Level 4](crate::streaming) | the need for every matrix to fit in memory | stream small tiles of the matrices through bounded buffers | {{ms streaming t=1}} | {{ms streaming}} |
+| [Level 4](crate::packed) | the vector kernel reading the second matrix in place, a row apart, so that each step lands on a different cache line and, with a long row, a different page | copy each block of the second matrix into a contiguous buffer first | {{ms packed t=1}} | {{ms packed}} |
+| [Level 5](crate::streaming) | the need for every matrix to fit in memory | stream small tiles of the matrices through bounded buffers | {{ms streaming t=1}} | {{ms streaming}} |
 
-Level 4 is a different kind of step. It does not aim to be faster on matrices that fit in
+Level 5 is a different kind of step. It does not aim to be faster on matrices that fit in
 memory; it makes the problem possible on matrices that do not. On the reference machine it
 was nonetheless faster than level 3 at the two largest sizes; the Discussion compares the
 two on matrices that fit and says what is and is not known about why.
@@ -61,8 +62,8 @@ Methods, one chapter per level, then the [Results](crate::results), the
 [Discussion](crate::discussion) and the [Conclusion](crate::conclusion). A short
 [primer](crate::primer) comes before the Methods and introduces the few hardware ideas the
 chapters use. Each Methods chapter after the first starts from the bottleneck the previous
-level left and shows the change that removes it, and levels 1 to 4 have a diagram you can step
-through. The Results are measurements of the five levels, natively and in a web browser, on one
+level left and shows the change that removes it. Levels 1, 2, 3 and 5 have a diagram you can step
+through, and levels 2, 3 and 4 have a figure that counts what the change saves. The Results are measurements of the six levels, natively and in a web browser, on one
 machine; the Discussion compares them and says what they do and do not show. The
 [playground](crate::playground) runs the same benchmark on your own machine.
 

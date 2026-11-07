@@ -13,8 +13,8 @@ timed runs. The tables show the **median** and, as the measure of noise, the
 **interquartile range** (IQR): the spread of the middle half of the runs, as a share of
 the median. Cases whose IQR is above 20% are marked †. Throughput is `2n³`
 floating-point operations divided by the median time. Level 0 is single-threaded; the
-other levels were run with each thread count shown. Levels 2 to 4 use cache blocks of
-{{env block}} (k by j) and level 4 uses output tiles of {{env tile}} (rows by columns by
+other levels were run with each thread count shown. Levels 2 to 5 use cache blocks of
+{{env block}} (k by j) and level 5 uses output tiles of {{env tile}} (rows by columns by
 depth of the shared dimension).
 
 The reference machine: {{env cpu}}, with {{env physical_cores}} physical cores
@@ -69,6 +69,19 @@ build ({{env threads_threaded}} threads); natively it took {{ms simd}}
 
 The threaded build, as in the native case. The lite build has one thread, so it has no
 scaling to show.
+
+# Hardware event counts
+
+> **Predict.** Level 4 copies each block of the second matrix before using it. Will it miss the
+> L1 data cache more often than level 3, or less? Will it need fewer cycles?
+
+The timings above say how long each level took, not why. A separate native run counted
+hardware events instead, with `perf stat`, one process per level, at n = {{env counters_n}} on
+{{env counters_threads}} thread, counting user-space events only. The operands were built in the
+same process, so a run that builds them and does nothing else was counted too and subtracted.
+The events were counted in groups small enough for the CPU's counters, so none of them was
+time-shared, and each figure is the median of several processes. The table gives the counts of
+one multiplication.
 
 # The same answer everywhere
 

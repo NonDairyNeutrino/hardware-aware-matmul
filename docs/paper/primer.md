@@ -102,7 +102,7 @@ The Methods return to the same four questions:
 | block, tile | a small rectangular piece of a matrix worked on at a time; at level 2 small enough to stay in the cache |
 | hit, miss | a hit finds the data in the cache; a miss must fetch it from a slower memory |
 | GFLOP/s | billions of floating-point operations per second |
-| axpy | `y ← y + a·x` over two slices; the inner loop of levels 2 to 4 |
+| axpy | `y ← y + a·x` over two slices; the inner loop of levels 2 to 5 |
 | work queue | threads claim the next small piece of work when they are free, instead of getting a fixed share in advance |
 | thread | an independent sequence of instructions that the program runs |
 | SIMD | one instruction operating on all the lanes of a vector register |

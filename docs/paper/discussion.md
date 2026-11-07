@@ -78,7 +78,7 @@ with that and do not test it; those at n = {{env largest}} do not support it.
 
 Levels 2, 3 and 4 behave differently. Level 3 takes {{ms simd t=1}} on one thread,
 {{ms simd t=2}} on two and {{ms simd t=4}} on four, and then {{ms simd t=8}} on eight:
-almost nothing from the second four threads. Level 4 is the same, {{ms streaming t=4}} on
+almost nothing from the second four threads. Level 5 is the same, {{ms streaming t=4}} on
 four threads and {{ms streaming t=8}} on eight. Level 2 gains a little more from them
 ({{ms cache_friendly t=4}} to {{ms cache_friendly t=8}}), far less than from its first
 four. For these three levels most of the scaling stops where the physical cores run out,
@@ -95,11 +95,11 @@ that one test loop achieved, not the most the cores can do. Level 3 reaches
 {{frac simd t=1}} of the test's one-thread rate on one thread, and {{frac simd t=8}} of its
 eight-thread rate on eight. So with eight threads the test found more arithmetic than the
 levels use. That suggests the arithmetic units themselves are not what runs out, but it
-does not show that main memory is. A rough count, not a measurement: level 4 at
+does not show that main memory is. A rough count, not a measurement: level 5 at
 n = {{env largest}} reads its input tiles about 1 GB worth in all, even if every tile came
 from main memory, and at the triad's {{triad t=4}} that would take under a tenth of its
 {{ms streaming t=4}} on four threads. That makes main-memory bandwidth look an unlikely
-limit, for level 4 at least, but the count is an estimate and the triad is one access
+limit, for level 5 at least, but the count is an estimate and the triad is one access
 pattern among many, so the data cannot rule it out. The other candidates are what two
 hyper-threads of one core share besides the arithmetic: the L1 and the {{env l2}} L2
 cache of that core, and the machinery that feeds the execution units. The run did not
@@ -116,41 +116,41 @@ competing for the shared cache, or for what lies behind it, set the pace, but th
 not measure it.
 
 Taken together, level 3 with {{env threads_native}} threads is {{speedup simd/naive}} faster
-than the textbook loop at n = {{env largest}}, with the same answer. Level 4 on four
+than the textbook loop at n = {{env largest}}, with the same answer. Level 5 on four
 threads is faster still, {{speedup streaming/naive t=4}}, the fastest case measured at that
 size. Both figures divide by level 0's uncertain median, so their exact size matters less
 than their order of magnitude.
 
 # What streaming costs, and what it did not
 
-[Level 4](crate::streaming) exists to make the problem possible when the matrices do not
+[Level 5](crate::streaming) exists to make the problem possible when the matrices do not
 fit in memory, not to make it faster when they do, and the chapter says so. The reference
 run measures it only on matrices that fit, and at the two largest sizes the cost one might
-expect from copying tiles into buffers did not appear: level 4 was faster than level 3. At
-n = {{env largest}}, level 4 takes {{ms streaming t=1}} on one thread against level 3's
+expect from copying tiles into buffers did not appear: level 5 was faster than level 3. At
+n = {{env largest}}, level 5 takes {{ms streaming t=1}} on one thread against level 3's
 {{ms simd t=1}}, {{ms streaming t=2}} on two against {{ms simd t=2}},
 {{ms streaming t=4}} on four against {{ms simd t=4}}, and {{ms streaming t=8}} on eight
 against {{ms simd t=8}}. At n = 1024 it is ahead at every thread count too, by less
 ({{ms streaming t=4 n=1024}} against {{ms simd t=4 n=1024}} on four threads). At the two
-smaller sizes level 4 loses that lead: the two levels are close, level 4 sometimes ahead
+smaller sizes level 5 loses that lead: the two levels are close, level 5 sometimes ahead
 and sometimes behind, but never more than about a tenth behind.
 
-The reference run does not say why. One reading, untested here: level 4 copies each tile
+The reference run does not say why. One reading, untested here: level 5 copies each tile
 into a small buffer of its own, so its inner loop walks short rows that lie next to each
 other in memory, while level 3 works on the full matrices, whose rows lie n × 8 bytes
 apart (16 KiB at n = 2048). Rows that far apart, at a power-of-two distance, may compete for
 the same places in a cache, and a small buffer avoids that. Cache-miss counts would test
 this reading; the run did not record them. What the run does show is narrower: on this
-machine, at these sizes, the copies never made level 4 much slower than level 3, and at the
+machine, at these sizes, the copies never made level 5 much slower than level 3, and at the
 two largest sizes it was faster.
 
 # Browser against native
 
 At n = {{env largest}}, the same Rust code, compiled to WebAssembly and run in
-{{env firefox}}, was slower than the native build at levels 2 to 4, by an amount that
+{{env firefox}}, was slower than the native build at levels 2 to 5, by an amount that
 depends on the level. On one thread, level 2 took {{ms cache_friendly lite}} in the browser's
 single-threaded build against {{ms cache_friendly t=1}} natively, level 3 took
-{{ms simd lite}} against {{ms simd t=1}}, and level 4 took {{ms streaming lite}} against
+{{ms simd lite}} against {{ms simd t=1}}, and level 5 took {{ms streaming lite}} against
 {{ms streaming t=1}}. Of these three, the level written around vector registers comes
 closest to native speed. Both builds use 128-bit vectors,
 {{env native_isa}} natively and {{env browser_isa}} in the browser, so the level 3
@@ -168,9 +168,9 @@ against {{ms naive n=1024}}, level 1 {{ms threaded lite n=1024}} against
 {{ms threaded t=1 n=1024}}.
 
 The gaps between the levels are therefore not the same in the two environments. Natively, at
-this size, level 4 is faster than level 3. In the browser's single-threaded build it is slower, taking
+this size, level 5 is faster than level 3. In the browser's single-threaded build it is slower, taking
 {{ms streaming lite}} against level 3's {{ms simd lite}}. The reference run does not show why:
-the tile copies, or another part of level 4's loop, may cost more in WebAssembly than they
+the tile copies, or another part of level 5's loop, may cost more in WebAssembly than they
 do natively.
 
 With threads, level 3 comes within about a tenth of native speed: it took {{ms simd threads}} in the
