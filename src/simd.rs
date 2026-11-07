@@ -86,7 +86,7 @@ pub fn micro_tile_shape() -> (usize, usize) {
 /// * `depth` – the number of `k` values to accumulate.
 /// * `c_rows` – the `MR` rows of `C`; columns `j .. j + NR` are updated.
 #[allow(clippy::needless_range_loop)] // constant-trip loops: indices make the lanes explicit
-fn micro_kernel(
+pub(crate) fn micro_kernel(
     a_rows: &[&[f64]; MR],
     b: &[f64],
     b_stride: usize,
@@ -119,18 +119,18 @@ fn micro_kernel(
 }
 
 /// The three tiles of one product, bundled so helper methods stay short.
-struct Operands<'a> {
+pub(crate) struct Operands<'a> {
     /// Left tile, row-major, `rows × depth`.
-    a: &'a [f64],
+    pub(crate) a: &'a [f64],
     /// Right tile, row-major, `depth × cols`.
-    b: &'a [f64],
-    depth: usize,
-    cols: usize,
+    pub(crate) b: &'a [f64],
+    pub(crate) depth: usize,
+    pub(crate) cols: usize,
 }
 
 impl Operands<'_> {
     /// Returns the elements `ks` of row `row` of the left tile.
-    fn a_segment(&self, row: usize, ks: &Range<usize>) -> &[f64] {
+    pub(crate) fn a_segment(&self, row: usize, ks: &Range<usize>) -> &[f64] {
         let start = row * self.depth;
         &self.a[start + ks.start..start + ks.end]
     }
@@ -140,7 +140,7 @@ impl Operands<'_> {
     /// This handles the edges that do not fill a whole micro-tile. It adds the
     /// same products in the same `k` order as the micro-kernel, so the result
     /// is identical to what a full micro-tile would have produced.
-    fn update_row_edge(&self, a_segment: &[f64], ks: &Range<usize>, c_row: &mut [f64], js: &Range<usize>) {
+    pub(crate) fn update_row_edge(&self, a_segment: &[f64], ks: &Range<usize>, c_row: &mut [f64], js: &Range<usize>) {
         if js.is_empty() {
             return;
         }

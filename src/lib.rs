@@ -5,10 +5,11 @@
 pub mod error;
 pub mod matrix;
 
-// The five implementations, in order of increasing sophistication. Each
+// The six implementations, in order of increasing sophistication. Each
 // module's documentation is the chapter of the story that introduces it.
 pub mod cache_friendly;
 pub mod naive;
+pub mod packed;
 pub mod runner;
 pub mod simd;
 pub mod streaming;
