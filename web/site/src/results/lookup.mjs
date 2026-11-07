@@ -8,6 +8,9 @@
 //   {{speedup simd/naive n=512 native}}  how many times faster level 3 is than level 0
 //   {{iqr streaming t=4}}                noise of level 4 with 4 threads, native
 //   {{env cpu}}                          a fact about the reference run
+//   {{triad t=4}}, {{peak t=4}}          the hardware probe at 4 threads: triad bandwidth
+//                                        (GB/s) and arithmetic peak (GFLOP/s), native
+//   {{frac simd t=4}}                    level 3's throughput as a share of that peak
 // Selectors: `n=<size>` (default: the largest), `t=<threads>` (default: the largest count
 // measured; ignored for level 0, which is always one thread), and one environment: native
 // (default), lite or browser-lite, threads or browser-threads. Giving a selector twice is
@@ -16,7 +19,11 @@
 // rustc_lite, rustc_threads, native_isa, browser_isa, pool, runs, repeats, warmup, sizes,
 // largest, madds (the multiply-adds of one product at the largest size, n cubed), block, tile, rustflags (the recorded RUSTFLAGS, `none` if empty), and
 // threads_native, threads_lite, threads_threaded (the largest thread count measured in
-// that environment). An `env` value that is missing or empty is an error, never text.
+// that environment), l1d, l2, l3 (the cache sizes, in KiB below 1 MiB, else MiB), and
+// triad_max, peak_max (the largest triad bandwidth and arithmetic peak over the thread
+// counts probed). `triad` and `peak` take only `t=` (default: the largest native count);
+// `frac` takes a level and the usual selectors but only the native environment, because
+// the probe ran natively. An `env` value that is missing or empty is an error, never text.
 // Anything that does not resolve throws, so a stale or misspelt placeholder fails the
 // build instead of publishing a wrong number.
 
@@ -75,6 +82,30 @@ export function formatMs(ms) {
 export const formatGflops = (value) => `${value.toFixed(1)} GFLOP/s`;
 export const formatSpeedup = (ratio) => `${ratio.toFixed(1)}×`;
 export const formatPercent = (fraction) => `${Math.round(fraction * 100)}%`;
+export const formatGbs = (value) => `${value.toFixed(1)} GB/s`;
+
+/** A byte count as text: KiB below 1 MiB, else MiB, with at most two decimals. */
+export function formatBytes(bytes) {
+  const trim = (x) => String(Number(x.toFixed(2)));
+  return bytes < 2 ** 20 ? `${trim(bytes / 2 ** 10)} KiB` : `${trim(bytes / 2 ** 20)} MiB`;
+}
+
+/** `items` as an English list: "a", "a and b", "a, b and c". */
+export function listText(items) {
+  const words = items.map(String);
+  return words.length <= 1 ? words.join('') : `${words.slice(0, -1).join(', ')} and ${words.at(-1)}`;
+}
+
+/** The size of the data (or unified) cache of `level`, as text, or undefined. */
+function cacheSize(d, level) {
+  const cache = d.environment.caches?.find((c) => c.level === level && c.type !== 'Instruction');
+  return cache === undefined ? undefined : formatBytes(cache.size_bytes);
+}
+
+/** The largest value of a per-thread-count table of the hardware probe, or undefined. */
+function probeMax(table) {
+  return table === undefined ? undefined : Math.max(...Object.values(table));
+}
 
 const ENV_FIELDS = {
   cpu: (d) => d.environment.cpu,
@@ -100,7 +131,7 @@ const ENV_FIELDS = {
   runs: (d) => String(d.runs.length),
   repeats: (d) => String(d.parameters.repeats),
   warmup: (d) => String(d.parameters.warmup),
-  sizes: (d) => d.parameters.sizes.join(' and '),
+  sizes: (d) => listText(d.parameters.sizes),
   largest: (d) => String(defaultSize(d)),
   madds: (d) => (defaultSize(d) ** 3).toLocaleString('en-US'),
   block: (d) => d.parameters.block.join(' x '),
@@ -109,6 +140,17 @@ const ENV_FIELDS = {
   threads_native: (d) => String(Math.max(...threadCounts(d, 'native'))),
   threads_lite: (d) => String(Math.max(...threadCounts(d, 'browser-lite'))),
   threads_threaded: (d) => String(Math.max(...threadCounts(d, 'browser-threads'))),
+  l1d: (d) => cacheSize(d, 1),
+  l2: (d) => cacheSize(d, 2),
+  l3: (d) => cacheSize(d, 3),
+  triad_max: (d) => {
+    const best = probeMax(d.environment.hardware?.triad_gbs);
+    return best === undefined ? undefined : formatGbs(best);
+  },
+  peak_max: (d) => {
+    const best = probeMax(d.environment.hardware?.peak_gflops);
+    return best === undefined ? undefined : formatGflops(best);
+  },
 };
 
 /** The names `{{env ...}}` accepts. */
@@ -173,8 +215,20 @@ export function resolvePlaceholder(data, text) {
     }
     return value;
   }
-  if (!['ms', 'gflops', 'speedup', 'iqr'].includes(metric)) {
-    return problem('the metric must be ms, gflops, speedup, iqr or env');
+  if (metric === 'triad' || metric === 'peak') {
+    const table = data.environment.hardware?.[metric === 'triad' ? 'triad_gbs' : 'peak_gflops'];
+    if (table === undefined) return problem('the data has no hardware probe');
+    const tokens = [subject, ...rest].filter((token) => token !== undefined);
+    if (tokens.length > 1 || (tokens.length === 1 && !/^t=\d+$/.test(tokens[0]))) {
+      return problem(`${metric} takes only t=<threads>`);
+    }
+    const threads = tokens.length === 1 ? Number(tokens[0].slice(2)) : defaultThreads(data, 'native', null);
+    const value = table[threads];
+    if (typeof value !== 'number') return problem(`the hardware probe has no value for ${threads} thread(s)`);
+    return metric === 'triad' ? formatGbs(value) : formatGflops(value);
+  }
+  if (!['ms', 'gflops', 'speedup', 'iqr', 'frac'].includes(metric)) {
+    return problem('the metric must be ms, gflops, speedup, iqr, frac, triad, peak or env');
   }
   if (!subject) return problem('a level is needed');
   const selectors = parseSelectors(data, rest, problem);
@@ -186,6 +240,12 @@ export function resolvePlaceholder(data, text) {
     return formatSpeedup(baseline.median_ms / faster.median_ms);
   }
   const run = runFor(data, selectors, level(subject, problem), problem);
+  if (metric === 'frac') {
+    if (selectors.environment !== 'native') return problem('the arithmetic peak was measured natively only');
+    const peak = data.environment.hardware?.peak_gflops?.[run.threads];
+    if (typeof peak !== 'number') return problem(`the hardware probe has no peak for ${run.threads} thread(s)`);
+    return formatPercent(run.gflops / peak);
+  }
   if (metric === 'ms') return formatMs(run.median_ms);
   if (metric === 'gflops') return formatGflops(run.gflops);
   return formatPercent(noise(run));

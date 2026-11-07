@@ -50,6 +50,62 @@ test('env facts', () => {
   assert.equal(resolvePlaceholder(data, 'env madds'), '2,097,152');
 });
 
+test('env sizes is a list with "and" before the last size', () => {
+  const sizes = (list) => {
+    const copy = structuredClone(data);
+    copy.parameters.sizes = list;
+    return resolvePlaceholder(copy, 'env sizes');
+  };
+  assert.equal(sizes([64]), '64');
+  assert.equal(sizes([64, 128]), '64 and 128');
+  assert.equal(sizes([256, 512, 1024, 2048]), '256, 512, 1024 and 2048');
+});
+
+test('env cache sizes, in KiB below 1 MiB and in MiB above', () => {
+  assert.equal(resolvePlaceholder(data, 'env l1d'), '48 KiB');
+  assert.equal(resolvePlaceholder(data, 'env l2'), '1.25 MiB');
+  assert.equal(resolvePlaceholder(data, 'env l3'), '8 MiB');
+  // An older results.json has no caches: the placeholder must throw, not render.
+  const old = structuredClone(data);
+  delete old.environment.caches;
+  for (const name of ['l1d', 'l2', 'l3']) {
+    assert.throws(() => resolvePlaceholder(old, `env ${name}`), /the data has no value for it/, name);
+  }
+});
+
+test('the hardware probe: triad bandwidth and arithmetic peak, per thread count and at most', () => {
+  assert.equal(resolvePlaceholder(data, 'triad t=1'), '10.0 GB/s');
+  assert.equal(resolvePlaceholder(data, 'triad'), '15.1 GB/s'); // default: the most threads
+  assert.equal(resolvePlaceholder(data, 'peak t=1'), '0.0 GFLOP/s');
+  assert.equal(resolvePlaceholder(data, 'env triad_max'), '15.1 GB/s');
+  assert.equal(resolvePlaceholder(data, 'env peak_max'), '0.1 GFLOP/s');
+  const old = structuredClone(data);
+  delete old.environment.hardware;
+  for (const bad of ['env triad_max', 'env peak_max']) {
+    assert.throws(() => resolvePlaceholder(old, bad), /the data has no value for it/, bad);
+  }
+  for (const bad of ['triad', 'peak t=2']) {
+    assert.throws(() => resolvePlaceholder(old, bad), /unresolvable placeholder/, bad);
+  }
+  for (const bad of ['triad t=4', 'peak t=3', 'triad n=64', 'triad lite', 'peak t=1 t=2', 'triad simd']) {
+    assert.throws(() => resolvePlaceholder(data, bad), /unresolvable placeholder/, bad);
+  }
+});
+
+test('frac: a level\'s throughput as a share of the arithmetic peak at the same thread count', () => {
+  // Level 3, n=128, 2 threads: 0.02517 GFLOP/s against a peak of 0.05.
+  assert.equal(resolvePlaceholder(data, 'frac simd'), '50%');
+  // Level 3, n=128, 1 thread: 0.01258 against 0.02.
+  assert.equal(resolvePlaceholder(data, 'frac simd t=1'), '63%');
+  assert.equal(resolvePlaceholder(data, 'frac simd t=1 n=64'), '8%');
+  // Level 0 is one thread, so its share is of the one-thread peak whatever t= says.
+  assert.equal(resolvePlaceholder(data, 'frac naive t=2'), resolvePlaceholder(data, 'frac naive t=1'));
+  // The peak was measured natively only.
+  for (const bad of ['frac simd lite', 'frac simd threads', 'frac', 'frac simd/naive']) {
+    assert.throws(() => resolvePlaceholder(data, bad), /unresolvable placeholder/, bad);
+  }
+});
+
 test('a null, undefined or empty env value throws instead of rendering', () => {
   for (const [field, name] of [['governor', 'governor'], ['cpu', 'cpu'], ['os', 'os']]) {
     for (const bad of [null, undefined, '']) {
@@ -111,7 +167,16 @@ test('a placeholder with no data is an error', () => {
 
 test('the committed results.json resolves every kind of placeholder the prose uses', () => {
   const real = JSON.parse(readFileSync(new URL('../data/results.json', import.meta.url), 'utf8'));
+  for (const name of ['l1d', 'l2', 'l3', 'triad_max', 'peak_max']) assert.ok(ENV_FIELD_NAMES.includes(name), name);
   for (const name of ENV_FIELD_NAMES) assert.ok(resolvePlaceholder(real, `env ${name}`).length > 0, name);
+  for (const t of real.parameters.threads.native) {
+    assert.match(resolvePlaceholder(real, `triad t=${t}`), /^\d+\.\d GB\/s$/);
+    assert.match(resolvePlaceholder(real, `peak t=${t}`), /^\d+\.\d GFLOP\/s$/);
+    for (const level of ['naive', 'threaded', 'cache_friendly', 'simd', 'streaming']) {
+      assert.match(resolvePlaceholder(real, `frac ${level} t=${t}`), /^\d+%$/);
+    }
+  }
+  assert.match(resolvePlaceholder(real, 'env sizes'), /^\d+(, \d+)* and \d+$/);
   for (const metric of ['ms', 'gflops', 'iqr']) {
     for (const level of ['naive', 'threaded', 'cache_friendly', 'simd', 'streaming']) {
       for (const environment of ['native', 'lite', 'threads']) {

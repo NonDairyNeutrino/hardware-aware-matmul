@@ -2,6 +2,8 @@
 // renderers: two sizes, native with 1 and 2 threads, one single-threaded browser build.
 // Native level L at T threads takes 1000 / (L * T) ms (level 0: 1000 ms) and browser-lite
 // level L takes 4000 / (L + 1) ms, so every expected number can be worked out by hand.
+// The caches and the hardware probe (triad bandwidth, arithmetic peak) are made up too;
+// the peaks are tiny so that the levels' share of them is a readable percentage.
 export function run(environment, level, n, threads, median) {
   const times = [median * 0.98, median, median * 1.02];
   return {
@@ -18,6 +20,16 @@ export const data = {
     browser_isa: 'WASM SIMD128', browser_pool: 8, rustflags: '',
     browser_isolated: { 'browser-lite': true, 'browser-threads': true },
     toolchains: { native: 'rustc N', 'browser-lite': 'rustc L', 'browser-threads': 'rustc T' },
+    caches: [
+      { level: 1, type: 'Data', size_bytes: 49152, shared_cpu_list: '0,4' },
+      { level: 1, type: 'Instruction', size_bytes: 32768, shared_cpu_list: '0,4' },
+      { level: 2, type: 'Unified', size_bytes: 1310720, shared_cpu_list: '0,4' },
+      { level: 3, type: 'Unified', size_bytes: 8388608, shared_cpu_list: '0-7' },
+    ],
+    hardware: {
+      triad_gbs: { 1: 10.04, 2: 15.06 },
+      peak_gflops: { 1: 0.02, 2: 0.05 },
+    },
   },
   parameters: {
     sizes: [64, 128], repeats: 3, warmup: 1, block: [32, 64], tile: [128, 128, 128],
