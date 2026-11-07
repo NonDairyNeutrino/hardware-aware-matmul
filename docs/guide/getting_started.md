@@ -91,7 +91,7 @@ fn main() -> Result<(), hardware_aware_matmul::DimensionMismatch> {
     let c = naive::matmul(&a, &b)?;
     assert_eq!(c[(0, 0)], 58.0);
 
-    // The fastest in-memory implementation: same answer.
+    // A faster implementation: same answer, bit for bit.
     let threads = NonZeroUsize::new(2).unwrap();
     assert_eq!(cache_friendly::matmul(&a, &b, threads)?, c);
     Ok(())
