@@ -131,7 +131,8 @@ async function main() {
       outcome = { status: 'error', message: error?.message ?? String(error), results: [], timeout, startFailed: true };
     }
     current = null;
-    context.lastOutcome = { ...outcome, request };
+    // The request the worker ran (re-clamped by it: one thread after a fallback to lite), else ours.
+    context.lastOutcome = { ...outcome, request: outcome.request ?? request };
     ui.setRunning(false);
     const final = outcome.status === 'done';
     if (outcome.results.length > 0) ui.showResults(outcome.results, request.n, reference[request.n] ?? null, { final });
