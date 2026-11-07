@@ -115,6 +115,14 @@ export const insertions = [
       'Three threads, one row of the output each: the one-row case of the row blocks described below.',
     ),
   },
+  {
+    chapter: 'levels/cache_friendly',
+    afterHeading: 'What changed from level 1',
+    html: video(
+      'CacheFriendlyMatMul.mp4',
+      'Walking down a column of B touches a new cache line on every read; the i-k-j order reads whole rows, and blocking reuses a block of B for every row.',
+    ),
+  },
   // Level 2: how often B is fetched, after the paragraph that gives the size of a block of B
   // (the step-through demo sits right after the heading and counts as one of the blocksAfter).
   // Threads = 4 is stated in the caption.
