@@ -190,9 +190,10 @@ Fix an output element `C[i][j]` and let `t` be the tile containing it.
 
 </details>
 
-So every `C[i][j]` receives every product `A[i][k]·B[k][j]` exactly once,
-summed in increasing `k`, and is stored exactly once: the product, with the
-same bits as [`naive`](crate::naive).
+By the argument in the implementation notes above, every `C[i][j]` receives
+every product `A[i][k]·B[k][j]` exactly once, summed in increasing `k`, and is
+stored exactly once: the product, with the same bits as
+[`naive`](crate::naive).
 
 # What it costs
 

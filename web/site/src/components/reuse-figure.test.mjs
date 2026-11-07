@@ -35,6 +35,7 @@ test('the figure states the example, both counts and the byte totals', () => {
   assert.doesNotMatch(html, /log scale/);
   assert.match(html, /to scale/);
   assert.equal((html.match(/role="img" aria-label="[^"]*256 times[^"]*"/g) ?? []).length, 1);
+  assert.match(html, /aria-label="[^"]*the cache holds one block of B but not all of B[^"]*not a measurement/);
   assert.doesNotMatch(html, /<script/);
 });
 

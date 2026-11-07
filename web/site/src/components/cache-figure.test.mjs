@@ -38,4 +38,9 @@ test('the figure draws both walks, marks used and wasted cells, and states the c
   assert.match(html, /<figure class="cache-figure">/);
   // Each grid has a text alternative.
   assert.equal((html.match(/role="img" aria-label="/g) ?? []).length, 2);
+  assert.equal((html.match(/<p aria-hidden="true">/g) ?? []).length, 2);
+});
+
+test('an unknown walk is rejected', () => {
+  assert.throws(() => walkLines(8, 4, 'diagonal'), /row.*column/);
 });

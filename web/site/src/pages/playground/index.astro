@@ -28,11 +28,13 @@ const levels = ['Level 0: naive', 'Level 1: threaded', 'Level 2: cache blocking'
       <li><strong>Sweep the size.</strong> Run every level at 64, 256 and 1024. At which size does
         level 2 start to pull away from level 0?</li>
       <li><strong>Take the blocking away.</strong> Open "Cache blocks and tiles" and set both block
-        sizes to 1024. Level 2 then works on blocks far larger than a typical L1 cache. How much of
+        sizes to 1024, at n = 1024 (at the default 256, B is only 512 KiB). Level 2 then works on blocks far larger than a typical L1 cache. How much of
         its gain over level 0 is left? This separates reading memory in order from reusing a small
         block.</li>
       <li><strong>Count the threads.</strong> Run levels 1 to 3 with 1, 2, 4 and 8 threads. Where does
-        each level stop gaining? Compare with the number of physical cores your machine has.</li>
+        each level stop gaining? Use the threaded build (the single-threaded fallback has one
+        thread). Your browser does not tell the page how many physical cores you have; compare
+        with the specification of your processor.</li>
       <li><strong>Shrink the tile.</strong> Set the tile edges of level 4 to 8 instead of 128. What
         happens to its time, and why might that be?</li>
     </ol>

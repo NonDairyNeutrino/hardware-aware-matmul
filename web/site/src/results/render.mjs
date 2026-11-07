@@ -182,7 +182,7 @@ export function scalingChart(data, { environment, n }) {
     `<figcaption>${escape(ENVIRONMENT_LABELS[environment])}, n = ${size}: speedup over the same level with one thread against the number of threads. The dashed line is perfect scaling.</figcaption></figure>`;
 }
 
-/** Lines: throughput against the matrix size (log scale), one line per level, levels 1 to 4 at `threads` threads. */
+/** Lines: throughput against the matrix size (log scale), one line per level, levels 1 to 4 at `threads` threads and level 0 on one. */
 export function sizeChart(data, { environment, threads = 1 }) {
   const sizes = data.parameters.sizes;
   const series = [0, 1, 2, 3, 4].map((level) =>
@@ -218,5 +218,5 @@ export function sizeChart(data, { environment, threads = 1 }) {
     `<title id="${id}-title">Throughput against matrix size, ${escape(label.toLowerCase())}</title>` +
     `<desc id="${id}-desc">GFLOP/s of each level at each matrix size. ${escape(description)}.</desc>` +
     `${legend}${parts.join('')}</svg></div>` +
-    `<figcaption>${escape(label)}: throughput in GFLOP/s (higher is faster) of each level against the matrix size.</figcaption></figure>`;
+    `<figcaption>${escape(label)}: throughput in GFLOP/s (higher is faster) of each level against the matrix size. The size axis is logarithmic: each tick doubles the size.</figcaption></figure>`;
 }

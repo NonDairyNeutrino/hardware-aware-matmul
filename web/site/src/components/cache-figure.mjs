@@ -5,6 +5,7 @@
 /** Which cache lines a walk down the first row or the first column touches. A cache line is
  *  `lineLen` consecutive values in row-major order. */
 export function walkLines(n, lineLen, walk) {
+  if (walk !== 'row' && walk !== 'column') throw new Error(`walk must be 'row' or 'column', got ${walk}`);
   if (n % lineLen !== 0) throw new Error(`the line length ${lineLen} must divide the row length ${n}`);
   const touched = [];
   for (let i = 0; i < n; i += 1) touched.push(walk === 'row' ? [0, i] : [i, 0]);
@@ -26,7 +27,7 @@ function grid(n, lineLen, walk, label) {
     cells.push(`<span class="cl cl-${line % 2}${start}${state}"></span>`);
   }
   return `<div class="cache-walk"><div class="cache-grid" style="--n:${n}" role="img" aria-label="${label}">${cells.join('')}</div>` +
-    `<p>${label}</p></div>`;
+    `<p aria-hidden="true">${label}</p></div>`;
 }
 
 /** The figure: both walks side by side, with a legend. */

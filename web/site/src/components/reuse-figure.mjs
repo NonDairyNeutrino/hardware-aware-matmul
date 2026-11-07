@@ -58,7 +58,8 @@ export function reuseFigure({ n, block, threads }) {
     `blocks of B of ${tileK} × ${tileJ} values = ${formatBytes(c.blockBytes)}`;
   const label = `${header}. Without blocking, each element of B is fetched ${times(c.fetchesWithout)} per thread, ` +
     `${formatBytes(c.bytesWithout)}. With blocking, each element of B is fetched ${times(c.fetchesWith)} per thread, ` +
-    `${formatBytes(c.bytesWith)}.`;
+    `${formatBytes(c.bytesWith)}. ` +
+    `This counts fetches under one assumption: the cache holds one block of B but not all of B. It is a model, not a measurement.`;
   return `<figure class="reuse-figure"><div role="img" aria-label="${label}">` +
     `<p class="rf-header">${header}</p>` +
     row('Without blocking', c.fetchesWithout, c.bytesWithout, width(c.bytesWithout),

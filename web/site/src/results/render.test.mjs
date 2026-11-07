@@ -83,7 +83,7 @@ test('the size chart has a line per level, a dot per size and the numbers in its
   assert.match(html, /matrix size n<\/text>/);
   assert.match(html, />64<\/text>/);
   assert.match(html, />128<\/text>/);
-  assert.match(html, /<figcaption>Native, one thread: throughput in GFLOP\/s \(higher is faster\) of each level against the matrix size\.<\/figcaption>/);
+  assert.match(html, /<figcaption>Native, one thread: throughput in GFLOP\/s \(higher is faster\) of each level against the matrix size\. The size axis is logarithmic: each tick doubles the size\.<\/figcaption>/);
   assert.doesNotMatch(html, /NaN|undefined|Infinity/);
   assert.doesNotMatch(sizeChart(data, { environment: 'native' }), /NaN|undefined|Infinity/);
 });

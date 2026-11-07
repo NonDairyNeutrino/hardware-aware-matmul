@@ -199,6 +199,7 @@ figure.cache-figure { margin: 1.25rem 0 1.5rem; }
 .cache-grid .cl.ls { border-left: 3px solid var(--fg); }
 .cache-grid .cl.used { background: var(--series-0); }
 .cache-grid .cl.wasted { outline: 2px solid var(--series-1); outline-offset: -4px; }
+@media (forced-colors: active) { .cache-grid .cl.used { background: Highlight; } .cache-grid .cl.wasted { outline-color: CanvasText; } }
 figure.cache-figure figcaption { font-size: 0.9rem; color: var(--muted); }
 figure.reuse-figure, figure.register-figure { margin: 1.25rem 0 1.5rem; }
 .rf-header, .rg-header { margin: 0 0 0.75rem; font-size: 0.9rem; color: var(--muted); }
