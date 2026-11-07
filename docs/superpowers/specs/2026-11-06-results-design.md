@@ -81,15 +81,40 @@ A manual process, not CI (shared CI machines are too noisy to trust for timing):
 
 ### The playground (plan P2c)
 
-As in the stage C spec: a Web Worker owns the wasm module; run requests stream one
-result per level; every request has a timeout and, on timeout or Cancel, the worker is
-terminated and a fresh one started; the isolation state machine uses the threaded
-build when `crossOriginIsolated`, otherwise registers `coi-serviceworker` (reloading
-once) and, if still not isolated, falls back to the lite build with threads capped at 1.
-It lives at the bottom of the Results page, headed "run it on your machine", reports a
-"same answer" indicator that is true only if every selected level returned the same
-hash, and uses the Bench API above. Pages must be served over HTTPS (the Pages setting
-"Enforce HTTPS") for the service worker to register.
+**Placement (decided with the owner):** its own page, `/playground/`, linked from the
+Results page and the navigation, and **not** a chapter. Enabling multithreading on GitHub
+Pages needs a service worker and one reload; keeping that on a separate page means readers
+of the paper never see a reload. The playground is therefore the only reading page that
+registers the service worker (the output checker enforces that it does, and that no
+chapter does).
+
+- **Worker:** a Web Worker owns the wasm module and the thread pool (`min(cores, 8)`,
+  fixed for the worker's life); the page never calls wasm directly. A run request streams
+  back `ready`, one `result` per level (its times, hash and batch size), then `done`.
+- **Recovery:** a wasm call cannot be interrupted and a panic in the pool hangs the
+  caller, so Cancel, a timeout and an error all end the same way: terminate the worker and
+  start a fresh one on the next run. Every run has a time budget derived from the size,
+  the levels and the repeats.
+- **Isolation state machine** (a pure, tested function): `crossOriginIsolated` uses the
+  threaded build; otherwise, once per tab, load `coi-serviceworker` (which reloads the page
+  once); if the page is still not isolated, or service workers are missing, fall back to
+  the lite build with threads locked to 1 and a banner saying why. A browser without
+  WebAssembly SIMD gets a message instead of a broken page.
+- **Requests are clamped** in shared code used by both the page and the worker: sizes are
+  64 to 1024 (powers of two), repeats 1, 3 or 5, threads up to the pool (8), cache blocks
+  and tiles 1 to 1024. Nothing in the URL or the form can make the worker do unbounded work.
+- **Timing:** a page that is not cross-origin isolated has a clock rounded to about a
+  millisecond, so short runs are timed in batches of runs (at least 30 ms per sample) and
+  divided; a time of zero never becomes an infinite throughput.
+- **Output:** per level the median, throughput, speedup over level 0 and over the
+  previous level, and a bar; the build in use (threaded with its pool, or single-threaded;
+  instruction set and micro-tile); a "same answer" verdict that is true only if every
+  selected level returned the same hash, and that also compares with the reference run's
+  hash when the size matches; and the note that browser timings are indicative.
+- **Gates:** `web/site/gate-c3.sh` drives the production build in headless Firefox on a
+  page without isolation headers in three scenarios: threaded after the service worker
+  enables isolation, the lite fallback with service workers disabled, and cancel and
+  timeout recovery. HTTPS is enforced on Pages (it is required for the service worker).
 
 ## Plans
 
