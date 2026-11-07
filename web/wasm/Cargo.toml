@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2021"
 description = "Browser wrapper around hardware_aware_matmul (stage B spike)"
 publish = false
+license = "MIT OR Apache-2.0"
 
 [lib]
 crate-type = ["cdylib", "rlib"]
