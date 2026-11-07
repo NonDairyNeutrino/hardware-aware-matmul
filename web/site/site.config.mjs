@@ -110,14 +110,18 @@ export const insertions = [
     ),
   },
   // Level 2: how often B is fetched, after the paragraph that gives the size of a block of B
-  // (the step-through demo sits right after the heading). Threads = 4 is stated in the caption.
+  // (the step-through demo sits right after the heading and counts as one of the blocksAfter).
+  // Threads = 4 is stated in the caption.
   { chapter: 'levels/cache_friendly', afterHeading: 'Change 2: cache blocking', blocksAfter: 5,
     html: `<p class="st-lookfor"><strong>What to look for.</strong> Compare the two counts: without blocking every element of B is fetched once per row of the thread&rsquo;s part of the output; with blocking it is fetched once, because the block stays in the cache while all those rows use it.</p>` +
       reuseFigure({ n: Math.max(...results.parameters.sizes), block: results.parameters.block, threads: 4 }) },
-  // Level 3: the memory operations per step, after the paragraph about two loads and a store.
-  { chapter: 'levels/simd', afterHeading: 'What changed from level 2', blocksAfter: 3,
+  // Level 3: the memory operations per step, after the paragraph that says per k the kernel
+  // does one B load and MR broadcasts. blocksAfter counts the already-inserted demo node (the
+  // demos are spliced in first, right after the same heading): demo, paragraph, two code
+  // blocks, then that paragraph = 5.
+  { chapter: 'levels/simd', afterHeading: 'The micro-kernel', blocksAfter: 5,
     html: `<p class="st-lookfor"><strong>What to look for.</strong> The arithmetic is the same in both bars; only the memory operations differ, because level 3 no longer loads and stores C at every step.</p>` +
-      registerFigure() },
+      registerFigure({ tileJ: results.parameters.block[1] }) },
   // The primer: the cache-line picture, after the paragraph that sets up the 8 x 8 example.
   { chapter: 'paper/primer', afterHeading: 'Walking along a row, walking down a column', blocksAfter: 1,
     html: cacheLineFigure() },
