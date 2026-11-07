@@ -22,7 +22,9 @@ and each chapter says what it fixes and what it still costs.
 The [Results](crate::results) timed every level, natively and in a web browser, on one
 machine, and the [Discussion](crate::discussion) compared them. In that run every case
 returned the same result, whatever the level, the thread count or the environment. At n = {{env largest}}, natively, level 3 with all of its threads was {{speedup simd/naive}}
-faster than the textbook loop, and level 4 on four threads {{speedup streaming/naive t=4}}. On one thread, most of the gain arrived with level 2, which
+faster than the textbook loop, and level 4 on four threads {{speedup streaming/naive t=4}};
+each divides by the textbook loop's median, whose runs varied, so both are
+approximate. On one thread, most of the gain arrived with level 2, which
 reorders the loops and blocks for the cache ({{speedup cache_friendly/naive t=1}}); the
 vector micro-kernel added a further {{speedup simd/cache_friendly t=1}}. Threads helped the
 blocked, vector and streaming levels until the physical cores ran out, and little beyond.

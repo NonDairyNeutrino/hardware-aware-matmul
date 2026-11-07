@@ -56,18 +56,19 @@ nothing until there is more than one of them.
 # What threads add
 
 Level 1 is the hardest level to read at n = {{env largest}}, because its one-thread time is
-uncertain. Like level 0's, its {{env repeats}} one-thread runs fell into two groups, one
-near the median and one clearly faster, so the medians ({{ms threaded t=1}} for level 1,
-{{ms naive}} for level 0) depend on how many runs landed in each group. Their
+uncertain. Like level 0's, its {{env repeats}} one-thread runs did not all land near the
+median: most did, and the rest were clearly faster, so the medians ({{ms threaded t=1}} for
+level 1, {{ms naive}} for level 0) depend on how many runs happened to be fast. Their
 interquartile ranges ({{iqr threaded t=1}} and {{iqr naive}}) stay under the 20% mark, so
 the Results do not flag them, but they should be read with that caveat; so should every
 speedup over level 0 at this size, which divides by that median. With two threads level 1
-takes {{ms threaded t=2}}, more than twice as fast, which says more about the one-thread
-median than about the threads. It reaches {{ms threaded t=4}} with four threads, and with
-eight it takes {{ms threaded t=8}}: no faster, though the eight threads are all the
-machine's hardware threads on {{env physical_cores}} physical cores.
+takes {{ms threaded t=2}}, more than twice as fast, which probably says more about the
+one-thread median than about the threads, though two threads may also have more cache to
+work with than one. It reaches {{ms threaded t=4}} with four threads, and with eight it
+takes {{ms threaded t=8}}: slightly slower, though the eight threads are all the machine's
+hardware threads on {{env physical_cores}} physical cores.
 
-At n = 1024, where the one-thread runs do not split this way, level 1 roughly halves its
+At n = 1024, where the one-thread runs do not spread this way, level 1 roughly halves its
 time with two threads ({{ms threaded t=1 n=1024}} to {{ms threaded t=2 n=1024}}) and still
 gains a little from the second four ({{ms threaded t=4 n=1024}} to
 {{ms threaded t=8 n=1024}}). One plausible reading of that last gain is that level 1's
@@ -89,10 +90,12 @@ natively and with the same thread counts. A bandwidth test (the STREAM triad, wh
 three arrays far larger than the caches) moved {{triad t=1}} on one thread,
 {{triad t=4}} on four and {{triad t=8}} on eight: like the levels, it stops gaining at
 four threads. An arithmetic test that never leaves the registers kept gaining:
-{{peak t=4}} on four threads, {{peak t=8}} on eight. So the second four threads do add
-arithmetic that the levels do not use; level 3 reaches {{frac simd t=1}} of that peak on
-one thread and {{frac simd t=8}} on eight. That suggests the arithmetic units themselves
-are not what runs out, but it does not show that main memory is. A rough count, not a measurement: level 4 at
+{{peak t=1}} on one thread, {{peak t=4}} on four, {{peak t=8}} on eight. These are the rates
+that one test loop achieved, not the most the cores can do. Level 3 reaches
+{{frac simd t=1}} of the test's one-thread rate on one thread, and {{frac simd t=8}} of its
+eight-thread rate on eight. So with eight threads the test found more arithmetic than the
+levels use. That suggests the arithmetic units themselves are not what runs out, but it
+does not show that main memory is. A rough count, not a measurement: level 4 at
 n = {{env largest}} reads its input tiles about 1 GB worth in all, even if every tile came
 from main memory, and at the triad's {{triad t=4}} that would take under a tenth of its
 {{ms streaming t=4}} on four threads. That makes main-memory bandwidth look an unlikely
@@ -122,8 +125,8 @@ than their order of magnitude.
 
 [Level 4](crate::streaming) exists to make the problem possible when the matrices do not
 fit in memory, not to make it faster when they do, and the chapter says so. The reference
-run measures it only on matrices that fit, and there the cost one might expect from
-copying tiles into buffers did not appear: level 4 was faster than level 3. At
+run measures it only on matrices that fit, and at the two largest sizes the cost one might
+expect from copying tiles into buffers did not appear: level 4 was faster than level 3. At
 n = {{env largest}}, level 4 takes {{ms streaming t=1}} on one thread against level 3's
 {{ms simd t=1}}, {{ms streaming t=2}} on two against {{ms simd t=2}},
 {{ms streaming t=4}} on four against {{ms simd t=4}}, and {{ms streaming t=8}} on eight
@@ -152,13 +155,15 @@ single-threaded build against {{ms cache_friendly t=1}} natively, level 3 took
 closest to native speed. Both builds use 128-bit vectors,
 {{env native_isa}} natively and {{env browser_isa}} in the browser, so the level 3
 micro-kernel asks for the same width in both. That is a reason to expect it to travel well;
-the experiment shows that it does, but not why the others lose more.
+the experiment shows that it does, but not why the others lose more. Level 3 came closest
+of the three at every size, and at n = 1024 the browser was even slightly faster
+({{ms simd lite n=1024}} against {{ms simd t=1 n=1024}} natively).
 
 Levels 0 and 1 are a different case. At n = {{env largest}} they were no slower in the
 browser than natively: level 0 took {{ms naive lite}} against {{ms naive}}, level 1
 {{ms threaded lite}} against {{ms threaded t=1}}. Those are the two native medians that rest
-on runs split into two groups, so the comparison is uncertain. At n = 1024, where the native
-runs do not split, both were slower in the browser: level 0 took {{ms naive lite n=1024}}
+on spread runs, so the comparison is uncertain. At n = 1024, where the native
+runs are not spread, both were slower in the browser: level 0 took {{ms naive lite n=1024}}
 against {{ms naive n=1024}}, level 1 {{ms threaded lite n=1024}} against
 {{ms threaded t=1 n=1024}}.
 
@@ -176,9 +181,13 @@ eight. The reference run does not say why the threaded build comes so close here
 
 The two browser builds differ in more than threads. The single-threaded build was compiled
 with {{env rustc_lite}}, the threaded one, like the native code, with {{env rustc_threads}},
-and only the threaded build uses shared memory. On one thread the threaded build was slower
-for level 1 ({{ms threaded threads t=1}} against {{ms threaded lite}}) and about the same
-for level 3 ({{ms simd threads t=1}} against {{ms simd lite}}). Which of the differences between the
+and only the threaded build uses shared memory. On one thread, at n = {{env largest}}, the
+threaded build was faster than the single-threaded one for levels 0, 2 and 4
+({{ms naive threads}} against {{ms naive lite}}, {{ms cache_friendly threads t=1}} against
+{{ms cache_friendly lite}}, {{ms streaming threads t=1}} against {{ms streaming lite}}),
+about the same for level 3 ({{ms simd threads t=1}} against {{ms simd lite}}), and much
+slower for level 1 ({{ms threaded threads t=1}} against {{ms threaded lite}}), whose
+one-thread runs in the threaded build varied widely. Which of the differences between the
 builds causes which result is not something this experiment can separate.
 
 # What the measurements cannot say
@@ -201,7 +210,7 @@ builds causes which result is not something this experiment can separate.
   these figures is the most this CPU can do.
 - **Explanations are interpretations.** The levels were timed, not profiled. The
   reference run recorded the cache sizes, a triad bandwidth ({{env triad_max}} at most) and
-  an arithmetic peak ({{env peak_max}} at most), but read no hardware counters: no cache
+  the rate of an arithmetic test ({{env peak_max}} at most), but read no hardware counters: no cache
   misses, no memory traffic, no use of the execution units. Each statement above about why
   a difference arises is a reading consistent with the numbers, not a measurement of the
   cause.

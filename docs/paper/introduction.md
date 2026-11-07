@@ -2,7 +2,8 @@ Multiplying two {{env largest}} × {{env largest}} matrices takes {{env madds}} 
 On the laptop used for this paper, the textbook way to do it, three nested loops, takes
 {{ms naive}}. A version that does exactly the same multiply-adds, spread over all {{env threads_native}}
 hardware threads ({{env physical_cores}} physical cores, each running two; the [primer](crate::primer) explains), takes {{ms simd}}, which is {{speedup simd/naive}} faster, on the same
-laptop, and returns the same answer, bit for bit.
+laptop, and returns the same answer, bit for bit. (The textbook loop's runs varied, so that
+ratio is approximate; the [Discussion](crate::discussion) says why.)
 
 Nothing clever happened to the arithmetic. No multiplication was skipped, no sum was
 reordered, and nobody found a better algorithm. The whole difference is in *how the work was
@@ -49,8 +50,9 @@ previous level ran into. Every level returns exactly the same bits as the one be
 | [Level 4](crate::streaming) | the need for every matrix to fit in memory | stream small tiles of the matrices through bounded buffers | {{ms streaming t=1}} | {{ms streaming}} |
 
 Level 4 is a different kind of step. It does not aim to be faster on matrices that fit in
-memory; it makes the problem possible on matrices that do not. The Discussion compares it
-with level 3 on matrices that do fit.
+memory; it makes the problem possible on matrices that do not. On the reference machine it
+was nonetheless faster than level 3 at the two largest sizes; the Discussion compares the
+two on matrices that fit and says what is and is not known about why.
 
 # How to read this
 
