@@ -1,7 +1,7 @@
 Multiplying two {{env largest}} × {{env largest}} matrices takes {{env madds}} multiply-adds.
 On the laptop used for this paper, the textbook way to do it, three nested loops, takes
 {{ms naive}}. A version that does exactly the same multiply-adds, spread over all {{env threads_native}}
-hardware threads ({{env physical_cores}} physical cores, each running two), takes {{ms simd}}, which is {{speedup simd/naive}} faster, on the same
+hardware threads ({{env physical_cores}} physical cores, each running two; the [primer](crate::primer) explains), takes {{ms simd}}, which is {{speedup simd/naive}} faster, on the same
 laptop, and returns the same answer, bit for bit.
 
 Nothing clever happened to the arithmetic. No multiplication was skipped, no addition was

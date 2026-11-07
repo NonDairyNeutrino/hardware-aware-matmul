@@ -38,6 +38,6 @@ export function cacheLineFigure({ n = 8, lineLen = 4 } = {}) {
     grid(n, lineLen, 'row', describe('Walking along a row', row)) +
     grid(n, lineLen, 'column', describe('Walking down a column', column)) +
     `</div><figcaption>An ${n} × ${n} matrix stored row by row, with cache lines of ${lineLen} values (a heavy bar marks where each ` +
-    `line starts, and the shade alternates from one line to the next). Blue cells are the values the walk uses; outlined cells arrive in the same cache lines ` +
+    `line starts, and the shade alternates from one line to the next). In real hardware a line holds eight values, not four. Blue cells are the values the walk uses; outlined cells arrive in the same cache lines ` +
     `and are not used.</figcaption></figure>`;
 }
