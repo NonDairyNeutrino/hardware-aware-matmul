@@ -4,7 +4,7 @@ On the laptop used for this paper, the textbook way to do it, three nested loops
 hardware threads ({{env physical_cores}} physical cores, each running two; the [primer](crate::primer) explains), takes {{ms simd}}, which is {{speedup simd/naive}} faster, on the same
 laptop, and returns the same answer, bit for bit.
 
-Nothing clever happened to the arithmetic. No multiplication was skipped, no addition was
+Nothing clever happened to the arithmetic. No multiplication was skipped, no sum was
 reordered, and nobody found a better algorithm. The whole difference is in *how the work was
 laid out over the hardware*: which core does which part, in what order the memory is
 touched, what is kept close to the arithmetic units, and, for matrices too big for memory, what is
@@ -23,29 +23,30 @@ code that computes the same thing without them. That is the lesson here, and the
 product is a good place to learn it because the algorithm fits in four lines, so nothing
 distracts from the hardware.
 
-# Why memory use matters more than core count
+# Where the speedup comes from
 
 The most surprising number in this paper is not the total speedup but where it comes from.
 On one thread, level 2 (the cache-friendly version, described below) needs
 {{ms cache_friendly t=1}}, against {{ms naive}} for the textbook loop. That is faster than
 eight threads of level 1, the first threaded version ({{ms threaded t=8}}), which uses every
-hardware thread the machine has. Reorganising how one thread uses memory beat adding
-threads. The Methods give the likely reason, and the [Discussion](crate::discussion) says
-how far the measurements support it.
+hardware thread the machine has. Level 2 makes two changes at once, the loop order and
+cache blocking, and the run cannot separate them from other effects. The Methods give the
+likely reasons, and the [Discussion](crate::discussion) says how far the measurements
+support each.
 
 # The five levels
 
-Each level changes one thing about how the hardware is used, and removes the bottleneck the
+Each level changes how the hardware is used in one main way, and targets the bottleneck the
 previous level ran into. Every level returns exactly the same bits as the one before. The times are for
 {{env largest}} × {{env largest}} matrices.
 
-| Level | The bottleneck it removes | The idea | Time, 1 thread | Time, {{env threads_native}} threads |
+| Level | The bottleneck it targets | The idea | Time, 1 thread | Time, {{env threads_native}} threads |
 |-------|---------------------------|----------|----------------|---------------------|
-| [0](crate::naive) | (the baseline: one core, and reads of the second matrix in a poor order) | the textbook triple loop | {{ms naive}} | not parallel |
-| [1](crate::threaded) | the other cores sit idle | split the output rows across threads | {{ms threaded t=1}} | {{ms threaded}} |
-| [2](crate::cache_friendly) | reading memory in an order the hardware handles badly, and re-fetching data | reorder the loops and work on small blocks that stay in the cache | {{ms cache_friendly t=1}} | {{ms cache_friendly}} |
-| [3](crate::simd) | the output block travelling through memory on every step | keep a block of the output in vector registers | {{ms simd t=1}} | {{ms simd}} |
-| [4](crate::streaming) | the need for every matrix to fit in memory | stream small tiles of the matrices through bounded buffers | {{ms streaming t=1}} | {{ms streaming}} |
+| [Level 0](crate::naive) | (the baseline: one core, and reads of the second matrix in a poor order) | the textbook triple loop | {{ms naive}} | not parallel |
+| [Level 1](crate::threaded) | the other cores sit idle | split the output rows across threads | {{ms threaded t=1}} | {{ms threaded}} |
+| [Level 2](crate::cache_friendly) | reading memory in an order the hardware handles badly, and re-fetching data | reorder the loops and work on small blocks that stay in the cache | {{ms cache_friendly t=1}} | {{ms cache_friendly}} |
+| [Level 3](crate::simd) | the output block travelling through memory on every step | keep a block of the output in vector registers | {{ms simd t=1}} | {{ms simd}} |
+| [Level 4](crate::streaming) | the need for every matrix to fit in memory | stream small tiles of the matrices through bounded buffers | {{ms streaming t=1}} | {{ms streaming}} |
 
 Level 4 is a different kind of step. It does not aim to be faster on matrices that fit in
 memory; it makes the problem possible on matrices that do not. The Discussion measures what

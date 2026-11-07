@@ -43,17 +43,15 @@ comparison on their own hardware, and see whether the same shape appears.
 
 # Four questions to take with you
 
-The [primer](crate::primer) listed four questions, and every level answered one of them
-better than the one before. They are the part of this paper that is not specific to matrix
-multiplication:
+The [primer](crate::primer) listed four questions, and the levels answer them one after
+another. They are the part of this paper that is not specific to matrix multiplication:
 
 1. **Is the access contiguous?** Does the code use every byte of the cache lines it fetches,
    or does it jump over data? (The reordered loops of level 2.)
 2. **What is reused, and how far apart are the uses?** Does a value stay in a fast memory
-   until it is used again? (The blocks of level 2, the register block of level 3, the tiles
-   of level 4.)
+   until it is used again? (The blocks of level 2, the register block of level 3.)
 3. **How many bytes move per operation?** Is that more than the memory bandwidth of the
-   machine can supply? (The register block of level 3 cuts the traffic of the inner loop.)
+   machine can supply? (The register block of level 3 cuts the loads and stores of the inner loop.)
 4. **Is there independent work for every core and every lane?** (The row blocks of level 1,
    the vector lanes of level 3.)
 

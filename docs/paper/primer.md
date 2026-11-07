@@ -94,12 +94,14 @@ The Methods return to the same four questions:
 | reuse | using a loaded value more than once before it leaves fast memory |
 | bandwidth | bytes per second a memory can deliver |
 | memory-bound, compute-bound | speed limited by data movement, or by arithmetic |
-| hardware thread | one stream of instructions a core can run; a core may offer two |
+| hardware thread | one stream of instructions a core can run; a core may offer two. Also called a logical core; "hyper-thread" is the same thing when two share a core |
 | register, vector register | the processor's working storage; one that holds several values |
 | lane | one value's slot in a vector register |
 | vectorise | the compiler turns a scalar loop into SIMD instructions |
 | register blocking | keeping a small block of the output in registers while it is updated |
-| block, tile | a small rectangular piece of a matrix worked on at a time, small enough to stay in the cache |
+| block, tile | a small rectangular piece of a matrix worked on at a time; at level 2 small enough to stay in the cache |
+| hit, miss | a hit finds the data in the cache; a miss must fetch it from a slower memory |
+| GFLOP/s | billions of floating-point operations per second |
 | axpy | `y ← y + a·x` over two slices; the inner loop of levels 2 to 4 |
 | work queue | threads claim the next small piece of work when they are free, instead of getting a fixed share in advance |
 | thread | an independent sequence of instructions that the program runs |

@@ -133,7 +133,7 @@ builds causes which result is not something this experiment can separate.
   design no level uses fused multiply-add, which would change the result bits. Both choices
   keep the comparison honest and keep the results identical. They also mean that none of
   these figures is the most this CPU can do.
-- **Explanations are interpretations.** The levels were timed, not profiled. The cache sizes
+- **Explanations are interpretations.** The levels were timed, not profiled. In the reference run used here the cache sizes
   of the machine were not recorded and no hardware counters were read, so each statement
   above about why a difference arises is a reading consistent with the numbers, not a
   measurement of the cause.
