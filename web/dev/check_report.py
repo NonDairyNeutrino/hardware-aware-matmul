@@ -123,6 +123,12 @@ def check_playground(gate, report):
         env = report.get("env") or {}
         if env.get("isa") != "WASM SIMD128":
             problems.append("the module reports instruction set %r" % env.get("isa"))
+    if gate in ("playground-threads", "playground-fallback"):
+        scopes = report.get("sw_scopes")
+        if not scopes or not all(s.endswith("/hardware-aware-matmul/playground/") for s in scopes):
+            problems.append("the service worker scope must be /hardware-aware-matmul/playground/, got %r" % scopes)
+        if report.get("sw_covers_results_page") is not False:
+            problems.append("a service worker registration covers the Results page")
     if gate == "playground-threads":
         if (report.get("pool") or 0) < 2:
             problems.append("the thread pool has %r threads" % report.get("pool"))

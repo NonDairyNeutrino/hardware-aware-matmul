@@ -2,8 +2,9 @@
 # Gate G3: the wasm module from an Astro production build, served under
 # /hardware-aware-matmul/ WITHOUT cross-origin-isolation headers (as GitHub Pages
 # would), made isolated by coi-serviceworker, run in headless Firefox. The page is
-# /hardware-aware-matmul/gate/; the service worker is registered from the site root so
-# its scope covers /_astro/ (the worker and wasm). Passes only if all 29 cases hash
+# /hardware-aware-matmul/gate/ (built only in this GATE=1 build); it registers the gate-only
+# root copy of the service worker, whose scope covers /gate/ and the worker under
+# /playground/_worker/. (The playground registers its own copy, scoped to /playground/.) Passes only if all 29 cases hash
 # exactly like native Rust, the page reloaded, and the scope is /hardware-aware-matmul/.
 # The site build also needs the lite module (the step-through), so both are built.
 # usage: gate-g3.sh [--no-build]

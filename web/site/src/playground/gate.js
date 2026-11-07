@@ -76,6 +76,11 @@ export async function runGate(name, context) {
     } else {
       throw new Error(`unknown gate: ${name}`);
     }
+    if ('serviceWorker' in navigator) {
+      // The scope must be the playground alone: no registration may cover a paper page.
+      report.sw_scopes = (await navigator.serviceWorker.getRegistrations()).map((r) => r.scope);
+      report.sw_covers_results_page = Boolean(await navigator.serviceWorker.getRegistration(`${base}results/`));
+    }
     report.ok = true;
   } catch (error) {
     report.ok = false;

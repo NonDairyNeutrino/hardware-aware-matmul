@@ -208,5 +208,6 @@ web/wasm/target-lite/
 web/wasm/www/expected.json
 web/site/public/expected.json
 web/site/public/coi-serviceworker.js
+web/site/public/playground/coi-serviceworker.js
 web/site/public/media/
 !web/wasm/Cargo.lock

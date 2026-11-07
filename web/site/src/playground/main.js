@@ -29,8 +29,23 @@ const store = {
   clear() { try { sessionStorage.removeItem(ATTEMPTS_KEY); } catch { /* storage blocked */ } },
 };
 
+// The service worker's scope is the playground's own directory, not the site root: the script is
+// served from playground/, so coi-serviceworker's default scope is /<base>playground/, and Vite
+// writes the workers (and their wasm) under playground/_worker/ (astro.config.mjs). The page and
+// its workers get the isolation headers; the paper's pages are never controlled. Earlier versions
+// registered it at the site root; remove such a registration, so it stops controlling the chapters.
+const SW_SCRIPT = `${base}playground/coi-serviceworker.js`;
+function removeRootServiceWorker() {
+  if (!('serviceWorker' in navigator)) return;
+  const rootScope = new URL(base, location.href).href;
+  navigator.serviceWorker.getRegistrations()
+    .then((registrations) => registrations.filter((r) => r.scope === rootScope).forEach((r) => r.unregister()))
+    .catch(() => { /* nothing to clean up */ });
+}
+
 /** Resolves to 'threads' or 'lite' (never, if the page reloads to enable isolation). */
 async function chooseBuild() {
+  removeRootServiceWorker();
   const decision = decide({ isolated: self.crossOriginIsolated, attempts: store.get(), serviceWorkers: 'serviceWorker' in navigator });
   if (decision.action === 'threads') {
     store.clear();
@@ -42,7 +57,7 @@ async function chooseBuild() {
     // coi-serviceworker registers itself, then reloads the page so the service worker's
     // headers apply. It is loaded here and nowhere else on the site.
     const script = document.createElement('script');
-    script.src = `${base}coi-serviceworker.js`;
+    script.src = SW_SCRIPT;
     document.head.append(script);
     await new Promise((resolve) => setTimeout(resolve, 8000));
     return { build: 'lite', reason: 'the service worker did not start in time (reload the page to try again)' };

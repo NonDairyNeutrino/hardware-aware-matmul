@@ -19,7 +19,21 @@ export default defineConfig({
   base,
   integrations: process.env.GATE === '1' ? [gatePages] : [],
   trailingSlash: 'always',
-  vite: { worker: { format: 'es' } },
+  vite: {
+    worker: {
+      format: 'es',
+      // Workers (and what they load) go under playground/, inside the service worker's scope:
+      // a worker script is matched to a service worker by its own URL, and the playground's
+      // workers need the isolation headers that the service worker adds. See main.js.
+      rolldownOptions: {
+        output: {
+          entryFileNames: 'playground/_worker/[name]-[hash].js',
+          chunkFileNames: 'playground/_worker/[name]-[hash].js',
+          assetFileNames: 'playground/_worker/[name]-[hash].[ext]',
+        },
+      },
+    },
+  },
   markdown: {
     processor: unified({ remarkPlugins: [[remarkRustdoc, { base, links, insertions, results }]] }),
     shikiConfig: { themes: { light: 'github-light', dark: 'github-dark' }, defaultColor: false },

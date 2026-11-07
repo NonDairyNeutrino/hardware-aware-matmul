@@ -18,7 +18,10 @@
 //     whose count of tables or charts differs from what site.config.mjs inserts;
 //   - a video the pages reference that was not copied into dist/media/;
 //   - a production build (GATE unset) that contains the gates' test pages under gate/, or a
-//     gate build (GATE=1) that lacks them.
+//     gate build (GATE=1) that lacks them;
+//   - a service worker script anywhere but playground/ (the root copy is for the gate page, in
+//     gate builds only), or a worker script outside playground/: the service worker's scope is
+//     playground/, and a worker is only given the isolation headers inside it.
 // Run it with `npm run check` after `npm run build`. Exits 1 on any problem.
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
@@ -146,6 +149,14 @@ if (gateBuild) {
     if (!existsSync(join(dist, route, 'index.html'))) problems.push(`${route}: the gate page was not built (GATE=1)`);
   }
 }
+
+// The service worker's scope is playground/ (its script's directory): it must be there, it must
+// not be at the root in production, and every worker script must be inside that scope.
+if (!existsSync(join(dist, 'playground', 'coi-serviceworker.js'))) problems.push('playground/coi-serviceworker.js is missing');
+if (!gateBuild && existsSync(join(dist, 'coi-serviceworker.js'))) problems.push('coi-serviceworker.js is at the site root; production serves it only from playground/');
+const strayWorkers = readdirSync(join(dist, '_astro')).filter((name) => /^(worker|workerHelpers)-/.test(name));
+if (strayWorkers.length > 0) problems.push(`worker scripts outside playground/, where the service worker cannot reach them: ${strayWorkers.join(', ')}`);
+if (!existsSync(join(dist, 'playground', '_worker'))) problems.push('playground/_worker/ is missing: the playground worker was not built inside the service worker scope');
 
 if (problems.length > 0) {
   console.error('check-dist: FAIL');
