@@ -3,14 +3,15 @@
 
 import results from './src/data/results.json' with { type: 'json' };
 import { cacheLineFigure } from './src/components/cache-figure.mjs';
+import { packFigure } from './src/components/pack-figure.mjs';
 import { registerFigure } from './src/components/register-figure.mjs';
 import { reuseFigure } from './src/components/reuse-figure.mjs';
-import { bestTable, scalingChart, scalingTable, sizeChart, throughputChart } from './src/results/render.mjs';
+import { bestTable, countersTable, scalingChart, scalingTable, sizeChart, throughputChart } from './src/results/render.mjs';
 
 // GitHub Pages serves this repository at /hardware-aware-matmul/.
 export const base = '/hardware-aware-matmul/';
 export const siteTitle = 'Mechanical sympathy';
-export const siteSubtitle = 'Five levels of matrix multiplication in Rust';
+export const siteSubtitle = 'Six levels of matrix multiplication in Rust';
 // The reference run's data: the numbers of the Results page (placeholders in its prose,
 // and the tables and charts built from it) come from here and nowhere else.
 export { results };
@@ -29,7 +30,8 @@ export const chapters = [
   { id: 'levels/threaded', title: 'Level 1: threads', route: 'levels/threaded/', section: 'methods' },
   { id: 'levels/cache_friendly', title: 'Level 2: cache blocking', route: 'levels/cache_friendly/', section: 'methods' },
   { id: 'levels/simd', title: 'Level 3: registers and SIMD', route: 'levels/simd/', section: 'methods' },
-  { id: 'levels/streaming', title: 'Level 4: streaming', route: 'levels/streaming/', section: 'methods' },
+  { id: 'levels/packed', title: 'Level 4: packing B', route: 'levels/packed/', section: 'methods' },
+  { id: 'levels/streaming', title: 'Level 5: streaming', route: 'levels/streaming/', section: 'methods' },
   { id: 'paper/results', title: 'Results', route: 'results/', section: 'results' },
   { id: 'paper/discussion', title: 'Discussion', route: 'discussion/', section: 'discussion' },
   { id: 'paper/conclusion', title: 'Conclusion', route: 'conclusion/', section: 'conclusion' },
@@ -52,6 +54,7 @@ export const links = {
   threaded: 'levels/threaded/',
   cache_friendly: 'levels/cache_friendly/',
   simd: 'levels/simd/',
+  packed: 'levels/packed/',
   streaming: 'levels/streaming/',
   results: 'results/',
   discussion: 'discussion/',
@@ -77,7 +80,8 @@ const video = (file, caption) =>
   `<figcaption>${caption}</figcaption></figure>`;
 
 // Step-through demos (see src/components/step-through.js): the level they show and the
-// heading of the chapter they go under. Levels 1 to 4 have one; level 0 has no plan to show.
+// heading of the chapter they go under. Levels 1, 2, 3 and 5 have one; level 0 has no plan to show,
+// and level 4 splits the rows exactly as level 3 does, so its figure is the pack figure instead.
 export const demos = [
   { chapter: 'levels/threaded', afterHeading: 'What it gets right', level: 1,
     lookFor: "Each colour is one thread, and each colour owns a block of rows of the output. Press Step: every thread finishes one row at a time, and no thread touches another&rsquo;s rows, which is why no locking is needed and the result does not change." },
@@ -85,7 +89,7 @@ export const demos = [
     lookFor: "The output C and the input B are drawn side by side (stacked on a narrow screen); B is cut into numbered blocks (the cache blocks the section above describes; the picture does not highlight the current one). The real kernel finishes with one block of B for every row of its part of the output before moving to the next, so that block stays in the cache. Change Cache block k and Cache block j and watch how many blocks B is cut into: smaller blocks fit in the cache more easily but are visited more often." },
   { chapter: 'levels/simd', afterHeading: 'The micro-kernel', level: 3,
     lookFor: "The dashed lines cut each thread&rsquo;s block of the output into micro-tiles. A micro-tile is the piece of the output the kernel keeps in vector registers for the whole run along the shared dimension, loaded and stored once per cache block of B, instead of being read and written back at every step." },
-  { chapter: 'levels/streaming', afterHeading: 'The algorithm', level: 4,
+  { chapter: 'levels/streaming', afterHeading: 'The algorithm', level: 5,
     lookFor: "The numbers show the order in which tiles are claimed; press Step to watch them complete, each by whichever worker is free. Each tile is a piece of the output computed from a strip of A and a strip of B streamed through small buffers. At most as many tiles are in flight as there are workers, and that bound is what limits the memory used." },
 ];
 
@@ -139,6 +143,12 @@ export const insertions = [
       'One output tile of C at a time: slices of A and B stream through three small buffers into a running sum, and workers claim tiles from a shared counter.',
     ),
   },
+  // Level 4: what one strip of B touches, in place and packed, after the paragraph that says
+  // the micro-kernel is level 3's (the heading's blocks: three paragraphs, the diagram, the
+  // paragraph on strips, then that one = 5 from the heading, counting the diagram code block).
+  { chapter: 'levels/packed', afterHeading: 'What changed from level 3', blocksAfter: 5,
+    html: `<p class="st-lookfor"><strong>What to look for.</strong> The same strip of B, read two ways. In place, every step along k lands on a different line, and with a long row, a different page; packed, the strip is a short run of adjacent lines.</p>` +
+      packFigure({ n: Math.max(...results.parameters.sizes), tileK: results.parameters.block[0], nr: 4 }) },
   // Level 2: how often B is fetched, after the paragraph that gives the size of a block of B
   // (the step-through demo sits right after the heading and counts as one of the blocksAfter).
   // Threads = 4 is stated in the caption.
@@ -166,6 +176,8 @@ export const insertions = [
   { chapter: 'paper/results', afterHeading: 'In the browser', blocksAfter: 2,
     html: bestTable(results, { environment: 'browser-lite' }) + bestTable(results, { environment: 'browser-threads' }) +
       throughputChart(results, {}) },
+  { chapter: 'paper/results', afterHeading: 'Hardware event counts', blocksAfter: 2,
+    html: countersTable(results) },
   { chapter: 'paper/results', afterHeading: 'Thread scaling in the browser', blocksAfter: 1,
     html: scalingTable(results, { environment: 'browser-threads' }) + scalingChart(results, { environment: 'browser-threads' }) },
 ];
