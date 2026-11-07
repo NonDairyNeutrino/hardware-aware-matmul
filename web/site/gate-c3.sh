@@ -14,6 +14,10 @@ cd "$(dirname "$0")"
 SITE=$PWD
 WASM=$SITE/../wasm
 
+if ss -ltn | grep -q ':8765 '; then
+  echo "REFUSED: port 8765 is busy" >&2; exit 1
+fi
+
 if [ "${1:-}" = "--no-build" ]; then
   if [ "$(cat "$WASM/pkg/.features" 2>/dev/null || echo unknown)" != "threads" ]; then
     echo "REFUSING: pkg/ was not built for the bundler; run ./gate-c3.sh without --no-build"; exit 1

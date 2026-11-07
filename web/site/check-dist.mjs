@@ -103,7 +103,9 @@ for (const chapter of chapters) {
     const inserted = insertions.filter((i) => i.chapter === chapter.id).map((i) => i.html).join('');
     const wantTables = (inserted.match(/<table class="results"/g) ?? []).length;
     const wantCharts = (inserted.match(/<figure class="chart"/g) ?? []).length;
-    if (!html.includes(`${base}playground/`)) problems.push(`${where}: does not link to the playground`);
+    // Only the page's own text counts: the header navigation links the playground on every page.
+    const article = /<article[\s\S]*<\/article>/.exec(html)?.[0] ?? '';
+    if (!article.includes(`href="${base}playground/`)) problems.push(`${where}: does not link to the playground`);
     if (tables !== wantTables || charts !== wantCharts) {
       problems.push(`${where}: ${tables} tables and ${charts} charts, expected ${wantTables} and ${wantCharts}`);
     }

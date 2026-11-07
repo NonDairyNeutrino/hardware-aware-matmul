@@ -118,3 +118,19 @@ test('starting while a run is in progress is an error', async () => {
   made[0].emit({ type: 'done', id: 1, request });
   await run;
 });
+
+test('a worker that cannot be made or started ends the run with an error', async () => {
+  const throwing = { postMessage() { throw new Error('cannot post'); }, terminate() { this.terminated = true; }, terminated: false };
+  const controller = createController({ makeWorker: () => throwing, build: 'lite' });
+  const outcome = await controller.start(request, { timeout: 5000 });
+  assert.equal(outcome.status, 'error');
+  assert.match(outcome.message, /cannot post/);
+  assert.equal(controller.running, false);
+  assert.equal(throwing.terminated, true);
+  assert.equal(controller.hasWorker, false);
+
+  const failing = createController({ makeWorker: () => { throw new Error('no worker'); }, build: 'lite' });
+  const second = await failing.start(request, { timeout: 5000 });
+  assert.equal(second.status, 'error');
+  assert.equal(failing.running, false);
+});

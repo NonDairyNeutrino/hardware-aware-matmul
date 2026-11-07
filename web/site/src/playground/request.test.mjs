@@ -30,6 +30,11 @@ test('sizes snap to the nearest allowed size; garbage falls back to the default'
   assert.equal(clampRequest({ repeats: 4 }).repeats, 3);
 });
 
+test('null and numeric strings are accepted', () => {
+  assert.deepEqual(clampRequest(null, { pool: 8, build: 'threads' }), DEFAULTS);
+  assert.equal(clampRequest({ n: '512' }).n, 512);
+});
+
 test('a request with no valid level runs every level', () => {
   assert.deepEqual(clampRequest({ levels: [] }).levels, DEFAULTS.levels);
   assert.deepEqual(clampRequest({ levels: [7, 8] }).levels, DEFAULTS.levels);
@@ -39,7 +44,7 @@ test('a request with no valid level runs every level', () => {
 test('clamping is idempotent and never throws on hostile input', () => {
   const hostile = [null, undefined, 5, 'x', [], { n: {}, levels: {}, block: 'ab', tile: null, threads: Infinity }];
   for (const raw of hostile) {
-    const once = clampRequest(raw ?? undefined, { pool: 8, build: 'threads' });
+    const once = clampRequest(raw, { pool: 8, build: 'threads' });
     assert.deepEqual(clampRequest(once, { pool: 8, build: 'threads' }), once);
   }
 });

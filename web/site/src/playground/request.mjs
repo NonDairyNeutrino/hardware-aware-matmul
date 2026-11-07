@@ -36,7 +36,8 @@ const nearest = (value, allowed, fallback) => {
  * (the threads control is the number of jobs over that pool); the lite build has no pool, so its
  * runs always use one thread.
  */
-export function clampRequest(raw = {}, { pool = 1, build = 'lite' } = {}) {
+export function clampRequest(raw, { pool = 1, build = 'lite' } = {}) {
+  raw = raw ?? {};
   const maxThreads = build === 'threads' ? Math.max(1, Math.min(LIMITS.maxThreads, whole(pool, 1))) : 1;
   const wanted = Array.isArray(raw.levels) ? raw.levels.map((l) => whole(l, -1)) : DEFAULTS.levels;
   const levels = LIMITS.levels.filter((level) => wanted.includes(level));

@@ -20,6 +20,8 @@ const supportsSimd = () => {
 };
 
 const GATES = ['threads', 'lite', 'recover'];
+// The gates serve the page from http://127.0.0.1; on a real site `?gate=` does nothing.
+const gate = ['127.0.0.1', 'localhost'].includes(location.hostname) && GATES.includes(query.get('gate')) ? query.get('gate') : null;
 
 const store = {
   get() { try { return Number(sessionStorage.getItem(ATTEMPTS_KEY) || 0); } catch { return 0; } },
@@ -43,7 +45,7 @@ async function chooseBuild() {
     script.src = `${base}coi-serviceworker.js`;
     document.head.append(script);
     await new Promise((resolve) => setTimeout(resolve, 8000));
-    return { build: 'lite', reason: 'the service worker did not start in time' };
+    return { build: 'lite', reason: 'the service worker did not start in time (reload the page to try again)' };
   }
   return { build: 'lite', reason: decision.reason };
 }
@@ -51,10 +53,10 @@ async function chooseBuild() {
 async function main() {
   const context = { ui, reference, base, build: null, pool: 1, lastOutcome: null };
   if (!supportsSimd()) {
-    ui.setBanner('This browser has no WebAssembly SIMD support, which the playground needs. Firefox 89, Chrome 91 and Safari 16.4 or later have it.', 'warning');
+    ui.setBanner('This browser has no WebAssembly SIMD support, which the playground needs. Firefox 114, Chrome 91 and Safari 16.4 or later have it.', 'warning');
     ui.disableAll('The playground cannot run in this browser.');
     context.unsupported = true;
-    if (GATES.includes(query.get('gate'))) (await import('./gate.js')).runGate(query.get('gate'), context);
+    if (gate) (await import('./gate.js')).runGate(gate, context);
     return;
   }
   ui.disableAll('Choosing how to run…');
@@ -77,6 +79,9 @@ async function main() {
 
   const requested = Number(query.get('timeout_ms'));
   const timeoutOverride = Number.isFinite(requested) && requested > 0 ? Math.min(requested, 3600000) : 0;
+  // The run being shown, and the results that arrived for it so far (reset by run()).
+  let seen = [];
+  let current = null;
   const controller = createController({
     makeWorker: () => new Worker(new URL('./worker.js', import.meta.url), { type: 'module' }),
     build,
@@ -85,6 +90,11 @@ async function main() {
         const e = message.env;
         ui.setBuild(`${build === 'threads' ? `Threaded build, pool of ${message.pool} threads` : 'Single-threaded (lite) build'}; ${e.isa}; micro-tile ${e.micro_tile[0]}×${e.micro_tile[1]}`);
         ui.setStatus('Running…');
+      } else if (message.type === 'result' && current) {
+        // The controller forwards only the current run's messages, and run() resets `seen`.
+        seen.push({ level: message.level, times_ms: message.times_ms, hash: message.hash, batch: message.batch ?? 1 });
+        ui.showResults(seen, current.n, reference[current.n] ?? null, { final: false });
+        ui.setStatus(`Running… ${ui.levelName(message.level)} done`);
       }
     },
   });
@@ -92,6 +102,8 @@ async function main() {
 
   /** Runs `request` (clamped by the caller) and shows the outcome. */
   async function run(request, { timeout = timeoutMs(request) } = {}) {
+    seen = [];
+    current = request;
     ui.clearResults();
     ui.setRunning(true);
     ui.setStatus('Starting (the first run loads the module)…');
@@ -99,8 +111,9 @@ async function main() {
     try {
       outcome = await controller.start(request, { timeout });
     } catch (error) {
-      outcome = { status: 'error', message: error?.message ?? String(error), results: [], timeout };
+      outcome = { status: 'error', message: error?.message ?? String(error), results: [], timeout, startFailed: true };
     }
+    current = null;
     context.lastOutcome = { ...outcome, request };
     ui.setRunning(false);
     const final = outcome.status === 'done';
@@ -109,7 +122,7 @@ async function main() {
       done: 'Done.',
       cancelled: 'Cancelled. The worker was restarted; the next run will reload the module.',
       timeout: `Stopped after ${(outcome.timeout / 1000).toFixed(0)} s (the time budget for this size). The worker was restarted.`,
-      error: `The run failed: ${outcome.message}. The worker was restarted.`,
+      error: `The run failed: ${outcome.message}.${outcome.startFailed ? '' : ' The worker was restarted.'}`,
     }[outcome.status]);
     return outcome;
   }
@@ -124,7 +137,7 @@ async function main() {
   });
   ui.elements.cancel.addEventListener('click', () => controller.cancel());
 
-  if (GATES.includes(query.get('gate'))) (await import('./gate.js')).runGate(query.get('gate'), context);
+  if (gate) (await import('./gate.js')).runGate(gate, context);
 }
 
 main();

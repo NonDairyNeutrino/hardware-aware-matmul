@@ -35,11 +35,11 @@ export function createController({ makeWorker, build, onMessage = () => {} }) {
 
   /**
    * Starts a run. Resolves, never rejects, with `{ status, id, results, ready, ... }` where
-   * status is 'done', 'cancelled', 'timeout' or 'error' (with `message`).
+   * status is 'done', 'cancelled', 'timeout' or 'error' (with `message`; `startFailed` if the
+   * worker could not be made or started).
    */
   function start(request, { timeout }) {
     if (current) throw new Error('a run is already in progress');
-    worker ??= makeWorker();
     const id = nextId++;
     const results = [];
     let ready = null;
@@ -51,19 +51,24 @@ export function createController({ makeWorker, build, onMessage = () => {} }) {
         if (status !== 'done') discardWorker();
         resolve({ status, id, results, ready, ...extra });
       };
-      worker.onmessage = (event) => {
-        const message = event.data;
-        if (!message || message.id !== id) return;
-        if (message.type === 'ready') ready = message;
-        else if (message.type === 'result') results.push({ level: message.level, times_ms: message.times_ms, hash: message.hash, batch: message.batch ?? 1 });
-        onMessage(message);
-        if (message.type === 'done') finish('done', { request: message.request });
-        else if (message.type === 'error') finish('error', { message: message.message });
-      };
-      worker.onerror = (event) => finish('error', { message: (event && event.message) || 'the worker failed' });
-      timer = setTimeout(() => finish('timeout', { timeout }), timeout);
-      current = { cancel: () => finish('cancelled') };
-      worker.postMessage({ type: 'run', id, build, request });
+      try {
+        worker ??= makeWorker();
+        worker.onmessage = (event) => {
+          const message = event.data;
+          if (!message || message.id !== id) return;
+          if (message.type === 'ready') ready = message;
+          else if (message.type === 'result') results.push({ level: message.level, times_ms: message.times_ms, hash: message.hash, batch: message.batch ?? 1 });
+          onMessage(message);
+          if (message.type === 'done') finish('done', { request: message.request });
+          else if (message.type === 'error') finish('error', { message: message.message });
+        };
+        worker.onerror = (event) => finish('error', { message: (event && event.message) || 'the worker failed' });
+        timer = setTimeout(() => finish('timeout', { timeout }), timeout);
+        current = { cancel: () => finish('cancelled') };
+        worker.postMessage({ type: 'run', id, build, request });
+      } catch (error) {
+        finish('error', { message: (error && error.message) || String(error), startFailed: true });
+      }
     });
   }
 

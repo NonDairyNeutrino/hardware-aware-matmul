@@ -74,6 +74,7 @@ export function createUi(root) {
     },
     setBuild(message) { elements.build.textContent = message; },
     setStatus(message) { elements.status.textContent = message; },
+    levelName(level) { return LEVEL_NAMES[level]; },
     setRunning(running) {
       elements.run.disabled = running;
       elements.cancel.disabled = !running;
@@ -81,6 +82,10 @@ export function createUi(root) {
       // The lite build has one thread: that control stays locked when the run ends.
       if (!running) form.elements.threads.disabled = form.elements.threads.dataset.locked === 'true';
       elements.table.setAttribute('aria-busy', String(running));
+      // Keep the keyboard on a usable control, but never take focus from somewhere else.
+      const active = document.activeElement;
+      if (running) elements.cancel.focus();
+      else if (active === document.body || active === elements.cancel || active === null) elements.run.focus();
     },
     /** Locks the controls the build cannot use (the lite build has one thread). */
     lockThreads(locked) {
@@ -113,7 +118,7 @@ export function createUi(root) {
         tr.append(bar);
         return tr;
       }));
-      elements.table.hidden = summary.rows.length === 0;
+      elements.table.parentElement.hidden = elements.table.hidden = summary.rows.length === 0;
       if (final) {
         const v = verdict(summary, reference);
         elements.verdict.hidden = false;
@@ -126,7 +131,7 @@ export function createUi(root) {
     },
     clearResults() {
       elements.body.replaceChildren();
-      elements.table.hidden = true;
+      elements.table.parentElement.hidden = elements.table.hidden = true;
       elements.verdict.hidden = true;
     },
     elements,
