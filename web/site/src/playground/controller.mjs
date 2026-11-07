@@ -14,10 +14,15 @@
 // cancel, timeout and error all end the same way: terminate the worker. The next run starts a
 // fresh one. Only a run that finished with `done` keeps its worker (and its thread pool).
 //
+// Two clocks: `startTimeout` alone covers the time before `ready` (loading the module and
+// starting the pool), and the run's own `timeout` starts at `ready` (the work). So a start that
+// hangs is caught whatever the run's budget.
+//
 // If the THREADED build fails to start (the worker errors before it is `ready`, or is not ready
 // within `startTimeout`), the controller switches to the lite build for good and runs the same
 // request again on a fresh worker, telling the page through `onFallback`. Nothing falls back
-// once the pool is up, on cancel, or on the run's own timeout.
+// once the pool is up, on cancel, or on the run's own timeout. A lite worker that does not start
+// in time ends the run with an error.
 
 /**
  * @param {object} options
@@ -26,7 +31,7 @@
  * @param {(message: object) => void} [options.onMessage]  called with every message of the current run
  * @param {(note: {from: string, to: string, reason: string}) => void} [options.onFallback]
  *        called when the threaded build failed to start and the run moves to the lite build
- * @param {number} [options.startTimeout]  ms the threaded build may take to become ready
+ * @param {number} [options.startTimeout]  ms a worker may take to become ready
  */
 export function createController({ makeWorker, build, onMessage = () => {}, onFallback = () => {}, startTimeout = 30000 }) {
   let worker = null;
@@ -79,9 +84,10 @@ export function createController({ makeWorker, build, onMessage = () => {}, onFa
         worker.onmessage = (event) => {
           const message = event.data;
           if (!message || message.id !== id) return;
-          if (message.type === 'ready') {
+          if (message.type === 'ready' && ready === null) {
             ready = message;
             clearTimeout(startTimer);
+            timer = setTimeout(() => finish('timeout', { timeout }), timeout);
           }
           else if (message.type === 'result') results.push({ level: message.level, times_ms: message.times_ms, hash: message.hash, batch: message.batch ?? 1 });
           onMessage(message);
@@ -89,13 +95,10 @@ export function createController({ makeWorker, build, onMessage = () => {}, onFa
           else if (message.type === 'error') finish('error', { message: message.message, startFailed: ready === null });
         };
         worker.onerror = (event) => finish('error', { message: (event && event.message) || 'the worker failed', startFailed: ready === null });
-        timer = setTimeout(() => finish('timeout', { timeout }), timeout);
-        if (build === 'threads' && startTimeout < timeout) {
-          startTimer = setTimeout(() => finish('error', {
-            message: `the threaded build did not start within ${Math.round(startTimeout / 1000)} s`,
-            startFailed: true,
-          }), startTimeout);
-        }
+        startTimer = setTimeout(() => finish('error', {
+          message: `the ${build === 'threads' ? 'threaded' : 'single-threaded'} build did not start within ${Math.round(startTimeout / 1000)} s`,
+          startFailed: true,
+        }), startTimeout);
         current = { cancel: () => finish('cancelled') };
         worker.postMessage({ type: 'run', id, build, request });
       } catch (error) {

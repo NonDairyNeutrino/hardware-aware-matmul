@@ -82,7 +82,9 @@ test('cancel terminates the worker and the next run gets a fresh one', async () 
 test('a run that takes too long times out and terminates the worker', async () => {
   const { made, makeWorker } = fakeWorkers();
   const controller = createController({ makeWorker, build: 'threads' });
-  const outcome = await controller.start(request, { timeout: 30 });
+  const run = controller.start(request, { timeout: 30 });
+  made[0].emit({ type: 'ready', id: 1, build: 'threads', pool: 4, env: {} });
+  const outcome = await run;
   assert.equal(outcome.status, 'timeout');
   assert.equal(outcome.timeout, 30);
   assert.equal(made[0].terminated, true);
@@ -172,11 +174,68 @@ test('a threaded worker that never becomes ready falls back after the start time
   assert.equal(made[0].terminated, true);
   assert.equal(made[1].posted[0].build, 'lite');
   made[1].emit({ type: 'ready', id: 2, build: 'lite', pool: 1, env: {} });
-  await new Promise((resolve) => setTimeout(resolve, 40)); // past the start timeout: ready stopped it
   made[1].emit({ type: 'done', id: 2, request });
   const outcome = await run;
   assert.equal(outcome.status, 'done');
   assert.match(outcome.fallback.reason, /did not start/);
+});
+
+test('ready stops the start timer of a threaded run', async () => {
+  const { made, makeWorker } = fakeWorkers();
+  const controller = createController({ makeWorker, build: 'threads', startTimeout: 20 });
+  const run = controller.start(request, { timeout: 5000 });
+  made[0].emit({ type: 'ready', id: 1, build: 'threads', pool: 4, env: {} });
+  await new Promise((resolve) => setTimeout(resolve, 60)); // well past the start timeout
+  assert.equal(controller.running, true);
+  made[0].emit({ type: 'done', id: 1, request });
+  const outcome = await run;
+  assert.equal(outcome.status, 'done');
+  assert.equal(outcome.fallback, undefined);
+  assert.equal(made.length, 1);
+  assert.equal(controller.build, 'threads');
+});
+
+test('the start timeout covers a threaded start even when the run budget is shorter', async () => {
+  // The run's own budget counts from ready, so a start that hangs is caught by the start
+  // timeout, whatever the budget, and moves to the lite build.
+  const { made, makeWorker } = fakeWorkers();
+  const controller = createController({ makeWorker, build: 'threads', startTimeout: 40 });
+  const run = controller.start(request, { timeout: 10 });
+  await new Promise((resolve) => setTimeout(resolve, 25)); // past the budget, before the start timeout
+  assert.equal(made.length, 1, 'the budget does not run before ready');
+  assert.equal(controller.running, true);
+  await until(() => made.length === 2);
+  assert.equal(made[0].terminated, true);
+  assert.equal(made[1].posted[0].build, 'lite');
+  made[1].emit({ type: 'ready', id: 2, build: 'lite', pool: 1, env: {} });
+  made[1].emit({ type: 'done', id: 2, request });
+  const outcome = await run;
+  assert.equal(outcome.status, 'done');
+  assert.match(outcome.fallback.reason, /did not start/);
+});
+
+test('the run budget starts at ready', async () => {
+  const { made, makeWorker } = fakeWorkers();
+  const controller = createController({ makeWorker, build: 'lite', startTimeout: 5000 });
+  const run = controller.start(request, { timeout: 30 });
+  await new Promise((resolve) => setTimeout(resolve, 60)); // loading the module takes a while
+  assert.equal(controller.running, true, 'loading does not use up the budget');
+  const readyAt = Date.now();
+  made[0].emit({ type: 'ready', id: 1, build: 'lite', pool: 1, env: {} });
+  const outcome = await run;
+  assert.equal(outcome.status, 'timeout');
+  assert.ok(Date.now() - readyAt >= 25, 'the budget is counted from ready');
+});
+
+test('a lite worker that never becomes ready ends with an error after the start timeout', async () => {
+  const { made, makeWorker } = fakeWorkers();
+  const controller = createController({ makeWorker, build: 'lite', startTimeout: 20 });
+  const outcome = await controller.start(request, { timeout: 5000 });
+  assert.equal(outcome.status, 'error');
+  assert.match(outcome.message, /did not start/);
+  assert.equal(outcome.fallback, undefined);
+  assert.equal(made.length, 1);
+  assert.equal(made[0].terminated, true);
 });
 
 test('no fallback once the threaded worker is ready, on cancel, on the run timeout, or from lite', async () => {
@@ -189,8 +248,9 @@ test('no fallback once the threaded worker is ready, on cancel, on the run timeo
   const cancelled = controller.start(request, { timeout: 5000 });
   controller.cancel();
   assert.equal((await cancelled).status, 'cancelled');
-  const slow = await controller.start(request, { timeout: 20 }); // shorter than the start timeout
-  assert.equal(slow.status, 'timeout');
+  const slow = controller.start(request, { timeout: 20 });
+  made[2].emit({ type: 'ready', id: 3, build: 'threads', pool: 4, env: {} });
+  assert.equal((await slow).status, 'timeout');
   assert.equal(made.length, 3);
   assert.equal(controller.build, 'threads');
 
