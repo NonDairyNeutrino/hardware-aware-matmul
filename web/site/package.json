@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "prebuild": "rm -rf node_modules/.astro .astro && mkdir -p public/media && rm -f public/coi-serviceworker.js && mkdir -p public/playground && cp node_modules/coi-serviceworker/coi-serviceworker.js public/playground/coi-serviceworker.js && if [ \"$GATE\" = 1 ]; then cp node_modules/coi-serviceworker/coi-serviceworker.js public/coi-serviceworker.js; else cp src/playground/kill-switch-sw.js public/coi-serviceworker.js; fi && cp ../../anim/media/videos/naive_matmul/480p15/NaiveMatMul.mp4 ../../anim/media/videos/naive_matmul_parallel/480p15/ParallelNaiveMatMul.mp4 ../../anim/media/videos/cache_friendly_matmul/480p15/CacheFriendlyMatMul.mp4 ../../anim/media/videos/simd_matmul/480p15/SimdMatMul.mp4 public/media/",
+    "prebuild": "rm -rf node_modules/.astro .astro && mkdir -p public/media && rm -f public/coi-serviceworker.js && mkdir -p public/playground && cp node_modules/coi-serviceworker/coi-serviceworker.js public/playground/coi-serviceworker.js && if [ \"$GATE\" = 1 ]; then cp node_modules/coi-serviceworker/coi-serviceworker.js public/coi-serviceworker.js; else cp src/playground/kill-switch-sw.js public/coi-serviceworker.js; fi && cp ../../anim/media/videos/naive_matmul/480p15/NaiveMatMul.mp4 ../../anim/media/videos/naive_matmul_parallel/480p15/ParallelNaiveMatMul.mp4 ../../anim/media/videos/cache_friendly_matmul/480p15/CacheFriendlyMatMul.mp4 ../../anim/media/videos/simd_matmul/480p15/SimdMatMul.mp4 ../../anim/media/videos/streaming_matmul/480p15/StreamingMatMul.mp4 public/media/",
     "build": "astro build",
     "test": "node --test src/plugins/ src/components/ src/results/ src/playground/",
     "check": "node check-dist.mjs"

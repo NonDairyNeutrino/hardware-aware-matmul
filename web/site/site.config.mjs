@@ -131,6 +131,14 @@ export const insertions = [
       'A 2 &times; 4 block of C stays in two vector registers for the whole run along k, with four lanes (a 4 &times; 4 example, so a row of B fills a register); C is stored once at the end.',
     ),
   },
+  {
+    chapter: 'levels/streaming',
+    afterHeading: 'The idea',
+    html: video(
+      'StreamingMatMul.mp4',
+      'One output tile of C at a time: slices of A and B stream through three small buffers into a running sum, and workers claim tiles from a shared counter.',
+    ),
+  },
   // Level 2: how often B is fetched, after the paragraph that gives the size of a block of B
   // (the step-through demo sits right after the heading and counts as one of the blocksAfter).
   // Threads = 4 is stated in the caption.
