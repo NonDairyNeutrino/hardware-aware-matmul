@@ -29,6 +29,11 @@ export const chapters = [
   { id: 'paper/results', title: 'Results', route: 'results/', section: 'results' },
 ];
 
+// Pages that are not part of the paper's reading order but are linked from the navigation.
+// The playground may register the service worker (one reload) to enable multithreading, which
+// is why it is not a chapter: the chapters must stay reload-free.
+export const extraPages = [{ title: 'Playground', route: 'playground/' }];
+
 // Labels for the sections that group several pages.
 export const sectionTitles = { methods: 'Methods' };
 
@@ -42,6 +47,7 @@ export const links = {
   cache_friendly: 'levels/cache_friendly/',
   simd: 'levels/simd/',
   streaming: 'levels/streaming/',
+  playground: 'playground/',
   // API items and rustdoc-only pages.
   ...Object.fromEntries([
     'streaming::TileSource', 'streaming::TileSink', 'streaming::FileMatrix',

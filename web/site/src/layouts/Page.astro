@@ -1,7 +1,7 @@
 ---
 import '../styles/site.css';
 import StepThroughLoader from '../components/StepThroughLoader.astro';
-import { chapters, repoUrl, sectionTitles, siteSubtitle, siteTitle } from '../../site.config.mjs';
+import { chapters, extraPages, repoUrl, sectionTitles, siteSubtitle, siteTitle } from '../../site.config.mjs';
 
 interface Props {
   title: string;
@@ -61,6 +61,11 @@ const entries = chapters.reduce((groups, chapter) => {
               </li>
             ),
           )}
+          {extraPages.map((page) => (
+            <li>
+              <a href={base + page.route} aria-current={here === base + page.route ? 'page' : undefined}>{page.title}</a>
+            </li>
+          ))}
         </ul>
       </nav>
     </header>

@@ -1,0 +1,77 @@
+---
+// The playground: run the benchmark on the reader's own machine. This is the ONE reading page
+// that may register the service worker (to enable multithreading, with one reload); it is
+// deliberately not one of the paper's chapters, so those stay reload-free. The logic lives in
+// src/playground/.
+import Page from '../../layouts/Page.astro';
+import results from '../../data/results.json';
+
+const base = import.meta.env.BASE_URL;
+// The reference run's result hash for each size it measured: the playground checks its own
+// result against it when the size matches.
+const reference = Object.fromEntries(
+  results.parameters.sizes.map((n) => [n, results.runs.find((run) => run.n === n)?.hash]),
+);
+const levels = ['Level 0: naive', 'Level 1: threaded', 'Level 2: cache blocking', 'Level 3: SIMD', 'Level 4: streaming'];
+---
+<Page title="Playground">
+  <p>
+    Run the benchmark on your own machine. This page runs the same Rust code as the Methods,
+    compiled to WebAssembly, inside your browser, and times each level on a matrix size you
+    choose. Browser timings are indicative: they depend on your hardware, your browser and what
+    else the machine is doing, and will differ from the reference run on the Results page.
+  </p>
+  <section id="playground" data-base={base} data-reference={JSON.stringify(reference)}>
+    <div id="pg-banner" class="pg-banner" role="status" hidden></div>
+    <form id="pg-form" class="pg-form">
+      <label>Matrix size
+        <select name="n">
+          {[64, 128, 256, 512, 1024].map((n) => <option value={n}>{n} × {n}</option>)}
+        </select>
+      </label>
+      <label>Repeats (the median is shown)
+        <select name="repeats">
+          {[1, 3, 5].map((r) => <option value={r}>{r}</option>)}
+        </select>
+      </label>
+      <label>Threads
+        <input type="number" name="threads" min="1" max="8" value="4" />
+      </label>
+      <fieldset>
+        <legend>Levels to run</legend>
+        {levels.map((name, level) => (
+          <label class="pg-check"><input type="checkbox" name="levels" value={level} checked /> {name}</label>
+        ))}
+      </fieldset>
+      <details class="pg-advanced">
+        <summary>Cache blocks and tiles</summary>
+        <label>Cache block k <input type="number" name="block-k" min="1" max="1024" value="32" /></label>
+        <label>Cache block j <input type="number" name="block-j" min="1" max="1024" value="64" /></label>
+        <label>Level 4 tile rows <input type="number" name="tile-rows" min="1" max="1024" value="128" /></label>
+        <label>Level 4 tile columns <input type="number" name="tile-cols" min="1" max="1024" value="128" /></label>
+        <label>Level 4 tile depth <input type="number" name="tile-depth" min="1" max="1024" value="128" /></label>
+      </details>
+      <div class="pg-actions">
+        <button type="submit" id="pg-run">Run</button>
+        <button type="button" id="pg-cancel" disabled>Cancel</button>
+      </div>
+    </form>
+    <p id="pg-status" role="status" aria-live="polite"></p>
+    <p id="pg-build" class="pg-build"></p>
+    <div class="table-scroll" tabindex="0" role="region" aria-label="Playground results">
+      <table class="results" id="pg-table" hidden>
+        <thead>
+          <tr>
+            <th scope="col">Level</th><th scope="col">Median</th><th scope="col">Throughput</th>
+            <th scope="col">vs level 0</th><th scope="col">vs previous</th><th scope="col">Time</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <p id="pg-verdict" class="pg-verdict" hidden></p>
+  </section>
+  <script>
+    import '../../playground/main.js';
+  </script>
+</Page>
