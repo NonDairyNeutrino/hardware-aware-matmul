@@ -2,7 +2,7 @@
 // tries once to enable isolation through a service worker, else the single-threaded lite
 // build), wires the form to the worker through the controller, and shows the results.
 import { createController } from './controller.mjs';
-import { ATTEMPTS_KEY, decide } from './isolation.mjs';
+import { ATTEMPTS_KEY, LEFT_ROOT_KEY, decide, leaveRootWorker } from './isolation.mjs';
 import { DEFAULTS, clampRequest, timeoutMs } from './request.mjs';
 import { createUi } from './ui.js';
 
@@ -19,7 +19,7 @@ const supportsSimd = () => {
   try { return WebAssembly.validate(SIMD_PROBE); } catch { return false; }
 };
 
-const GATES = ['threads', 'lite', 'recover', 'fallback'];
+const GATES = ['threads', 'lite', 'recover', 'fallback', 'migrate'];
 // The gates serve a GATE=1 build (__GATE_BUILD__, astro.config.mjs) from http://127.0.0.1; in
 // production the gate driver is not even built, and on a real site `?gate=` does nothing.
 const gate = __GATE_BUILD__ && ['127.0.0.1', 'localhost'].includes(location.hostname) && GATES.includes(query.get('gate')) ? query.get('gate') : null;
@@ -30,23 +30,41 @@ const store = {
   clear() { try { sessionStorage.removeItem(ATTEMPTS_KEY); } catch { /* storage blocked */ } },
 };
 
+// Whether this tab already reloaded to leave the old root service worker. If storage is blocked
+// the guard cannot work, so it reads as "already reloaded" and the page never reloads for it.
+const leftRoot = {
+  get() { try { return sessionStorage.getItem(LEFT_ROOT_KEY) === '1'; } catch { return true; } },
+  set() { try { sessionStorage.setItem(LEFT_ROOT_KEY, '1'); return true; } catch { return false; } },
+};
+
 // The service worker's scope is the playground's own directory, not the site root: the script is
 // served from playground/, so coi-serviceworker's default scope is /<base>playground/, and Vite
 // writes the workers (and their wasm) under playground/_worker/ (astro.config.mjs). The page and
-// its workers get the isolation headers; the paper's pages are never controlled. Earlier versions
-// registered it at the site root; remove such a registration, so it stops controlling the chapters.
+// its workers get the isolation headers; the paper's pages are not controlled. Earlier versions
+// registered it at the site root. Production now serves a kill-switch at that URL, which removes
+// the root registration on its next update check (src/playground/kill-switch-sw.js); this page
+// does not wait for that: it unregisters the root registration itself and says whether the page
+// is still controlled by that worker.
 const SW_SCRIPT = `${base}playground/coi-serviceworker.js`;
-function removeRootServiceWorker() {
-  if (!('serviceWorker' in navigator)) return;
+async function removeRootServiceWorker() {
+  if (!('serviceWorker' in navigator)) return false;
   const rootScope = new URL(base, location.href).href;
-  navigator.serviceWorker.getRegistrations()
-    .then((registrations) => registrations.filter((r) => r.scope === rootScope).forEach((r) => r.unregister()))
-    .catch(() => { /* nothing to clean up */ });
+  try {
+    const registrations = await navigator.serviceWorker.getRegistrations();
+    await Promise.all(registrations.filter((r) => r.scope === rootScope).map((r) => r.unregister()));
+  } catch { /* nothing to clean up */ }
+  return navigator.serviceWorker.controller?.scriptURL === new URL(`${base}coi-serviceworker.js`, location.href).href;
 }
 
 /** Resolves to 'threads' or 'lite' (never, if the page reloads to enable isolation). */
 async function chooseBuild() {
-  removeRootServiceWorker();
+  const controlledByRoot = await removeRootServiceWorker();
+  if (leaveRootWorker({ controlledByRoot, reloaded: leftRoot.get() }) === 'reload' && leftRoot.set()) {
+    // Its workers would get no isolation headers (isolation.mjs): reload once, uncontrolled.
+    ui.setBanner('Removing an old service worker: this page will reload once.', 'info');
+    location.reload();
+    return new Promise(() => {});
+  }
   const decision = decide({ isolated: self.crossOriginIsolated, attempts: store.get(), serviceWorkers: 'serviceWorker' in navigator });
   if (decision.action === 'threads') {
     store.clear();

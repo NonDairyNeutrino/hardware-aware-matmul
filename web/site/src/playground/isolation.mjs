@@ -19,3 +19,22 @@ export function decide({ isolated, attempts, serviceWorkers }) {
 
 /** The key under which a tab remembers that it already tried. */
 export const ATTEMPTS_KEY = 'playground-isolation-attempts';
+
+/**
+ * What to do when the page may still be controlled by the service worker that earlier versions
+ * registered at the site root (main.js has already unregistered it). Such a page is isolated, but
+ * its workers would not be: a worker script is matched to a service worker by its own URL, and
+ * no registration covers it any more, so the threaded start would fail. Reloading once leaves the
+ * page uncontrolled, and the usual path then registers the playground's own service worker.
+ *
+ * @param {object} state
+ * @param {boolean} state.controlledByRoot  the page's controller is the root service worker
+ * @param {boolean} state.reloaded          this tab already reloaded for this reason
+ * @returns {'reload' | 'continue'}
+ */
+export function leaveRootWorker({ controlledByRoot, reloaded }) {
+  return controlledByRoot && !reloaded ? 'reload' : 'continue';
+}
+
+/** The key under which a tab remembers that it reloaded to leave the root service worker. */
+export const LEFT_ROOT_KEY = 'playground-left-root-service-worker';
