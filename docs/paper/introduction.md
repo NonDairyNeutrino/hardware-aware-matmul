@@ -49,8 +49,8 @@ previous level ran into. Every level returns exactly the same bits as the one be
 | [Level 4](crate::streaming) | the need for every matrix to fit in memory | stream small tiles of the matrices through bounded buffers | {{ms streaming t=1}} | {{ms streaming}} |
 
 Level 4 is a different kind of step. It does not aim to be faster on matrices that fit in
-memory; it makes the problem possible on matrices that do not. The Discussion measures what
-that costs.
+memory; it makes the problem possible on matrices that do not. The Discussion compares it
+with level 3 on matrices that do fit.
 
 # How to read this
 

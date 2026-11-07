@@ -22,14 +22,17 @@ and each chapter says what it fixes and what it still costs.
 The [Results](crate::results) timed every level, natively and in a web browser, on one
 machine, and the [Discussion](crate::discussion) compared them. In that run every case
 returned the same result, whatever the level, the thread count or the environment. At n = {{env largest}}, natively, level 3 with all of its threads was {{speedup simd/naive}}
-faster than the textbook loop. On one thread, most of the gain arrived with level 2, which
+faster than the textbook loop, and level 4 on four threads {{speedup streaming/naive t=4}}. On one thread, most of the gain arrived with level 2, which
 reorders the loops and blocks for the cache ({{speedup cache_friendly/naive t=1}}); the
 vector micro-kernel added a further {{speedup simd/cache_friendly t=1}}. Threads helped the
-blocked, vector and streaming levels until the physical cores ran out, and not beyond.
-Level 4 cost little on matrices that fit in memory. In the browser, the single-threaded
-build ran more slowly than native code at every level, by an amount that depended on the
-level; level 3, which is written around vector registers, came closest, at
-{{gflops simd lite}} against {{gflops simd t=1}} natively.
+blocked, vector and streaming levels until the physical cores ran out, and little beyond.
+Level 4, built for matrices that do not fit in memory, was about as fast as level 3 on
+matrices that do at the two smaller sizes, and faster at every thread count at the two
+largest; the run does not say why. In the browser, at the largest size, the single-threaded
+build ran more slowly than native code at levels 2 to 4, by an amount that depended on the level; level 3,
+which is written around vector registers, came closest of those three, at
+{{gflops simd lite}} against {{gflops simd t=1}} natively. Levels 0 and 1 were no slower in
+the browser at the largest size, where their native one-thread times are uncertain.
 
 # What it means, and what it does not
 

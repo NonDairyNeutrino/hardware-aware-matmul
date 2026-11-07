@@ -38,7 +38,7 @@ real 64-byte lines it is one value in eight.
 
 The waste is avoidable if the lines survive in the cache until the next column asks for their
 neighbours. For a matrix with n rows, a column walk touches n lines, so keeping them needs
-n lines of 64 bytes: 64 KiB for n = 1024, which is more than a typical L1 cache holds. If the lines do not all stay in the cache, then by the time the loop moves to the next column they have been evicted and must be fetched again. That is the likely reason the textbook loop of level 0 slows down as matrices grow, and it is why level 2 rearranges its loops. The [Discussion](crate::discussion) says how far the measurements support this.
+n lines of 64 bytes: 64 KiB for n = 1024, which is more than the {{env l1d}} L1 data cache of the laptop used in this paper holds. If the lines do not all stay in the cache, then by the time the loop moves to the next column they have been evicted and must be fetched again. That is the likely reason the textbook loop of level 0 slows down as matrices grow, and it is why level 2 rearranges its loops. The [Discussion](crate::discussion) says how far the measurements support this.
 
 # There is a lot of reuse to be had
 

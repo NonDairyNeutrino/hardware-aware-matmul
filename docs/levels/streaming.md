@@ -197,11 +197,16 @@ stored exactly once: the product, with the same bits as
 
 # What it costs
 
-- **No faster on data that fits in memory.** In-memory matrices are copied into
-  the tile buffers before being used. If everything fits in RAM,
-  [`cache_friendly`](crate::cache_friendly) is the better choice. Level 4 earns
-  its keep when the data does not fit, or when you want to consume results
-  without storing them.
+- **Not designed to be faster on data that fits in memory.** In-memory
+  matrices are copied into the tile buffers before being used, work that the
+  other levels do not do. Measured on one machine, that copying cost little
+  against [`simd`](crate::simd) on small matrices that fit, and on the larger
+  ones this level was faster. Why is not established (the small, contiguous
+  buffers may suit the caches better than rows of the full matrices), and it
+  is not the purpose of this level, so do not count on it elsewhere. If
+  everything fits in RAM, [`cache_friendly`](crate::cache_friendly) and
+  [`simd`](crate::simd) are simpler. Level 4 earns its keep when the data does
+  not fit, or when you want to consume results without storing them.
 - **Rereading.** The inputs are read many times;
   [`StreamConfig::peak_buffer_bytes`] and
   [`StreamConfig::with_tile_shape`] let you trade memory against rereading.

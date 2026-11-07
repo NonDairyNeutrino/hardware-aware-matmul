@@ -53,8 +53,11 @@ RUSTFLAGS="-C target-cpu=native" cargo run --release
 The `compare` binary prints which instruction set the SIMD level was compiled
 for.
 
-> Level 4 is not expected to beat level 3 on matrices that fit in memory. It
-> copies tiles into small buffers. What it provides is bounded memory.
+> Level 4 is not designed to beat level 3 on matrices that fit in memory. It
+> copies tiles into small buffers, and what it provides is bounded memory.
+> Measured on one machine, it nonetheless came close to level 3 on small
+> in-memory matrices and beat it on the larger ones, for reasons that were
+> not established; do not count on that elsewhere.
 
 # Quick start
 
@@ -84,8 +87,10 @@ assert_eq!(c0, c4);
 
 # Which level should I use?
 
-- **Your matrices fit in memory:** [`simd`]. It is the fastest level for
-  that case. Use [`naive`] only as a reference or to learn from.
+- **Your matrices fit in memory:** [`simd`], the simpler of the two fast
+  levels. On large matrices [`streaming`] was as fast or faster on the one
+  machine measured, so time both on yours. Use [`naive`] only as a reference
+  or to learn from.
 - **They do not, or you want to consume the product without storing it:**
   [`streaming`], with [`FileMatrix`](crate::streaming::FileMatrix) or your own
   [`TileSource`](crate::streaming::TileSource) and
