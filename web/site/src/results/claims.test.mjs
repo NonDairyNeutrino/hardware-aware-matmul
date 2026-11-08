@@ -313,7 +313,9 @@ test('the hook: the textbook loop uses a small fraction of a test loop\'s rate o
 });
 
 test('the first clue: level 2 on one thread beats level 1 on every thread, and level 1 barely gains from four to eight (Abstract, Introduction, Discussion)', () => {
-  assert.ok(native(2, largest, 1) < native(1, largest, mostNative));
+  for (const t of nativeThreads) {
+    assert.ok(native(2, largest, 1) < native(1, largest, t), `level 1 at ${t} threads`);
+  }
   // "barely": eight threads are less than a tenth faster than four.
   assert.ok(native(1, largest, mostNative) > 0.9 * native(1, largest, physicalCores));
 });
