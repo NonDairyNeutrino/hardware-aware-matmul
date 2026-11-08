@@ -18,12 +18,12 @@ the [Introduction](crate::introduction) was where the time of the textbook loop 
 The levels, by number: 0 the textbook loop, 1 threads, 2 cache blocking, 3 registers and
 vector lanes, 4 the packed copy, 5 streaming.
 
-The sections below take these in order. Everything below refers to the reference run: one
-laptop, one day, one browser. Every figure is filled in from that run's committed data. Each
-section opens with its claim and then a table; what the data cannot show is collected in a
-paragraph labelled "What this does not show". Where a sentence explains a difference rather
-than reports it, the sentence says so, and where the data cannot tell two explanations apart,
-the page says that too.
+The sections below take these in order, and end with a side trip to the browser. Everything
+below refers to the reference run: one laptop, one day, one browser. Every figure is filled
+in from that run's committed data. Most sections open with their claim and then give a
+table; what the data cannot show is collected in a paragraph labelled "What this does not
+show". Where a sentence explains a difference rather than reports it, the sentence says so,
+and where the data cannot tell two explanations apart, the page says that too.
 
 # The answer does not change
 
