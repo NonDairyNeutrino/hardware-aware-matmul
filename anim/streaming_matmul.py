@@ -25,10 +25,10 @@ def sub(M, r0, c0):
 
 
 class StreamingMatMul(Scene):
-    """Level 4: one output tile at a time, streamed through three small buffers."""
+    """Level 5: one output tile at a time, streamed through three small buffers."""
 
     def construct(self):
-        title = Text("Level 4: Streaming Matrix Multiplication", font_size=32)
+        title = Text("Level 5: Streaming Matrix Multiplication", font_size=32)
         title.to_edge(UP, buff=0.3)
         self.play(Write(title))
         narr = Narrator(LEFT * 3.2 + DOWN * 2.8)
@@ -43,7 +43,7 @@ class StreamingMatMul(Scene):
         for g in big:  # the label and size sit inside the square
             g[1].move_to(g[0].get_center() + UP * 0.2)
             g[2].move_to(g[0].get_center() + DOWN * 0.3)
-        self.play(FadeIn(big), narr.say("Levels 0 to 3 keep A, B and C in memory all at once.\n"
+        self.play(FadeIn(big), narr.say("Levels 0 to 4 keep A, B and C in memory all at once.\n"
                                         "At n = 100 000 each matrix is 80 GB."))
         self.wait(2.5)
         total = Text("3 x 80 GB = 240 GB", font_size=28, color=RED_C).next_to(big, DOWN, buff=0.4)
@@ -171,6 +171,6 @@ class StreamingMatMul(Scene):
         ).arrange(DOWN, aligned_edge=LEFT, buff=0.1)
         summary.move_to(RIGHT * 0.5 + DOWN * 1.9, aligned_edge=UL)
         self.play(Write(summary),
-                  narr.say("Level 4 makes the product possible when the matrices\n"
+                  narr.say("Level 5 makes the product possible when the matrices\n"
                            "do not fit in memory, with identical results."))
         self.wait(3)
