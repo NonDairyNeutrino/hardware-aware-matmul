@@ -28,14 +28,23 @@ nothing until there is more than one of them.
 
 Neither figure is noise: at n = {{env largest}} level 1's {{ms threaded t=1}} on one thread
 and level 0's {{ms naive}} come from {{env repeats}} runs each, all within a few per cent of
-their median. With two threads it takes {{ms threaded t=2}}, about half, and with
-four {{ms threaded t=4}}. With eight it takes {{ms threaded t=8}}: no slower, and less than a
-tenth faster, though the eight threads are all the machine's hardware threads on
-{{env physical_cores}} physical cores.
+their median.
 
-At n = 1024 level 1 also roughly halves its time with two threads
-({{ms threaded t=1 n=1024}} to {{ms threaded t=2 n=1024}}) and gains a little more from the
-second four ({{ms threaded t=4 n=1024}} to {{ms threaded t=8 n=1024}}). One plausible reading
+Level 1 by thread count:
+
+| threads | n = 1024 | n = {{env largest}} |
+|---|---|---|
+| 1 | {{ms threaded t=1 n=1024}} | {{ms threaded t=1}} |
+| 2 | {{ms threaded t=2 n=1024}} | {{ms threaded t=2}} |
+| 4 | {{ms threaded t=4 n=1024}} | {{ms threaded t=4}} |
+| 8 | {{ms threaded t=8 n=1024}} | {{ms threaded t=8}} |
+
+At the larger size, with two threads it takes about half. With eight it is no slower, and
+less than a tenth faster, though the eight threads are all the machine's hardware threads
+on {{env physical_cores}} physical cores.
+
+At n = 1024 level 1 also roughly halves its time with two threads and gains a little more
+from the second four. One plausible reading
 of that last gain is that level 1's inner loop spends much of its time waiting for memory,
 and a thread that is waiting leaves its core free for the thread that shares it. The
 measurements at n = 1024 are consistent with that and do not test it; those at
@@ -159,8 +168,8 @@ comes with fewer cycles and fewer loads that left the L2, which is what the read
 cost lies in reading the second matrix in place predicted. This is the strongest evidence in
 this paper for a cause, and it still has limits (below).
 
-Level 5 goes further at that size: fewer cycles and a higher rate of instructions per cycle.
-It executes more L1 loads than level 4, because its kernel is level 2's rather than the
+Level 5 goes further at that size in cycles: fewer cycles and a higher rate of instructions
+per cycle. It executes more L1 loads than level 4, because its kernel is level 2's rather than the
 register-blocked one, so it does more work and spends less time waiting. The cycles order
 levels 3, 4 and 5 as the times do (level 5's times follow in the twist below). The step from
 level 4 to level 5 is therefore a step in waiting for memory, not in instructions.
@@ -196,8 +205,8 @@ n = {{env largest}} it was ahead of level 4 at every thread count, though by lit
 | 4 | {{ms packed t=4}} | {{ms streaming t=4}} |
 | 8 | {{ms packed t=8}} | {{ms streaming t=8}} |
 
-Level 4 gets most of the way from level 3 to level 5 at every thread count. At the two
-smaller sizes level 5 loses the lead: it is close to level 3, sometimes ahead and sometimes
+At that size, level 4 gets most of the way from level 3 to level 5 at every thread count.
+At the two smaller sizes level 5 loses the lead: it is close to level 3, sometimes ahead and sometimes
 behind, but never more than about a tenth behind.
 
 Level 4 also helps explain the twist. One reading offered for level 5's lead was that its
@@ -246,14 +255,23 @@ natively and with the same thread counts. A bandwidth test (the STREAM triad, wh
 three arrays far larger than the caches) stops gaining at four threads, like the levels. An
 arithmetic test that never leaves the registers kept gaining:
 
-| threads | bandwidth test | arithmetic test | level 3 as a share of the arithmetic test |
+| threads | bandwidth test | arithmetic test | level 3 at n = {{env largest}}, share of the test at the same threads |
 |---|---|---|---|
 | 1 | {{triad t=1}} | {{peak t=1}} | {{frac simd t=1}} |
 | 4 | {{triad t=4}} | {{peak t=4}} | {{frac simd t=4}} |
 | 8 | {{triad t=8}} | {{peak t=8}} | {{frac simd t=8}} |
 
 These are the rates that one test loop achieved, not the most the cores can do. So with
-eight threads the test found more arithmetic than the levels use.
+eight threads the test found more arithmetic than the levels use. The spare arithmetic
+suggests the arithmetic units themselves are not what runs out, but it does not show that
+main memory is. A rough count, not a measurement: level 5 at n = {{env largest}} reads its
+input tiles about 1 GB worth in all, even if every tile came from main memory, and at the
+triad's {{triad t=4}} that would take under a tenth of its {{ms streaming t=4}} on four
+threads. That makes main-memory bandwidth look an unlikely limit, for level 5 at least, but
+the count is an estimate and the triad is one access pattern among many, so the data cannot
+rule it out. The other candidates are what two hyper-threads of one core share besides the
+arithmetic: the L1 and the {{env l2}} L2 cache of that core, and the machinery that feeds
+the execution units. The run did not measure those.
 
 The throughput of the fastest levels also depends on the problem size, and here too the
 change falls between n = 512 and n = 1024. Level 3 on four threads falls after n = 512:
@@ -271,23 +289,13 @@ competing for the shared cache, or for what lies behind it, set the pace. The on
 fall that remains is the part that packing removes: level 4 on one thread, in the last
 column, shows a smaller fall than level 3's.
 
-**What this does not show.** The spare arithmetic suggests the arithmetic units themselves
-are not what runs out, but it does not show that main memory is. A rough count, not a
-measurement: level 5 at n = {{env largest}} reads its input tiles about 1 GB worth in all,
-even if every tile came from main memory, and at the triad's {{triad t=4}} that would take
-under a tenth of its {{ms streaming t=4}} on four threads. That makes main-memory bandwidth
-look an unlikely limit, for level 5 at least, but the count is an estimate and the triad is
-one access pattern among many, so the data cannot rule it out. The other candidates are what
-two hyper-threads of one core share besides the arithmetic: the L1 and the {{env l2}} L2
-cache of that core, and the machinery that feeds the execution units. The run did not
-measure those. The counting run above used one thread, so it cannot tell these explanations
-apart either. The run did not measure that competition for the shared cache.
+**What this does not show.** The run did not measure that competition for the shared cache,
+or for what lies behind it. The counting run above used one thread, so it cannot tell these
+explanations apart either.
 
 # Browser against native
 
-A side trip: the same code, compiled to WebAssembly, in a browser.
-
-At n = {{env largest}}, the same Rust code, compiled to WebAssembly and run in
+A side trip: at n = {{env largest}}, the same Rust code, compiled to WebAssembly and run in
 {{env firefox}}, was slower than the native build at levels 2 to 5, by an amount that
 depends on the level.
 
@@ -302,8 +310,8 @@ At n = {{env largest}}, on one thread:
 | 4 | {{ms packed t=1}} | {{ms packed lite}} | {{ms packed threads t=1}} |
 | 5 | {{ms streaming t=1}} | {{ms streaming lite}} | {{ms streaming threads t=1}} |
 
-The two levels written around vector registers, 3 and 4, come closest to native speed. Both
-builds use 128-bit vectors, {{env native_isa}} natively and {{env browser_isa}} in the
+Of levels 2 to 5, the two written around vector registers, 3 and 4, come closest to native
+speed. Both builds use 128-bit vectors, {{env native_isa}} natively and {{env browser_isa}} in the
 browser, so the micro-kernel of levels 3 and 4 asks for the same width in both. That is a
 reason to expect them to travel well; the experiment shows that they do, but not why levels 2
 and 5 lose more. Levels 3 and 4 came closest of the four at every size.
@@ -342,26 +350,28 @@ not something this experiment can separate.
 
 - **One machine, one day, one browser.** The reference run used {{env cpu}} with the CPU
   governor set to {{env governor}}, on {{env date}}, in {{env firefox}}. Its caches are
-  {{env l1d}} of L1 data cache and {{env l2}} of L2 per core, and {{env l3}} of L3 shared by
-  all the cores. Another CPU, with other cache sizes and another memory system, would give
-  other ratios. The playground lets a reader repeat the browser measurements on their own
-  machine. - **Four sizes.** The sizes were {{env sizes}}. Trends with the size, such as the
-  growing gain of cache blocking, rest on four points, each double the last, so a change of
+  {{env l1d}} of L1 data cache and {{env l2}} of L2 per core, and {{env l3}} of L3 shared
+  by all the cores. Another CPU, with other cache sizes and another memory system, would
+  give other ratios. The playground
+  lets a reader repeat the browser measurements on their own machine.
+- **Four sizes.** The sizes were {{env sizes}}. Trends with the size, such as the growing
+  gain of cache blocking, rest on four points, each double the last, so a change of
   behaviour between two of them, such as the fall between n = 512 and n = 1024, cannot be
   placed more precisely. Nor does any of them separate the effect of the size from the
-  effect of leaving one cache level for the next. - **Baseline vectors, no fused
-  multiply-add.** Native code was built for {{env native_isa}} (recorded RUSTFLAGS:
-  {{env rustflags}}), the baseline of the platform and not of this CPU. By design no level
-  uses fused multiply-add, which would change the result bits. Both choices keep the
-  comparison honest and keep the results identical. They also mean that none of these
-  figures is the most this CPU can do. - **Explanations are interpretations.** The levels
-  were timed, and counted at two sizes on one thread. The reference run recorded the cache
-  sizes, a triad bandwidth ({{env triad_max}} at most), the rate of an arithmetic test
-  ({{env peak_max}} at most) and, at n = 1024 and n = {{env counters_n}} on
-  {{env counters_threads}} thread, cycles, instructions and misses in the L1, the last-level
+  effect of leaving one cache level for the next.
+- **Baseline vectors, no fused multiply-add.** Native code was built for {{env native_isa}}
+  (recorded RUSTFLAGS: {{env rustflags}}), the baseline of the platform and not of this CPU. By
+  design no level uses fused multiply-add, which would change the result bits. Both choices
+  keep the comparison honest and keep the results identical. They also mean that none of
+  these figures is the most this CPU can do.
+- **Explanations are interpretations.** The levels were timed, and counted at two sizes on one
+  thread. The reference run recorded the cache sizes, a triad bandwidth ({{env triad_max}} at
+  most), the rate of an arithmetic test ({{env peak_max}} at most) and, at n = 1024 and
+  n = {{env counters_n}} on {{env counters_threads}} thread, cycles, instructions and misses in the L1, the last-level
   cache and the data TLB. It did not count memory traffic, the use of the execution units,
-  anything with several threads running, or anything in the browser. Each statement above
-  about why a difference arises is a reading consistent with the numbers, not a measurement
-  of the cause. - **Noise.** Cases whose interquartile range exceeds 20% of the median are
-  marked † on the Results page and should be read as indicative. Browser timings in
-  particular depend on the browser's clock and engine.
+  anything with several threads running, or anything in the browser. Each statement above about
+  why a difference arises is a reading consistent with the numbers, not a measurement of the
+  cause.
+- **Noise.** Cases whose interquartile range exceeds 20% of the median are marked † on the
+  Results page and should be read as indicative. Browser timings in particular depend on
+  the browser's clock and engine.
