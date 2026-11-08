@@ -108,7 +108,7 @@ partitioning on the other, is kept at every level from here on.
 
 # Where to go next
 
-More cores helped, but less than the number of cores suggests, and the arithmetic each thread
+More cores helped, but less than the number of threads suggests, and the arithmetic each thread
 does is still the slow part. Whatever holds each thread back, more threads do not fix it.
 [`cache_friendly`](crate::cache_friendly) looks at the best remaining suspect: the order in
 which the loop walks memory.

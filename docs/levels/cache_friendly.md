@@ -2,7 +2,7 @@
 thread's loops are rearranged so that each thread reuses data while it is still in
 the cache.
 
-Level 1 left a clue: adding threads did not fix the loop, so how many cores did the arithmetic
+Level 1 left a clue: adding threads did not fix the loop, so the number of cores doing the arithmetic
 was not what held it back. This level goes after the best remaining suspect, the way the
 loop walks memory, and the measurements show that this one change does more on a single thread
 than all the cores did at level 1.

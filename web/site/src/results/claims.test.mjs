@@ -164,7 +164,7 @@ test('levels 0 and 1 one-thread native runs at the largest size are tight, and l
   }
 });
 
-test('level 1 thread scaling: about halving to two threads, a smaller gain to four, no loss at eight (Discussion)', () => {
+test('level 1 thread scaling: about halving to two threads, a smaller gain to four, no loss at eight (Discussion, threaded.md)', () => {
   for (const n of sizes.slice(-2)) {
     const ratio = native(1, n, 1) / native(1, n, 2);
     assert.ok(ratio > 1.8 && ratio < 2.2, `n=${n} two threads: ${ratio}`);
@@ -173,7 +173,9 @@ test('level 1 thread scaling: about halving to two threads, a smaller gain to fo
   // At the largest size the gain from four to eight threads is under a tenth.
   assert.ok(native(1, largest, physicalCores) / native(1, largest, mostNative) < 1.1);
   // Introduction: level 2 on one thread beats level 1 on all threads.
-  assert.ok(native(2, largest, 1) < native(1, largest, mostNative));
+  assert.ok(native(2, largest, 1) < native(1, largest, mostNative));  // docs/levels/threaded.md: the speedup falls well short of the thread count, to four threads and to eight.
+  assert.ok(native(1, largest, 1) / native(1, largest, physicalCores) < 0.9 * physicalCores);
+  assert.ok(native(1, largest, 1) / native(1, largest, mostNative) < 0.9 * mostNative);
 });
 
 test('levels 2 to 5 stop scaling at the physical cores; level 2 gains a little more from the second four (Discussion, Conclusion)', () => {
