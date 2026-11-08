@@ -1,6 +1,9 @@
-The Methods explain each speed-up with a few ideas about how a processor works. This page
-introduces them once, with small examples you can check by hand, so that the chapters can
-use them without stopping. If you already know what a cache line, a stride, a hardware thread and a vector lane are, skip to the first chapter.
+The [Introduction](crate::introduction) left a question open: why does a loop that performs the
+same multiply-adds as its fastest relative use so little of what the core can do? Answering it
+takes a few ideas about how a processor works. This page introduces them once, with small
+examples you can check by hand, so that the chapters can use them as instruments without
+stopping. If you already know what a cache line, a stride, a hardware thread and a vector lane
+are, skip to [level 0](crate::naive).
 
 # Arithmetic is cheap, moving data is not
 
@@ -74,7 +77,8 @@ multiplications. The Results use 128-bit vectors in both environments:
 
 # Four questions
 
-The Methods return to the same four questions:
+Every suspect in the case comes down to one of four questions, and the Methods return to them
+again and again. They are the checklist to carry through each chapter:
 
 1. **Is the access contiguous?** Does the code use every byte of the cache lines it fetches?
 2. **What is reused, and how far apart are the uses?** Does a value stay in a fast memory
@@ -106,3 +110,5 @@ The Methods return to the same four questions:
 | work queue | threads claim the next small piece of work when they are free, instead of getting a fixed share in advance |
 | thread | an independent sequence of instructions that the program runs |
 | SIMD | one instruction operating on all the lanes of a vector register |
+
+That is the whole toolkit. [Level 0](crate::naive) is where the case starts.
