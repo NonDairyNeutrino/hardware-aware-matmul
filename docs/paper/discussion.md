@@ -1,11 +1,29 @@
-The [Results](crate::results) report what was measured; this page weighs it. The question
-from the [Introduction](crate::introduction) was where the time of the textbook loop goes,
-and the sections below take the suspects in the order the evidence clears or convicts them:
-the cores, the memory system, the registers and the copy, the twist at level 5, the one
-question that stays open, and a side trip to the browser. Everything below refers to the
-reference run: one laptop, one day, one browser. Every figure is filled in from that run's
-committed data. Where a sentence explains a difference rather than reports it, the sentence
-says so, and where the data cannot tell two explanations apart, the page says that too.
+The [Results](crate::results) report what was measured; this page weighs it. The question from
+the [Introduction](crate::introduction) was where the time of the textbook loop goes. In short:
+
+- **The cores.** At the largest size, level 2 on one thread beat level 1 at every thread count.
+  More cores were not the main thing the loop was missing.
+- **Memory.** At the largest size, most of the one-thread gain came with level 2, which
+  reorders the loops and blocks for the cache. Cache-miss counts, taken at two sizes, fit the
+  memory system as the cause.
+- **The cleanups.** At the largest size, on one thread, the vector kernel of level 3 took a much
+  smaller step than level 2. Packing the second matrix (level 4) was faster than level 3 at
+  every thread count at the two largest sizes.
+- **The twist.** Level 5 was built so that matrices need not fit in memory, and it was
+  nonetheless the fastest case measured, natively, on four threads, at the largest size.
+- **Still open.** Threads stopped helping levels 3 to 5 where the physical cores ran out,
+  although a test of arithmetic alone kept gaining. These measurements do not say what limits
+  them.
+
+The levels, by number: 0 the textbook loop, 1 threads, 2 cache blocking, 3 registers and
+vector lanes, 4 the packed copy, 5 streaming.
+
+The sections below take these in order. Everything below refers to the reference run: one
+laptop, one day, one browser. Every figure is filled in from that run's committed data. Each
+section opens with its claim and then a table; what the data cannot show is collected in a
+paragraph labelled "What this does not show". Where a sentence explains a difference rather
+than reports it, the sentence says so, and where the data cannot tell two explanations apart,
+the page says that too.
 
 # The answer does not change
 
