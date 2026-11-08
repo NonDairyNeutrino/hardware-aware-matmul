@@ -28,7 +28,7 @@ smaller step, the packed copy helped further at the two largest sizes, and strea
 for a different reason, was the fastest case measured, natively at the largest size on four
 threads.
 
-In the reference run every case returned the same result, whatever the level, the thread count or the environment. At n = {{env largest}}, natively, level 3 with all of its threads was {{speedup simd/naive}}
+In the reference run, timed in the [Results](crate::results) and compared in the [Discussion](crate::discussion), every case returned the same result, whatever the level, the thread count or the environment. At n = {{env largest}}, natively, level 3 with all of its threads was {{speedup simd/naive}}
 faster than the textbook loop, and level 5 on four threads {{speedup streaming/naive t=4}}.
 On one thread, most of the gain arrived with level 2, which
 reorders the loops and blocks for the cache ({{speedup cache_friendly/naive t=1}}); the
@@ -61,9 +61,8 @@ One question is left open, and it is the one to take away from the case. Threads
 helping levels 3 to 5 where the physical cores ran out, while a test of arithmetic alone kept
 gaining. A rough count of level 5's reads from main memory made main-memory bandwidth look an
 unlikely limit for that level, but the count is an estimate, and the data cannot settle it.
-What the cores share besides the arithmetic (their caches, the machinery that feeds the
-execution units) was not measured. The [playground](crate::playground) lets a reader see
-whether the same shape appears on their own machine.
+What the two hardware threads of one core share besides the arithmetic (their caches, the machinery that feeds the
+execution units) was not measured. The [playground](crate::playground) can show whether threads stop helping at the physical cores on other hardware too.
 
 # Four questions to take with you
 
