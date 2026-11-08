@@ -30,7 +30,7 @@ textbook loop; the vector kernel then took a smaller step, a further
 until the physical cores ran out, and little beyond. Level 4, which copies each block of the
 second matrix first, was within a tenth of level 3 at the two smaller sizes, neither always
 ahead, and faster at every thread count at the two largest. Level 5, built for a different
-reason, for matrices that do not fit in memory, was likewise about as fast as level 3 on
+reason (matrices that do not fit in memory), was likewise about as fast as level 3 on
 matrices that do at the two smaller sizes and faster at the two largest, and level 4
 recovered most of that lead. Streaming was the fastest case measured, natively at the
 largest size on four threads: {{speedup streaming/naive t=4}} faster than the textbook loop,
@@ -55,8 +55,9 @@ unchanged, the way the work is laid out over memory, registers and cores moved t
 time by more than an order of magnitude. It is also the lesson of the limits. The figures
 come from one machine on one day, the explanations are mostly readings of the numbers (the
 event counts, from two sizes and one thread, test only some of them), and none of the levels
-is a replacement for a tuned linear algebra library. The [playground](crate::playground) is there so that a reader can run the
-comparison on their own hardware, and see whether the same shape appears.
+is a replacement for a tuned linear algebra library. The [playground](crate::playground) is
+there so that a reader can run the comparison on their own hardware, and see whether the same
+shape appears.
 
 One question is left open, and it is the one to take away from the case. Threads stopped
 helping levels 3 to 5 where the physical cores ran out, while a test of arithmetic alone kept

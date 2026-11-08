@@ -13,9 +13,9 @@ All {{env runs}} measured cases produced the same result for each matrix size, b
 bit: every level, every thread count, natively and in both browser builds. That is the
 premise of the comparison, and it is what separates it from a comparison of algorithms. No
 level does fewer multiply-adds than another, or different ones: each output element is
-still the sum of the same products, added in the same order. Every difference below is therefore a difference in how well the same
-arithmetic was fed to the hardware, and none of the speed was bought with a different
-answer.
+still the sum of the same products, added in the same order. Every difference below is
+therefore a difference in how well the same arithmetic was fed to the hardware, and none of
+the speed was bought with a different answer.
 
 # The first suspect: the cores
 

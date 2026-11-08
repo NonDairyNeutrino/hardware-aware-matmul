@@ -74,6 +74,9 @@ test('level 4 (packing) against level 3: a lead only at the two largest sizes, a
       assert.ok(r > 0.9 && r < 1.1, `n=${n} t=${t}: ${r}`);
     }
   }
+  // Conclusion: "neither always ahead" at the two smaller sizes.
+  const small = sizes.slice(0, -2).flatMap((n) => nativeThreads.map((t) => native(4, n, t) / native(3, n, t)));
+  assert.ok(small.some((r) => r < 1) && small.some((r) => r > 1), 'neither always ahead at the smaller sizes');
 });
 
 test('level 5 stays ahead of level 4 at the largest size, and level 4 gets most of the way from level 3 to level 5 (Discussion, Conclusion)', () => {
@@ -323,6 +326,10 @@ test('the first clue: level 2 on one thread beats level 1 on every thread, and l
   }
   // "barely": eight threads are less than a tenth faster than four.
   assert.ok(native(1, largest, mostNative) > 0.9 * native(1, largest, physicalCores));
+  // Discussion: "none of it comes close": level 1 on every thread takes more than twice level 2's one-thread time.
+  for (const t of nativeThreads) {
+    assert.ok(native(1, largest, t) > 2 * native(2, largest, 1), `level 1 at ${t} threads`);
+  }
 });
 
 test('the verdict: the fastest case at the largest size is level 5 on four threads (Abstract, Conclusion)', () => {
