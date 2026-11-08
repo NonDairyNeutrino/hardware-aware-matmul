@@ -306,3 +306,23 @@ test('browser against native at the largest size (Discussion, Conclusion)', () =
     assert.ok(Math.abs(threaded(level, 1) / lite(level, largest) - 1) < 0.05, `level ${level} about the same`);
   }
 });
+
+test('the hook: the textbook loop uses a small fraction of a test loop\'s rate on one core (Abstract, Introduction)', () => {
+  // "a small fraction": the story only holds while the loop is well under a tenth of the probe.
+  assert.ok(gflops(0, largest, 1) / hardware.peak_gflops[1] < 0.1);
+});
+
+test('the first clue: level 2 on one thread beats level 1 on every thread, and level 1 barely gains from four to eight (Abstract, Introduction, Discussion)', () => {
+  assert.ok(native(2, largest, 1) < native(1, largest, mostNative));
+  // "barely": eight threads are less than a tenth faster than four.
+  assert.ok(native(1, largest, mostNative) > 0.9 * native(1, largest, physicalCores));
+});
+
+test('the verdict: the fastest case at the largest size is level 5 on four threads (Abstract, Conclusion)', () => {
+  const all = [];
+  for (const level of [0, 1, 2, 3, 4, 5]) {
+    for (const t of level === 0 ? [1] : data.parameters.threads.native) all.push([level, t, native(level, largest, t)]);
+  }
+  const fastest = all.reduce((a, b) => (b[2] < a[2] ? b : a));
+  assert.deepEqual(fastest.slice(0, 2), [5, physicalCores]);
+});
