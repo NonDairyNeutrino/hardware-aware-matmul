@@ -18,7 +18,7 @@
 # arithmetic per thread count, with the machine's cache sizes recorded by results.py), so
 # the Discussion can test its cache and bandwidth explanations against the machine.
 # It then counts cache and TLB misses per level with web/dev/perf_counters.py (one thread, at
-# 1024, see COUNTERS_N) so the Discussion can test whether a level is faster because it misses
+# 1024 and at the largest size, see COUNTERS_SIZES) so the Discussion can test whether a level is faster because it misses
 # less. That step needs `perf` and perf_event_paranoid <= 2; without them it is skipped, and
 # results.json simply has no `environment.counters` (set REQUIRE_COUNTERS=1 to refuse that).
 # Smaller values are for rehearsing the pipeline, e.g.
@@ -63,13 +63,30 @@ for t in $THREADS; do [ "$t" -le "$CORES" ] && PROBE_THREADS="${PROBE_THREADS:+$
 cargo run --release --example hw_probe -- --threads "$PROBE_THREADS" > "$WORK/hw_probe.json"
 
 echo "== hardware event counts (perf stat)"
-# 1024 if it is one of the sizes (the three matrices then outgrow the L3 cache, and level 0 still
-# finishes in seconds), else the largest size. COUNTERS_N overrides it.
+# At 1024 if it is one of the sizes (the three matrices then outgrow the L3 cache, and level 0 still
+# finishes in seconds) and at the largest size, where the levels differ most (level 0 takes about
+# a minute there per multiplication, so that count is one multiplication per process and takes a
+# long time). COUNTERS_SIZES overrides the list.
 LARGEST=$(printf '%s\n' $SIZES | sort -n | tail -1)
-COUNTERS_N=${COUNTERS_N:-$(printf '%s\n' $SIZES | grep -qx 1024 && echo 1024 || echo "$LARGEST")}
+DEFAULT_COUNTERS_SIZES=$( { printf '%s\n' $SIZES | grep -x 1024; echo "$LARGEST"; } | sort -nu | tr '\n' ' ')
+COUNTERS_SIZES=${COUNTERS_SIZES:-$DEFAULT_COUNTERS_SIZES}
 COUNTERS_ARGS=()
-if python3 -I web/dev/perf_counters.py --n "$COUNTERS_N" --threads 1 --out "$WORK/counters.json"; then
-  COUNTERS_ARGS=(--counters "$WORK/counters.json")
+# Build with the toolchain the timed native runs use (web/wasm pins one), not the default.
+COUNTERS_TOOLCHAIN=$(sed -n 's/^channel *= *"\(.*\)"/\1/p' web/wasm/rust-toolchain.toml)
+COUNTERS_FILES=()
+COUNTERS_FAILED=0
+for COUNTERS_N in $COUNTERS_SIZES; do
+  # One multiplication per process at the sizes where level 0 is slow, three otherwise.
+  if [ "$COUNTERS_N" -ge 2048 ]; then COUNTERS_REPS=1; else COUNTERS_REPS=3; fi
+  if python3 -I web/dev/perf_counters.py --n "$COUNTERS_N" --threads 1 --reps "$COUNTERS_REPS" \
+       ${COUNTERS_TOOLCHAIN:+--toolchain "$COUNTERS_TOOLCHAIN"} --out "$WORK/counters-$COUNTERS_N.json"; then
+    COUNTERS_FILES+=("$WORK/counters-$COUNTERS_N.json")
+  else
+    COUNTERS_FAILED=1
+  fi
+done
+if [ "$COUNTERS_FAILED" = 0 ]; then
+  COUNTERS_ARGS=(--counters "${COUNTERS_FILES[@]}")
 elif [ "${REQUIRE_COUNTERS:-0}" = 1 ]; then
   echo "REFUSING: the event counts failed and REQUIRE_COUNTERS=1"; exit 1
 else

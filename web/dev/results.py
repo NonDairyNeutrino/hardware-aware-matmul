@@ -1,7 +1,7 @@
 """Assembles the reference run's results.json from the native and browser reports.
 
 usage: python3 -I results.py --native N.json --lite L.json --threads T.json --out OUT.json
-                             [--probe P.json] [--counters C.json] [--allow-unknown]
+                             [--probe P.json] [--counters C.json ...] [--allow-unknown]
        python3 -I results.py --check results.json
 
 The inputs are the JSON the native bench example and the two browser bench pages print
@@ -20,8 +20,9 @@ The inputs are the JSON the native bench example and the two browser bench pages
                        level, type, size_bytes, shared_cpu_list) and hardware (the
                        examples/hw_probe.rs report given with --probe: triad_gbs and
                        peak_gflops keyed by native thread count, and params), and counters (the
-                       web/dev/perf_counters.py report given with --counters: hardware event
-                       counts per multiplication for each level, at one size and thread count);
+                       web/dev/perf_counters.py reports given with --counters, one per size: a list
+                       of hardware event counts per multiplication for each level, at one size
+                       and thread count each, in increasing order of n);
                        older files lack them, and each is validated only when present
   parameters           sizes, repeats, warmup, block, tile and the thread counts per
                        environment
@@ -186,10 +187,18 @@ def _check_optional_environment(document):
                     and isinstance(cache.get("shared_cpu_list"), str)):
                 raise ResultsError("environment.caches has a malformed entry: %r" % (cache,))
     if "counters" in environment:
-        _check_counters(environment["counters"])
-        if environment["counters"]["n"] not in document["parameters"]["sizes"]:
-            raise ResultsError("environment.counters.n (%r) is not one of the measured sizes %r"
-                               % (environment["counters"]["n"], document["parameters"]["sizes"]))
+        reports = environment["counters"]
+        if not isinstance(reports, list) or not reports:
+            raise ResultsError("environment.counters must be a non-empty list, one report per size")
+        for report in reports:
+            _check_counters(report)
+            if report["n"] not in document["parameters"]["sizes"]:
+                raise ResultsError("environment.counters has n=%r, which is not one of the measured sizes %r"
+                                   % (report["n"], document["parameters"]["sizes"]))
+        sizes = [report["n"] for report in reports]
+        if sizes != sorted(set(sizes)):
+            raise ResultsError("environment.counters must have one report per size, in increasing order of n: %r"
+                               % (sizes,))
     if "hardware" in environment:
         hardware = environment["hardware"]
         native_threads = {str(t) for t in document["parameters"]["threads"]["native"]}
@@ -218,10 +227,15 @@ def _check_counters(counters):
     could not count that event) for every level. Null is allowed, a made-up zero is not."""
     if not isinstance(counters, dict):
         raise ResultsError("environment.counters must be an object")
-    for key in ("n", "threads", "reps"):
+    for key in ("n", "threads", "reps", "repeats"):
         value = counters.get(key)
         if not (isinstance(value, int) and not isinstance(value, bool) and value > 0):
             raise ResultsError("environment.counters.%s must be a positive integer, not %r" % (key, value))
+    for key in ("checksum", "rustc"):
+        if key in counters and not (isinstance(counters[key], str) and counters[key]):
+            raise ResultsError("environment.counters.%s must be a non-empty string, not %r" % (key, counters[key]))
+    if not counters.get("checksum"):
+        raise ResultsError("environment.counters.checksum is missing")
     pct = counters.get("min_counted_pct")
     if not (_positive_number(pct) and pct <= 100):
         raise ResultsError("environment.counters.min_counted_pct must be in (0, 100], not %r" % (pct,))
@@ -258,7 +272,8 @@ def assemble(native, lite, threads, environment, generated, allow_unknown=False,
     """The results document from the three reports and the recorded environment.
 
     probe is the hw_probe report (or None); it is recorded as environment.hardware. counters is
-    the perf_counters.py report (or None); it is recorded as environment.counters."""
+    a perf_counters.py report or a list of them, one per size (or None); they are recorded, in
+    increasing order of n, as the list environment.counters."""
     slots = (("native", native), ("browser-lite", lite), ("browser-threads", threads))
     for name, report in slots:
         if report.get("ok") is False:
@@ -288,8 +303,14 @@ def assemble(native, lite, threads, environment, generated, allow_unknown=False,
     if probe is not None:
         environment["hardware"] = {key: probe.get(key) for key in ("triad_gbs", "peak_gflops", "params")}
     if counters is not None:
-        environment["counters"] = {key: counters.get(key) for key in
-                                   ("n", "threads", "reps", "repeats", "min_counted_pct", "checksum", "per_multiplication")}
+        reports = [counters] if isinstance(counters, dict) else list(counters)
+        environment["counters"] = []
+        for report in sorted(reports, key=lambda r: r.get("n", 0)):
+            kept = {key: report.get(key) for key in
+                    ("n", "threads", "reps", "repeats", "min_counted_pct", "checksum", "per_multiplication")}
+            if "rustc" in report:  # the compiler that built the counted binary; older reports lack it
+                kept["rustc"] = report["rustc"]
+            environment["counters"].append(kept)
     document = {
         "schema": SCHEMA,
         "generated": generated,
@@ -441,7 +462,8 @@ def main(argv):
     parser.add_argument("--lite")
     parser.add_argument("--threads")
     parser.add_argument("--probe", help="the JSON of examples/hw_probe.rs, recorded as environment.hardware")
-    parser.add_argument("--counters", help="the JSON of web/dev/perf_counters.py, recorded as environment.counters")
+    parser.add_argument("--counters", nargs="+", metavar="C.json",
+                        help="JSON reports of web/dev/perf_counters.py (one per size), recorded as environment.counters")
     parser.add_argument("--out")
     parser.add_argument("--check")
     parser.add_argument("--allow-unknown", action="store_true",
@@ -457,7 +479,7 @@ def main(argv):
             parser.error("give --native, --lite, --threads and --out, or --check")
         native, lite, threads = (json.load(open(path)) for path in (args.native, args.lite, args.threads))
         probe = json.load(open(args.probe)) if args.probe else None
-        counters = json.load(open(args.counters)) if args.counters else None
+        counters = [json.load(open(path)) for path in args.counters] if args.counters else None
         generated = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
         document = assemble(native, lite, threads, collect_environment(native), generated,
                             allow_unknown=args.allow_unknown, probe=probe, counters=counters)

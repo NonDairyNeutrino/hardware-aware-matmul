@@ -259,10 +259,22 @@ class ProbeTests(unittest.TestCase):
 
     def test_counters_are_recorded_and_checked(self):
         document = self.build(counters=copy.deepcopy(COUNTERS))
-        self.assertEqual(document["environment"]["counters"]["n"], 64)
-        self.assertEqual(document["environment"]["counters"]["per_multiplication"]["simd"]["cycles"], 100.0)
+        self.assertEqual(document["environment"]["counters"][0]["n"], 64)
+        counters = copy.deepcopy(COUNTERS)
+        counters["rustc"] = "rustc 1.93.0-nightly"
+        self.assertEqual(self.build(counters=counters)["environment"]["counters"][0]["rustc"], "rustc 1.93.0-nightly")
+        self.assertEqual(document["environment"]["counters"][0]["per_multiplication"]["simd"]["cycles"], 100.0)
         results.check(document)
         self.assertNotIn("counters", self.build()["environment"])
+
+    def test_counters_for_several_sizes_are_kept_in_increasing_order_of_n(self):
+        small, large = copy.deepcopy(COUNTERS), copy.deepcopy(COUNTERS)
+        large["n"] = 128
+        document = self.build(counters=[large, small])  # given out of order
+        self.assertEqual([c["n"] for c in document["environment"]["counters"]], [64, 128])
+        results.check(document)
+        with self.assertRaisesRegex(results.ResultsError, "one report per size"):
+            self.build(counters=[small, copy.deepcopy(small)])
 
     def test_an_event_the_cpu_could_not_count_may_be_null_but_not_negative(self):
         counters = copy.deepcopy(COUNTERS)
@@ -280,6 +292,9 @@ class ProbeTests(unittest.TestCase):
                 self.build(counters=counters)
         broken(lambda c: c.update({"n": 99}))  # not a measured size
         broken(lambda c: c.update({"threads": 0}))
+        broken(lambda c: c.pop("repeats"))
+        broken(lambda c: c.pop("checksum"))
+        broken(lambda c: c.update({"rustc": 7}))
         broken(lambda c: c.update({"min_counted_pct": 0}))
         broken(lambda c: c.update({"min_counted_pct": 140}))
         broken(lambda c: c["per_multiplication"].pop("packed"))

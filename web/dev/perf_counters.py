@@ -3,6 +3,7 @@
 
 usage: python3 -I web/dev/perf_counters.py [--n 1024] [--threads 1] [--reps 3]
                                            [--repeats 3] [--levels naive,simd,...]
+                                           [--toolchain nightly-2025-11-15]
                                            [--out counters.json]
 
 Runs examples/level_once.rs once per level under `perf stat`, and counts, in user space
@@ -18,6 +19,9 @@ How the numbers are made trustworthy:
 * Building the operands costs events too. A run of level `none` (operands only) is
   measured with the same arguments and subtracted from every level.
 * Each measurement is repeated `--repeats` times and the median is kept.
+* `--toolchain` builds the example with the same rustup toolchain as the timed runs
+  (the reference script passes the one web/wasm pins), and the report records `rustc -V`
+  of the build, so a reader can see that counts and timings share a compiler.
 * Every level must print the same checksum, or the script stops: counts for a level that
   computed something else would mean nothing.
 
@@ -121,12 +125,16 @@ def check_environment():
                  "  sudo sysctl kernel.perf_event_paranoid=2")
 
 
-def build_example(root):
-    subprocess.run(["cargo", "build", "--release", "--example", "level_once"], cwd=root, check=True)
-    meta = subprocess.run(["cargo", "metadata", "--format-version", "1", "--no-deps"], cwd=root,
+def build_example(root, toolchain=None):
+    """Builds the example and returns (path of the binary, `rustc -V` of the build)."""
+    plus = [f"+{toolchain}"] if toolchain else []
+    subprocess.run(["cargo", *plus, "build", "--release", "--example", "level_once"], cwd=root, check=True)
+    rustc = subprocess.run(["rustc", *plus, "-V"], cwd=root, capture_output=True, text=True,
+                           check=True).stdout.strip()
+    meta = subprocess.run(["cargo", *plus, "metadata", "--format-version", "1", "--no-deps"], cwd=root,
                           capture_output=True, text=True, check=True)
     target = json.loads(meta.stdout)["target_directory"]
-    return os.path.join(target, "release", "examples", "level_once")
+    return os.path.join(target, "release", "examples", "level_once"), rustc
 
 
 def run_once(binary, level, args, events):
@@ -136,7 +144,12 @@ def run_once(binary, level, args, events):
     proc = subprocess.run(cmd, capture_output=True, text=True)
     if proc.returncode != 0:
         sys.exit(f"{' '.join(cmd)} failed:\n{proc.stderr}")
-    return parse_perf_csv(proc.stderr), proc.stdout.strip()
+    counts = parse_perf_csv(proc.stderr)
+    if not any(e in counts for e in events):
+        # e.g. a hybrid CPU, where perf prints PMU-qualified names such as cpu_core/cycles/:
+        # saying "the CPU cannot count this" would be wrong, so stop instead.
+        sys.exit(f"perf printed none of the events {events}; its output was not recognised:\n{proc.stderr}")
+    return counts, proc.stdout.strip()
 
 
 def measure(binary, args, levels):
@@ -175,6 +188,7 @@ def main():
     ap.add_argument("--reps", type=int, default=3, help="multiplications per process")
     ap.add_argument("--repeats", type=int, default=3, help="processes per measurement (median kept)")
     ap.add_argument("--levels", default=",".join(LEVELS))
+    ap.add_argument("--toolchain", help="rustup toolchain to build with (default: the active one)")
     ap.add_argument("--out", help="write JSON here instead of stdout")
     args = ap.parse_args()
     levels = args.levels.split(",")
@@ -184,7 +198,7 @@ def main():
 
     check_environment()
     root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
-    binary = build_example(root)
+    binary, rustc = build_example(root, args.toolchain)
     results, min_pct, checksum = measure(binary, args, levels)
 
     per_mul = {}
@@ -192,7 +206,7 @@ def main():
         per_mul[level] = derive({e: (None if c is None else c / args.reps) for e, c in counts.items()})
     report = {
         "n": args.n, "threads": args.threads, "reps": args.reps, "repeats": args.repeats,
-        "user_space_only": True, "min_counted_pct": min_pct, "checksum": checksum,
+        "rustc": rustc, "user_space_only": True, "min_counted_pct": min_pct, "checksum": checksum,
         "per_multiplication": per_mul,
     }
     text = json.dumps(report, indent=2) + "\n"
