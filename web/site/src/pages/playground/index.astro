@@ -12,7 +12,7 @@ const base = import.meta.env.BASE_URL;
 const reference = Object.fromEntries(
   results.parameters.sizes.map((n) => [n, results.runs.find((run) => run.n === n)?.hash]),
 );
-const levels = ['Level 0: naive', 'Level 1: threaded', 'Level 2: cache blocking', 'Level 3: SIMD', 'Level 4: streaming'];
+const levels = ['Level 0: naive', 'Level 1: threaded', 'Level 2: cache blocking', 'Level 3: SIMD', 'Level 4: packed B', 'Level 5: streaming'];
 ---
 <Page title="Playground">
   <p>
@@ -31,11 +31,14 @@ const levels = ['Level 0: naive', 'Level 1: threaded', 'Level 2: cache blocking'
         sizes to 1024, at n = 1024 (at the default 256, B is only 512 KiB). Level 2 then works on blocks far larger than a typical L1 cache. How much of
         its gain over level 0 is left? This separates reading memory in order from reusing a small
         block.</li>
-      <li><strong>Count the threads.</strong> Run levels 1 to 3 with 1, 2, 4 and 8 threads. Where does
+      <li><strong>Count the threads.</strong> Run levels 1 to 5 with 1, 2, 4 and 8 threads. Where does
         each level stop gaining? Use the threaded build (the single-threaded fallback has one
         thread). Your browser does not tell the page how many physical cores you have; compare
         with the specification of your processor.</li>
-      <li><strong>Shrink the tile.</strong> Set the tile edges of level 4 to 8 instead of 128. What
+      <li><strong>Pack or not.</strong> Run levels 3 and 4 at 256, 512 and 1024. Level 4 copies each
+        block of the second matrix into a contiguous buffer before reading it, and level 3 reads it
+        in place. At which size, if any, does the copy pay for itself on your machine?</li>
+      <li><strong>Shrink the tile.</strong> Set the tile edges of level 5 to 8 instead of 128. What
         happens to its time, and why might that be?</li>
     </ol>
   </section>
@@ -65,9 +68,9 @@ const levels = ['Level 0: naive', 'Level 1: threaded', 'Level 2: cache blocking'
         <summary>Cache blocks and tiles</summary>
         <label>Cache block k <input type="number" name="block-k" min="1" max="1024" value="32" /></label>
         <label>Cache block j <input type="number" name="block-j" min="1" max="1024" value="64" /></label>
-        <label>Level 4 tile rows <input type="number" name="tile-rows" min="1" max="1024" value="128" /></label>
-        <label>Level 4 tile columns <input type="number" name="tile-cols" min="1" max="1024" value="128" /></label>
-        <label>Level 4 tile depth <input type="number" name="tile-depth" min="1" max="1024" value="128" /></label>
+        <label>Level 5 tile rows <input type="number" name="tile-rows" min="1" max="1024" value="128" /></label>
+        <label>Level 5 tile columns <input type="number" name="tile-cols" min="1" max="1024" value="128" /></label>
+        <label>Level 5 tile depth <input type="number" name="tile-depth" min="1" max="1024" value="128" /></label>
       </details>
       <div class="pg-actions">
         <button type="submit" id="pg-run">Run</button>
