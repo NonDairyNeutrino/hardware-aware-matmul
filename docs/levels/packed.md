@@ -3,9 +3,9 @@ results as level 3, but the micro-kernel no longer reads `B` where it lies in
 memory. Each cache block of `B` is first **packed**: copied once into a small
 contiguous buffer, laid out in the order the micro-kernel reads it.
 
-Level 3 left a cost that shows up first in the hardware's own event counts: its kernel reads `B`
-a row apart at every step. This level pays to copy each block once, which looks like a pure
-loss, and the measurements ask whether the copy earns its cost back.
+Level 3 left a cost in plain sight: its kernel reads `B` a row apart at every step. This level
+pays to copy each block once, which looks like a pure loss, and the measurements on the
+project's website ask whether the copy earns its cost back.
 
 # What changed from level 3
 

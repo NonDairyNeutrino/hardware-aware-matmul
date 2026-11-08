@@ -29,7 +29,7 @@ threads.
 
 # Native
 
-This section asks how much faster each suspect is than the textbook loop.
+This section asks how much faster each level is than the textbook loop.
 
 > **Predict.** Before you read the tables: with all the threads, which level will be fastest?
 > At the larger size, how many times faster than level 0 will each level be?

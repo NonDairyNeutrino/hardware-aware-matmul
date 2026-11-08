@@ -19,7 +19,8 @@ answer.
 
 # The first suspect: the cores
 
-The obvious explanation is that the textbook loop leaves most of the cores idle. The measurements clear it, or at least show it is not the main cause.
+The obvious explanation is that the textbook loop leaves most of the cores idle. The
+measurements clear it, or at least show it is not the main cause.
 
 Level 1 on one thread ({{ms threaded t=1}}) is no faster than level 0
 ({{speedup threaded/naive t=1}}), as it should be: [threads](crate::threaded) change
@@ -38,11 +39,15 @@ second four ({{ms threaded t=4 n=1024}} to {{ms threaded t=8 n=1024}}). One plau
 of that last gain is that level 1's inner loop spends much of its time waiting for memory,
 and a thread that is waiting leaves its core free for the thread that shares it. The
 measurements at n = 1024 are consistent with that and do not test it; those at
-n = {{env largest}} do not support it. The next section shows a single thread doing better than all of these.
+n = {{env largest}} do not support it. And at n = {{env largest}} none of it comes close to
+[level 2](crate::cache_friendly) on a single thread: {{ms cache_friendly t=1}}, against
+level 1's {{ms threaded t=8}} on all eight threads. More cores were not the main thing the
+loop was missing.
 
 # The culprit: memory
 
-The best explanation of the rest is the memory system, with the caveat that the run measured its caches directly only at two sizes.
+The best explanation of the rest is the memory system, with the caveat that the run measured
+its caches directly only at two sizes.
 
 At n = {{env largest}}, on one thread, the naive loop took {{ms naive}}. Level 2 took
 {{ms cache_friendly t=1}}, which is {{speedup cache_friendly/naive t=1}} faster. Level 3
@@ -143,7 +148,8 @@ of those two levels should not be over-read.
 
 # The twist: streaming
 
-Level 5 was built for matrices that do not fit in memory, not for speed, and on four threads at the largest size it is nonetheless the fastest case measured.
+Level 5 was built for matrices that do not fit in memory, not for speed, and on four threads
+at the largest size it is nonetheless the fastest case measured.
 
 [Level 5](crate::streaming) exists to make the problem possible when the matrices do not
 fit in memory, not to make it faster when they do, and the chapter says so. The reference
@@ -155,9 +161,9 @@ with the same threads, though by little: level 4 gets most of the way from level
 at every thread count. At the two smaller sizes level 5 loses the lead: it is close to
 level 3, sometimes ahead and sometimes behind, but never more than about a tenth behind.
 
-This answers a question the earlier version of this page could only ask. The reading
-offered for level 5's lead was that its small buffers hold short rows that lie next to each
-other in memory, while level 3 works on the full matrices, whose rows lie n × 8 bytes apart
+Level 4 also helps explain the twist. One reading offered for level 5's lead was that its
+small buffers hold short rows that lie next to each other in memory, while level 3 works on
+the full matrices, whose rows lie n × 8 bytes apart
 (16 KiB at n = 2048), and rows that far apart, at a power-of-two distance, may compete for the
 same places in a cache. Level 4 copies only the second matrix, in blocks, and keeps level 3's
 loops otherwise, and it recovers most of the lead. That is evidence that the way the second
@@ -168,9 +174,61 @@ also touch more cache lines and more pages for the same data, and the run cannot
 those effects. A smaller part of level 5's lead, the step from level 4
 to level 5, is still not explained: the counts above show less waiting for memory, not why.
 
+Measured against the textbook loop at n = {{env largest}}, level 3 with
+{{env threads_native}} threads is {{speedup simd/naive}} faster, with the same answer, and
+level 5 on four threads {{speedup streaming/naive t=4}}. Both figures divide by the median of
+level 0's one-thread runs, which agreed to within an interquartile range of {{iqr naive}}.
+
+# Browser against native
+
+At n = {{env largest}}, the same Rust code, compiled to WebAssembly and run in
+{{env firefox}}, was slower than the native build at levels 2 to 5, by an amount that
+depends on the level. On one thread, level 2 took {{ms cache_friendly lite}} in the browser's
+single-threaded build against {{ms cache_friendly t=1}} natively, level 3 took
+{{ms simd lite}} against {{ms simd t=1}}, level 4 took {{ms packed lite}} against
+{{ms packed t=1}}, and level 5 took {{ms streaming lite}} against {{ms streaming t=1}}. The
+two levels written around vector registers, 3 and 4, come closest to native speed. Both
+builds use 128-bit vectors, {{env native_isa}} natively and {{env browser_isa}} in the
+browser, so the micro-kernel of levels 3 and 4 asks for the same width in both. That is a
+reason to expect them to travel well; the experiment shows that they do, but not why levels 2
+and 5 lose more. Levels 3 and 4 came closest of the four at every size.
+
+Levels 0 and 1 are a different case. At n = {{env largest}} they ran about as fast in the
+browser as natively: level 0 took {{ms naive lite}} against {{ms naive}}, level 1
+{{ms threaded lite}} against {{ms threaded t=1}}. At n = 1024 both were much slower in the
+browser: level 0 took {{ms naive lite n=1024}} against {{ms naive n=1024}}, level 1
+{{ms threaded lite n=1024}} against {{ms threaded t=1 n=1024}}. The run does not show why the
+gap closes at the largest size.
+
+The gaps between the levels are therefore not the same in the two environments. Natively, at
+this size, levels 4 and 5 are both faster than level 3. In the browser's single-threaded
+build level 4 is still ahead of level 3 ({{ms packed lite}} against {{ms simd lite}}), but
+level 5 is far behind, taking {{ms streaming lite}}. The reference run does not show why:
+copying blocks of the second matrix seems to cost little in WebAssembly, while the tile
+copies, or another part of level 5's loop, may cost more there than they do natively.
+
+With threads, level 3 comes within about an eighth of native speed: it took {{ms simd threads}} in the
+browser's threaded build ({{env threads_threaded}} threads), against {{ms simd}} natively
+({{env threads_native}} threads). At n = {{env largest}} it also stops improving after four threads,
+like the native build (see the next section): {{ms simd threads t=4}} on four threads,
+{{ms simd threads t=8}} on eight. The reference run does not say why the threaded build comes so close here.
+
+The two browser builds differ in more than threads. The single-threaded build was compiled
+with {{env rustc_lite}}, the threaded one, like the native code, with {{env rustc_threads}},
+and only the threaded build uses shared memory. On one thread, at n = {{env largest}}, the
+threaded build was faster than the single-threaded one for levels 0, 2, 4 and 5
+({{ms naive threads}} against {{ms naive lite}}, {{ms cache_friendly threads t=1}} against
+{{ms cache_friendly lite}}, {{ms packed threads t=1}} against {{ms packed lite}},
+{{ms streaming threads t=1}} against {{ms streaming lite}}), and about the same for levels 1
+and 3 ({{ms threaded threads t=1}} against {{ms threaded lite}}, {{ms simd threads t=1}}
+against {{ms simd lite}}). Which of the differences between the
+builds causes which result is not something this experiment can separate.
+
 # The part left open: what stops the threads
 
-One question is not settled by these measurements, and it is the most interesting one: threads stopped helping levels 3 to 5 where the physical cores ran out, although a test of arithmetic alone kept gaining.
+One question is not settled by these measurements, and it is the most interesting one:
+threads stopped helping levels 3 to 5 where the physical cores ran out, although a test of
+arithmetic alone kept gaining.
 
 Levels 2 to 5 behave differently from level 1. Level 3 takes {{ms simd t=1}} on one thread,
 {{ms simd t=2}} on two and {{ms simd t=4}} on four, and then {{ms simd t=8}} on eight:
@@ -214,57 +272,6 @@ which several threads competing for the shared cache, or for what lies behind it
 pace, but the run did not measure it. The one-thread fall that remains is the part that
 packing removes: level 4 on one thread reaches {{gflops packed t=1 n=512}} at n = 512 and
 {{gflops packed t=1}} at n = {{env largest}}, a smaller fall than level 3's.
-
-Taken together, level 3 with {{env threads_native}} threads is {{speedup simd/naive}} faster
-than the textbook loop at n = {{env largest}}, with the same answer. Level 5 on four
-threads is faster still, {{speedup streaming/naive t=4}}, the fastest case measured at that
-size. Both figures divide by the median of level 0's one-thread runs, which agreed to within an
-interquartile range of {{iqr naive}}.
-
-# Browser against native
-
-At n = {{env largest}}, the same Rust code, compiled to WebAssembly and run in
-{{env firefox}}, was slower than the native build at levels 2 to 5, by an amount that
-depends on the level. On one thread, level 2 took {{ms cache_friendly lite}} in the browser's
-single-threaded build against {{ms cache_friendly t=1}} natively, level 3 took
-{{ms simd lite}} against {{ms simd t=1}}, level 4 took {{ms packed lite}} against
-{{ms packed t=1}}, and level 5 took {{ms streaming lite}} against {{ms streaming t=1}}. The
-two levels written around vector registers, 3 and 4, come closest to native speed. Both
-builds use 128-bit vectors, {{env native_isa}} natively and {{env browser_isa}} in the
-browser, so the micro-kernel of levels 3 and 4 asks for the same width in both. That is a
-reason to expect them to travel well; the experiment shows that they do, but not why levels 2
-and 5 lose more. Levels 3 and 4 came closest of the four at every size.
-
-Levels 0 and 1 are a different case. At n = {{env largest}} they ran about as fast in the
-browser as natively: level 0 took {{ms naive lite}} against {{ms naive}}, level 1
-{{ms threaded lite}} against {{ms threaded t=1}}. At n = 1024 both were much slower in the
-browser: level 0 took {{ms naive lite n=1024}} against {{ms naive n=1024}}, level 1
-{{ms threaded lite n=1024}} against {{ms threaded t=1 n=1024}}. The run does not show why the
-gap closes at the largest size.
-
-The gaps between the levels are therefore not the same in the two environments. Natively, at
-this size, levels 4 and 5 are both faster than level 3. In the browser's single-threaded
-build level 4 is still ahead of level 3 ({{ms packed lite}} against {{ms simd lite}}), but
-level 5 is far behind, taking {{ms streaming lite}}. The reference run does not show why:
-copying blocks of the second matrix seems to cost little in WebAssembly, while the tile
-copies, or another part of level 5's loop, may cost more there than they do natively.
-
-With threads, level 3 comes within about an eighth of native speed: it took {{ms simd threads}} in the
-browser's threaded build ({{env threads_threaded}} threads), against {{ms simd}} natively
-({{env threads_native}} threads). At n = {{env largest}} it also stops improving after four threads,
-like the native build: {{ms simd threads t=4}} on four threads, {{ms simd threads t=8}} on
-eight. The reference run does not say why the threaded build comes so close here.
-
-The two browser builds differ in more than threads. The single-threaded build was compiled
-with {{env rustc_lite}}, the threaded one, like the native code, with {{env rustc_threads}},
-and only the threaded build uses shared memory. On one thread, at n = {{env largest}}, the
-threaded build was faster than the single-threaded one for levels 0, 2, 4 and 5
-({{ms naive threads}} against {{ms naive lite}}, {{ms cache_friendly threads t=1}} against
-{{ms cache_friendly lite}}, {{ms packed threads t=1}} against {{ms packed lite}},
-{{ms streaming threads t=1}} against {{ms streaming lite}}), and about the same for levels 1
-and 3 ({{ms threaded threads t=1}} against {{ms threaded lite}}, {{ms simd threads t=1}}
-against {{ms simd lite}}). Which of the differences between the
-builds causes which result is not something this experiment can separate.
 
 # What the measurements cannot say
 

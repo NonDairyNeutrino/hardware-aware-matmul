@@ -4,8 +4,8 @@ the cache.
 
 Level 1 left a clue: adding threads did not fix the loop, so the number of cores doing the arithmetic
 was not what held it back. This level goes after the best remaining suspect, the way the
-loop walks memory, and the measurements show that this one change does more on a single thread
-than all the cores did at level 1.
+loop walks memory, and the measurements on the project's website show that these two changes
+to the loop, on a single thread, beat level 1 on every thread.
 
 # What changed from level 1
 

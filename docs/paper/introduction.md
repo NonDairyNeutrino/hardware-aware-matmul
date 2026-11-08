@@ -32,8 +32,8 @@ difference). So the first thing to try is the obvious one: split the work across
 Then comes the clue that gives the paper its shape. A version of the loop that changes only
 the order in which one thread walks through memory, [level 2](crate::cache_friendly), needs
 {{ms cache_friendly t=1}} on a *single* thread. That is faster than the threaded version on every thread the
-machine has. The cores were not what the loop was missing. Whatever it was missing, a
-single thread could be given.
+machine has. More cores were not the main thing the loop was missing. Whatever it was
+missing, a single thread could be given.
 
 # Mechanical sympathy
 
@@ -46,20 +46,20 @@ operations at once. The rest of the paper is a search for which of those the tex
 ignoring, and what it costs to stop ignoring each one. The matrix product is a good place to
 search because the algorithm fits in four lines, so nothing distracts from the hardware.
 
-# The suspects
+# The line-up
 
-Each level changes how the hardware is used in one main way, and targets the bottleneck the
-previous level ran into. Every level returns exactly the same bits as the one before. The times are for
-{{env largest}} × {{env largest}} matrices.
+Each level tests one suspect: it changes how the hardware is used in one main way, and targets
+the bottleneck the previous level ran into. Every level returns exactly the same bits as the
+one before.
 
-| Level | The bottleneck it targets | The idea | Time, 1 thread | Time, {{env threads_native}} threads |
-|-------|---------------------------|----------|----------------|---------------------|
-| [Level 0](crate::naive) | (the baseline: one core, and reads of the second matrix in a poor order) | the textbook triple loop | {{ms naive}} | not parallel |
-| [Level 1](crate::threaded) | the other cores sit idle | split the output rows across threads | {{ms threaded t=1}} | {{ms threaded}} |
-| [Level 2](crate::cache_friendly) | reading memory in an order the hardware handles badly, and re-fetching data | reorder the loops and work on small blocks that stay in the cache | {{ms cache_friendly t=1}} | {{ms cache_friendly}} |
-| [Level 3](crate::simd) | the output block travelling through memory on every step | keep a block of the output in vector registers | {{ms simd t=1}} | {{ms simd}} |
-| [Level 4](crate::packed) | the vector kernel reading the second matrix in place, a row apart, so that each step lands on a different cache line and, with a long row, a different page | copy each block of the second matrix into a contiguous buffer first | {{ms packed t=1}} | {{ms packed}} |
-| [Level 5](crate::streaming) | the need for every matrix to fit in memory | stream small tiles of the matrices through bounded buffers | {{ms streaming t=1}} | {{ms streaming}} |
+| Level | The bottleneck it targets | The idea |
+|-------|---------------------------|----------|
+| [Level 0](crate::naive) | (the baseline: one core, and reads of the second matrix in a poor order) | the textbook triple loop |
+| [Level 1](crate::threaded) | the other cores sit idle | split the output rows across threads |
+| [Level 2](crate::cache_friendly) | reading memory in an order the hardware handles badly, and re-fetching data | reorder the loops and work on small blocks that stay in the cache |
+| [Level 3](crate::simd) | the output block travelling through memory on every step | keep a block of the output in vector registers |
+| [Level 4](crate::packed) | the vector kernel reading the second matrix in place, a row apart, so that each step lands on a different cache line and, with a long row, a different page | copy each block of the second matrix into a contiguous buffer first |
+| [Level 5](crate::streaming) | the need for every matrix to fit in memory | stream small tiles of the matrices through bounded buffers |
 
 Level 5 is a different kind of step. It was built so that matrices too large for memory can be
 multiplied at all, not to be faster on matrices that fit. The [Discussion](crate::discussion)
@@ -76,9 +76,9 @@ levels, natively and in a web browser, on one machine; the [Discussion](crate::d
 them and says what they do and do not show; the [Conclusion](crate::conclusion) gives the verdict
 and the part that stays open. The [playground](crate::playground) runs the same benchmark on your own machine.
 
-You can also jump straight to a chapter. Each opens by saying what it changes, and closes with
-what it costs and where to go next. The code is real Rust: the diagrams are driven by it and so
-are the measurements. It is written in plain loops so that each level reads like the loop nest it is.
+You can also jump straight to a chapter; each stands on its own. The code is real Rust: the
+diagrams are driven by it and so are the measurements. It is written in plain loops so that
+each level reads like the loop nest it is.
 
 # What this is not
 

@@ -3,8 +3,8 @@ but the innermost step is rebuilt around the processor's vector registers.
 
 Level 2 put the data close to the core, and the loop still carries the output block through
 memory on every step. This level removes that last trip: it keeps a small block of the output
-in the processor's vector registers for the whole inner loop. The gain is much smaller than
-level 2's, which is itself part of the answer: on one thread, most of the gain over the
+in the processor's vector registers for the whole inner loop. On one thread the gain is much
+smaller than level 2's, which is itself part of the answer: most of the gain over the
 textbook loop had already arrived with level 2.
 
 # What changed from level 2

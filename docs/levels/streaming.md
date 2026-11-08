@@ -4,12 +4,10 @@ small output tile at a time, by streaming the matching tiles of the inputs
 past a running accumulator and handing each finished tile to an output sink.
 
 The earlier levels asked how to make the product faster. This one asks a different question:
-what if the matrices do not fit in memory at all? It was built to make that possible, not to
-win a race, and what happened when it was timed against the others is the twist in the story,
-told in the Discussion.
-
-This is the only level that is not about speed on data that already fits in
-RAM. It is what makes the problem *possible* when it does not.
+what if the matrices do not fit in memory at all? It is the only level that is not about speed
+on data that already fits in RAM; it was built to make the problem possible, not to win a race.
+What happened when it was timed against the others anyway is the twist in the story, told in
+the Discussion on the project's website.
 
 # The problem
 
@@ -46,7 +44,7 @@ its input incrementally and never needs it all at once.
 
 # What changed from level 2
 
-| | [`cache_friendly`](crate::cache_friendly) (2) | `streaming` (4) |
+| | [`cache_friendly`](crate::cache_friendly) (2) | `streaming` (5) |
 |---|---|---|
 | Unit of work | a block of rows (the whole width) | a tile of `R × Q` of the output |
 | Where operands come from | `&Matrix` in memory | any [`TileSource`] (memory, file, generated) |
@@ -220,8 +218,8 @@ stored exactly once: the product, with the same bits as
 - **More machinery.** A tile abstraction, a plan, per-worker buffers, and an
   error-propagation protocol: that is the cost of the generality.
 
-That is the last level. What the six together do and do not explain is in the Discussion, and
-one question, what stops the threads, is still open there.
+That is the last level. What the six together do and do not explain is in the Discussion on
+the project's website, and one question, what stops the threads, is still open there.
 
 [`TileSource`]: crate::streaming::TileSource
 [`TileSink`]: crate::streaming::TileSink

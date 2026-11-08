@@ -196,6 +196,8 @@ test('most of the one-thread gain arrives with level 2, and its gain over level 
   const l2 = Math.log(native(0, largest, 1) / native(2, largest, 1));
   const l3 = Math.log(native(0, largest, 1) / native(3, largest, 1));
   assert.ok(l2 / l3 > 0.5);
+  // ... and up to level 5 (Abstract, Conclusion)
+  assert.ok(Math.log(native(0, largest, 1) / native(2, largest, 1)) / Math.log(native(0, largest, 1) / native(5, largest, 1)) > 0.5);
   const speedup = (n) => native(0, n, 1) / native(2, n, 1);
   assert.ok(Math.abs(speedup(256) / speedup(512) - 1) < 0.2, 'barely moves between the smaller sizes');
   assert.ok(speedup(512) < speedup(1024) && speedup(1024) < speedup(largest));

@@ -3,7 +3,7 @@ few lines of new code.
 
 The obvious suspect is that the loop leaves most of the machine's cores idle. This level tests
 that by giving every core a share of the same loop. The chapter shows how, and the measurements
-show how far it gets.
+on the project's website show how far it gets.
 
 # What changed from level 0
 
@@ -108,7 +108,7 @@ partitioning on the other, is kept at every level from here on.
 
 # Where to go next
 
-More threads helped, but less than their number suggests, and the arithmetic each thread
-does is still the slow part. Whatever holds each thread back, more threads do not fix it.
+More threads helped, but less than their number suggests, and each thread's loop is exactly
+as slow as level 0's. Whatever holds each thread back, more threads do not fix it.
 [`cache_friendly`](crate::cache_friendly) looks at the best remaining suspect: the order in
 which the loop walks memory.
