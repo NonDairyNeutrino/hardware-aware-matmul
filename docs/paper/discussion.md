@@ -262,26 +262,33 @@ One question is not settled by these measurements, and it is the most interestin
 threads stopped helping levels 3 to 5 where the physical cores ran out, although a test of
 arithmetic alone kept gaining.
 
-Levels 2 to 5 behave differently from level 1. Level 3 takes {{ms simd t=1}} on one thread,
-{{ms simd t=2}} on two and {{ms simd t=4}} on four, and then {{ms simd t=8}} on eight:
-almost nothing from the second four threads. Levels 4 and 5 are the same, level 4 taking
-{{ms packed t=4}} on four threads and {{ms packed t=8}} on eight, level 5 {{ms streaming t=4}} and
-{{ms streaming t=8}}. Level 2 gains a little more from them
-({{ms cache_friendly t=4}} to {{ms cache_friendly t=8}}), far less than from its first
-four. For these four levels most of the scaling stops where the physical cores run out,
-not where the hardware threads do.
+Levels 2 to 5 behave differently from level 1. At n = {{env largest}}, most of their scaling
+stops where the physical cores run out, not where the hardware threads do:
+
+| threads | level 2 | level 3 | level 4 | level 5 |
+|---|---|---|---|---|
+| 1 | {{ms cache_friendly t=1}} | {{ms simd t=1}} | {{ms packed t=1}} | {{ms streaming t=1}} |
+| 2 | {{ms cache_friendly t=2}} | {{ms simd t=2}} | {{ms packed t=2}} | {{ms streaming t=2}} |
+| 4 | {{ms cache_friendly t=4}} | {{ms simd t=4}} | {{ms packed t=4}} | {{ms streaming t=4}} |
+| 8 | {{ms cache_friendly t=8}} | {{ms simd t=8}} | {{ms packed t=8}} | {{ms streaming t=8}} |
+
+Levels 3 to 5 gain almost nothing from the second four threads. Level 2 gains a little more
+from them, far less than from its first four.
 
 The Methods say that threads stop helping when something they share is used up, such as
 the memory system. The reference run also measured two rates of the machine directly,
 natively and with the same thread counts. A bandwidth test (the STREAM triad, which streams
-three arrays far larger than the caches) moved {{triad t=1}} on one thread,
-{{triad t=4}} on four and {{triad t=8}} on eight: like the levels, it stops gaining at
-four threads. An arithmetic test that never leaves the registers kept gaining:
-{{peak t=1}} on one thread, {{peak t=4}} on four, {{peak t=8}} on eight. These are the rates
-that one test loop achieved, not the most the cores can do. Level 3 reaches
-{{frac simd t=1}} of the test's one-thread rate on one thread, and {{frac simd t=8}} of its
-eight-thread rate on eight. So with eight threads the test found more arithmetic than the
-levels use. That suggests the arithmetic units themselves are not what runs out, but it
+three arrays far larger than the caches) stops gaining at four threads, like the levels. An
+arithmetic test that never leaves the registers kept gaining:
+
+| threads | bandwidth test | arithmetic test | level 3 as a share of the arithmetic test |
+|---|---|---|---|
+| 1 | {{triad t=1}} | {{peak t=1}} | {{frac simd t=1}} |
+| 4 | {{triad t=4}} | {{peak t=4}} | {{frac simd t=4}} |
+| 8 | {{triad t=8}} | {{peak t=8}} | {{frac simd t=8}} |
+
+These are the rates that one test loop achieved, not the most the cores can do. So with eight
+threads the test found more arithmetic than the levels use. That suggests the arithmetic units themselves are not what runs out, but it
 does not show that main memory is. A rough count, not a measurement: level 5 at
 n = {{env largest}} reads its input tiles about 1 GB worth in all, even if every tile came
 from main memory, and at the triad's {{triad t=4}} that would take under a tenth of its
@@ -294,16 +301,19 @@ measure those. The counting run above used one thread, so it cannot tell these e
 apart either.
 
 The throughput of the fastest levels also depends on the problem size, and here too the
-change falls between n = 512 and n = 1024. Level 3 on four threads reaches
-{{gflops simd t=4 n=512}} at n = 512, {{gflops simd t=4 n=1024}} at n = 1024 and
-{{gflops simd t=4}} at n = {{env largest}}. On one thread it hardly changes:
-{{gflops simd t=1 n=512}}, {{gflops simd t=1 n=1024}} and {{gflops simd t=1}}: it falls too,
-but much less. The fall is therefore mostly a fall with several threads, and it comes where the
+change falls between n = 512 and n = 1024. Level 3 on four threads falls as n grows:
+
+| n | level 3, four threads | level 3, one thread | level 4, one thread |
+|---|---|---|---|
+| 512 | {{gflops simd t=4 n=512}} | {{gflops simd t=1 n=512}} | {{gflops packed t=1 n=512}} |
+| 1024 | {{gflops simd t=4 n=1024}} | {{gflops simd t=1 n=1024}} | {{gflops packed t=1 n=1024}} |
+| {{env largest}} | {{gflops simd t=4}} | {{gflops simd t=1}} | {{gflops packed t=1}} |
+
+On one thread it hardly changes: it falls too, but much less. The fall is therefore mostly a fall with several threads, and it comes where the
 three matrices outgrow the {{env l3}} cache that all the cores share. That fits a reading in
 which several threads competing for the shared cache, or for what lies behind it, set the
 pace, but the run did not measure it. The one-thread fall that remains is the part that
-packing removes: level 4 on one thread reaches {{gflops packed t=1 n=512}} at n = 512 and
-{{gflops packed t=1}} at n = {{env largest}}, a smaller fall than level 3's.
+packing removes: level 4 on one thread, in the last column, shows a smaller fall than level 3's.
 
 # What the measurements cannot say
 
