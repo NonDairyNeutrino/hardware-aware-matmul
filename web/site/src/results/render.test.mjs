@@ -137,7 +137,7 @@ test('the real results.json renders every table and chart without gaps', () => {
   }
   assert.doesNotMatch(throughputChart(real, {}), /NaN|undefined|Infinity/);
   const counters = countersTable(real);
-  assert.equal(count(counters, '<tr>'), 7);
+  assert.equal(count(counters, '<tr>'), 7 * real.environment.counters.length);
   assert.doesNotMatch(counters, /NaN|undefined|Infinity|null|n\/a/);
 });
 
@@ -148,7 +148,8 @@ test('the noise threshold is the 20% that docs/paper/results.md states', () => {
 
 test('the counters table has one row per level, in millions and percentages, and n/a for an event the CPU could not count', () => {
   const html = countersTable(data);
-  assert.equal(count(html, '<tr>'), 7); // header + 6 levels
+  assert.equal(count(html, '<tr>'), 14); // two tables, each a header and 6 levels
+  assert.match(html, /Native, n = 64, one thread/);
   assert.match(html, /Native, n = 128, one thread: hardware events of one multiplication/);
   assert.match(html, /<table class="results" aria-labelledby="table-counters-128">/);
   // the fixture's simd: 1.50 billion cycles, IPC 2.00, 20 million L1 misses, a 20.0% rate
@@ -156,7 +157,7 @@ test('the counters table has one row per level, in millions and percentages, and
   assert.match(html, /<th scope="row">Level 4: packed B<\/th><td>1\.50 billion<\/td><td>2\.00<\/td><td>2\.0 million<\/td><td>2\.0%<\/td>/);
   assert.doesNotMatch(html, /NaN|undefined|Infinity|null/);
   const missing = structuredClone(data);
-  missing.environment.counters.per_multiplication.simd['L1-dcache-load-misses'] = null;
+  missing.environment.counters[1].per_multiplication.simd['L1-dcache-load-misses'] = null;
   assert.match(countersTable(missing), /Level 3: SIMD<\/th><td>1\.50 billion<\/td><td>2\.00<\/td><td>n\/a<\/td>/);
   const without = structuredClone(data);
   delete without.environment.counters;

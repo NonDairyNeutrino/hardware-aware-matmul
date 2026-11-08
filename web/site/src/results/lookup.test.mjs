@@ -55,6 +55,10 @@ test('hardware event counts: a count, a rate, a ratio of two levels', () => {
   assert.equal(resolvePlaceholder(data, 'count ipc simd'), '2.00');
   assert.equal(resolvePlaceholder(data, 'countratio l1d_misses simd/packed'), '10.0×');
   assert.equal(resolvePlaceholder(data, 'env counters_n'), '128');
+  // n= picks the other counted size; the default is the largest.
+  assert.equal(resolvePlaceholder(data, 'count cycles naive n=64'), '187.5 million');
+  assert.equal(resolvePlaceholder(data, 'count cycles naive n=128'), '1.50 billion');
+  assert.equal(resolvePlaceholder(data, 'countratio cycles naive/simd n=64'), '1.0×');
   assert.equal(resolvePlaceholder(data, 'env counters_threads'), '1');
 });
 
@@ -62,8 +66,10 @@ test('a hardware event count that is missing never becomes text', () => {
   // The fixture's streaming level has no LLC loads (null: the CPU could not count them).
   assert.throws(() => resolvePlaceholder(data, 'count llc_loads streaming'), /no llc_loads count for streaming/);
   assert.throws(() => resolvePlaceholder(data, 'count bogus simd'), /counter must be one of/);
-  assert.throws(() => resolvePlaceholder(data, 'count l1d_misses'), /needs a level/);
+  assert.throws(() => resolvePlaceholder(data, 'count l1d_misses'), /takes a level/);
   assert.throws(() => resolvePlaceholder(data, 'countratio l1d_misses simd'), /two levels/);
+  assert.throws(() => resolvePlaceholder(data, 'count cycles simd n=99'), /no event counts at n=99 \(counted at n = 64, 128\)/);
+  assert.throws(() => resolvePlaceholder(data, 'count cycles simd t=1'), /takes a level/);
   assert.throws(() => resolvePlaceholder(data, 'count l1d_misses nonesuch'), /unknown level/);
   const without = structuredClone(data);
   delete without.environment.counters;

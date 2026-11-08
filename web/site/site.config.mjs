@@ -148,7 +148,7 @@ export const insertions = [
   // paragraph on strips, then that one = 5 from the heading, counting the diagram code block).
   { chapter: 'levels/packed', afterHeading: 'What changed from level 3', blocksAfter: 5,
     html: `<p class="st-lookfor"><strong>What to look for.</strong> The same strip of B, read two ways. In place, every step along k lands on a different line, and with a long row, a different page; packed, the strip is a short run of adjacent lines.</p>` +
-      packFigure({ n: Math.max(...results.parameters.sizes), tileK: results.parameters.block[0], nr: 4 }) },
+      packFigure({ n: Math.max(...results.parameters.sizes), tileK: results.parameters.block[0], nr: results.environment.native_micro_tile[1] }) },
   // Level 2: how often B is fetched, after the paragraph that gives the size of a block of B
   // (the step-through demo sits right after the heading and counts as one of the blocksAfter).
   // Threads = 4 is stated in the caption.

@@ -17,15 +17,16 @@
 //                                        l1d_loads, l1d_misses, l1d_miss_rate, llc_loads, llc_misses,
 //                                        llc_miss_rate, dtlb_loads, dtlb_misses, dtlb_miss_rate
 //   {{countratio l1d_misses simd/packed}} how many times as many events the first level counted
-//                                        (they were counted once, at `counters_n` and one thread
-//                                        or as recorded: see the `counters_n`, `counters_threads` env fields)
+//                                        Both take `n=<size>` last (default: the largest size that
+//                                        was counted, at the thread count in `counters_threads`;
+//                                        `counters_n` is that size)
 // Selectors: `n=<size>` (default: the largest), `t=<threads>` (default: the largest count
 // measured; ignored for level 0, which is always one thread), and one environment: native
 // (default), lite or browser-lite, threads or browser-threads. Giving a selector twice is
 // an error. `env` takes one field name: cpu, cores, physical_cores, governor, os, date,
 // commit (seven characters, plus a note if the tree was dirty), firefox, rustc_native,
 // rustc_lite, rustc_threads, native_isa, browser_isa, pool, runs, repeats, warmup, sizes,
-// counters_n, counters_threads (the size and thread count of the event counts), largest, madds (the multiply-adds of one product at the largest size, n cubed), block,
+// counters_n, counters_threads (the largest size that was counted, and the thread count), largest, madds (the multiply-adds of one product at the largest size, n cubed), block,
 // tile, rustflags (the recorded RUSTFLAGS, `none` if empty), and
 // threads_native, threads_lite, threads_threaded (the largest thread count measured in
 // that environment), l1d, l2, l3 (the cache sizes, in KiB below 1 MiB, else MiB), and
@@ -157,8 +158,8 @@ const ENV_FIELDS = {
   threads_native: (d) => String(Math.max(...threadCounts(d, 'native'))),
   threads_lite: (d) => String(Math.max(...threadCounts(d, 'browser-lite'))),
   threads_threaded: (d) => String(Math.max(...threadCounts(d, 'browser-threads'))),
-  counters_n: (d) => (d.environment.counters ? String(d.environment.counters.n) : undefined),
-  counters_threads: (d) => (d.environment.counters ? String(d.environment.counters.threads) : undefined),
+  counters_n: (d) => (d.environment.counters?.length ? String(d.environment.counters.at(-1).n) : undefined),
+  counters_threads: (d) => (d.environment.counters?.length ? String(d.environment.counters.at(-1).threads) : undefined),
   l1d: (d) => cacheSize(d, 1),
   l2: (d) => cacheSize(d, 2),
   l3: (d) => cacheSize(d, 3),
@@ -293,25 +294,32 @@ export function resolvePlaceholder(data, text) {
  * provide is null in the data, and null never becomes text.
  */
 function counterValue(data, metric, subject, rest, problem) {
-  const counters = data.environment.counters;
-  if (!counters) return problem('the data has no hardware event counts');
+  const reports = data.environment.counters;
+  if (!reports?.length) return problem('the data has no hardware event counts');
   if (!Object.hasOwn(COUNTER_METRICS, subject)) {
     return problem(`the counter must be one of: ${Object.keys(COUNTER_METRICS).join(', ')}`);
   }
-  if (rest.length !== 1) return problem(metric === 'count' ? 'count needs a level' : 'countratio needs two levels, like simd/packed');
+  const [target, ...selectors] = rest;
+  if (target === undefined || selectors.length > 1 || (selectors.length === 1 && !/^n=\d+$/.test(selectors[0]))) {
+    return problem(metric === 'count' ? 'count takes a level, then optionally n=<size>'
+      : 'countratio takes two levels, like simd/packed, then optionally n=<size>');
+  }
+  const counters = selectors.length === 1 ? reports.find((r) => r.n === Number(selectors[0].slice(2))) : reports.at(-1);
+  if (!counters) return problem(`no event counts at ${selectors[0]} (counted at n = ${reports.map((r) => r.n).join(', ')})`);
   const key = COUNTER_METRICS[subject];
   const valueOf = (name) => {
-    const levelName = Object.keys(LEVELS).find((k) => LEVELS[k] === level(name, problem) && !/^L\d$/.test(k));
+    const index = level(name, problem);
+    const levelName = Object.keys(LEVELS).find((k) => LEVELS[k] === index && !/^L\d$/.test(k));
     const value = counters.per_multiplication?.[levelName]?.[key];
     if (!Number.isFinite(value) || value <= 0) return problem(`no ${subject} count for ${levelName}`);
     return value;
   };
   if (metric === 'countratio') {
-    const parts = rest[0].split('/');
+    const parts = target.split('/');
     if (parts.length !== 2) return problem('countratio needs two levels, like simd/packed');
     return formatSpeedup(valueOf(parts[0]) / valueOf(parts[1]));
   }
-  const value = valueOf(rest[0]);
+  const value = valueOf(target);
   if (subject === 'ipc') return value.toFixed(2);
   return subject.endsWith('_rate') ? formatRate(value) : formatCount(value);
 }

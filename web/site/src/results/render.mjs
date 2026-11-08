@@ -76,11 +76,15 @@ const COUNTER_LEVELS = ['naive', 'threaded', 'cache_friendly', 'simd', 'packed',
  * The hardware event counts of one multiplication at each level (environment.counters, from
  * `perf stat`): cycles, instructions per cycle, and the misses of the L1 data cache, the
  * last-level cache and the data TLB with the L1 miss rate. An event the CPU could not count is
- * null in the data and shows as "n/a", never as 0.
+ * null in the data and shows as "n/a", never as 0. One table per counted size, smallest first.
  */
 export function countersTable(data) {
-  const counters = data.environment.counters;
-  if (!counters) throw new Error('the data has no hardware event counts');
+  const reports = data.environment.counters;
+  if (!reports?.length) throw new Error('the data has no hardware event counts');
+  return reports.map((counters) => oneCountersTable(counters)).join('');
+}
+
+function oneCountersTable(counters) {
   const count = (value) => (Number.isFinite(value) ? formatCount(value) : 'n/a');
   const rows = COUNTER_LEVELS.map((name, level) => {
     const c = counters.per_multiplication[name];

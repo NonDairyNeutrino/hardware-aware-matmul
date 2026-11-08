@@ -30,21 +30,25 @@ export const data = {
       triad_gbs: { 1: 10.04, 2: 15.06 },
       peak_gflops: { 1: 0.02, 2: 0.05 },
     },
-    // Made-up event counts per multiplication: simd misses L1 ten times as often as packed.
-    counters: {
-      n: 128, threads: 1, reps: 3, repeats: 3, min_counted_pct: 100, checksum: '00ff',
-      per_multiplication: Object.fromEntries(
-        ['naive', 'threaded', 'cache_friendly', 'simd', 'packed', 'streaming'].map((name) => {
-          const misses = { simd: 20e6, packed: 2e6 }[name] ?? 40e6;
-          return [name, {
-            cycles: 1.5e9, instructions: 3e9, ipc: 2,
-            'L1-dcache-loads': 100e6, 'L1-dcache-load-misses': misses, l1d_miss_rate: misses / 100e6,
-            'LLC-loads': name === 'streaming' ? null : 1e6, 'LLC-load-misses': 1e4, llc_miss_rate: 0.01,
-            'dTLB-loads': 100e6, 'dTLB-load-misses': 5e3, dtlb_miss_rate: 5e-5,
-          }];
-        }),
-      ),
-    },
+    // Made-up event counts per multiplication, at two sizes: simd misses L1 ten times as often
+    // as packed at n = 128, and the n = 64 counts are an eighth of those (cycles and misses).
+    counters: [64, 128].map((n) => {
+      const scale = n === 64 ? 1 / 8 : 1;
+      return {
+        n, threads: 1, reps: 3, repeats: 3, min_counted_pct: 100, checksum: '00ff',
+        per_multiplication: Object.fromEntries(
+          ['naive', 'threaded', 'cache_friendly', 'simd', 'packed', 'streaming'].map((name) => {
+            const misses = ({ simd: 20e6, packed: 2e6 }[name] ?? 40e6) * scale;
+            return [name, {
+              cycles: 1.5e9 * scale, instructions: 3e9 * scale, ipc: 2,
+              'L1-dcache-loads': 100e6 * scale, 'L1-dcache-load-misses': misses, l1d_miss_rate: misses / (100e6 * scale),
+              'LLC-loads': name === 'streaming' ? null : 1e6, 'LLC-load-misses': 1e4, llc_miss_rate: 0.01,
+              'dTLB-loads': 100e6, 'dTLB-load-misses': 5e3, dtlb_miss_rate: 5e-5,
+            }];
+          }),
+        ),
+      };
+    }),
   },
   parameters: {
     sizes: [64, 128], repeats: 3, warmup: 1, block: [32, 64], tile: [128, 128, 128],
