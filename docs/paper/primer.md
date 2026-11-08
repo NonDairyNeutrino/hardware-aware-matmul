@@ -77,7 +77,7 @@ multiplications. The Results use 128-bit vectors in both environments:
 
 # Four questions
 
-Every suspect in the case comes down to one of four questions, and the Methods return to them
+Each suspect in the case comes down to one of four questions, and the Methods return to them
 again and again. They are the checklist to carry through each chapter:
 
 1. **Is the access contiguous?** Does the code use every byte of the cache lines it fetches?

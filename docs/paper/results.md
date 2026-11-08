@@ -82,13 +82,13 @@ scaling to show.
 The timings say which levels are faster; these counts say what the hardware was doing
 differently, and are the nearest thing to direct evidence for the memory-system suspects.
 
-A separate native run counted hardware events, with `perf stat`, one process per level, at two sizes (1024 and
-{{env counters_n}}) on {{env counters_threads}} thread, counting user-space events only, in a
-binary built with the same compiler as the timed native runs. The operands were built in the
-same process, so a run that builds them and does nothing else was counted too and subtracted.
-The events were counted in groups small enough for the CPU's counters, so none of them was
-time-shared, and each figure is the median of several processes. The table gives the counts of
-one multiplication at each size.
+A separate native run counted hardware events, with `perf stat`, one process per level, at two
+sizes (1024 and {{env counters_n}}) on {{env counters_threads}} thread, counting user-space
+events only, in a binary built with the same compiler as the timed native runs. The operands
+were built in the same process, so a run that builds them and does nothing else was counted too
+and subtracted. The events were counted in groups small enough for the CPU's counters, so none
+of them was time-shared, and each figure is the median of several processes. The table gives
+the counts of one multiplication at each size.
 
 # The same answer everywhere
 

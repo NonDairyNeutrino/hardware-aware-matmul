@@ -3,7 +3,7 @@ results as level 3, but the micro-kernel no longer reads `B` where it lies in
 memory. Each cache block of `B` is first **packed**: copied once into a small
 contiguous buffer, laid out in the order the micro-kernel reads it.
 
-Level 3 left a cost that only shows up in the hardware's own event counts: its kernel reads `B`
+Level 3 left a cost that shows up first in the hardware's own event counts: its kernel reads `B`
 a row apart at every step. This level pays to copy each block once, which looks like a pure
 loss, and the measurements ask whether the copy earns its cost back.
 
@@ -110,7 +110,7 @@ assert_eq!(c, Matrix::new(2, 2, vec![58.0, 64.0, 139.0, 154.0]));
 
 # Where to go next
 
-At the two largest sizes the copy did earn its cost back, and the remaining difficulty is not
-speed at all: every level so far assumes `A`, `B`, and `C` all fit in memory.
+At the two largest sizes the copy did earn its cost back, and the remaining difficulty is no
+longer mainly speed: every level so far assumes `A`, `B`, and `C` all fit in memory.
 [`streaming`](crate::streaming) removes that assumption. It computes its tiles
 with level 2's `axpy` kernel, not with this level's packed micro-kernel.

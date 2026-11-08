@@ -173,7 +173,8 @@ test('level 1 thread scaling: about halving to two threads, a smaller gain to fo
   // At the largest size the gain from four to eight threads is under a tenth.
   assert.ok(native(1, largest, physicalCores) / native(1, largest, mostNative) < 1.1);
   // Introduction: level 2 on one thread beats level 1 on all threads.
-  assert.ok(native(2, largest, 1) < native(1, largest, mostNative));  // docs/levels/threaded.md: the speedup falls well short of the thread count, to four threads and to eight.
+  assert.ok(native(2, largest, 1) < native(1, largest, mostNative));
+  // docs/levels/threaded.md: the speedup falls well short of the thread count, to four threads and to eight.
   assert.ok(native(1, largest, 1) / native(1, largest, physicalCores) < 0.9 * physicalCores);
   assert.ok(native(1, largest, 1) / native(1, largest, mostNative) < 0.9 * mostNative);
 });
