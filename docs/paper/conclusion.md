@@ -33,9 +33,10 @@ Level 4, which copies each block of the second matrix first, was no faster than 
 the two smaller sizes and faster at every thread count at the two largest. Level 5, built for
 matrices that do not fit in memory, was likewise about as fast as level 3 on matrices that do
 at the two smaller sizes and faster at the two largest, and level 4 recovered most of that
-lead. Counting events at one size and one thread, level 4 had {{countratio l1d_misses simd/packed}}
-times fewer L1 misses than level 3 but took about the same cycles, so the counts show what
-packing changes, not why the largest size gains; the run does not say. In the browser, at the
+lead. Counting events on one thread, level 4 had {{countratio l1d_misses simd/packed n=1024}} fewer
+L1 misses than level 3 at n = 1024 and took about the same cycles; at the largest size it had
+{{countratio l1d_misses simd/packed}} fewer, sent far fewer loads past the L2, and took
+{{countratio cycles simd/packed}} fewer cycles, in step with its shorter time. In the browser, at the
 largest size, the single-threaded build ran more slowly than native code at levels 2 to 5, by
 an amount that depended on the level; levels 3 and 4, which are written around vector
 registers, came closest, level 3 at {{gflops simd lite}} against {{gflops simd t=1}} natively.

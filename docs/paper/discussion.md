@@ -40,13 +40,15 @@ column of the second matrix touches n cache lines, 32 KiB at n = 512, as much as
 {{env l1d}} L1 data cache holds, and 64 KiB at n = 1024 (the [primer](crate::primer)
 explains why). Either could explain the fall, and the data cannot tell them apart; nor can
 they rule out a third cause, such as rows whose length is a power of two competing for the
-same places in a cache. Cache-miss counts bear on this, though only at one size: the counting
-run (see [What the counters show](#what-the-counters-show) below) was made at n = {{env counters_n}},
-where the naive loop missed the L1 data cache on {{count l1d_miss_rate naive}} of its loads and level 2 on
-{{count l1d_miss_rate cache_friendly}}, and sent {{count llc_loads naive}} loads on to the
-last-level cache against level 2's {{count llc_loads cache_friendly}}. That fits the memory
-system as the cause. It was counted at one size, so it cannot say which of the two changes
-between n = 512 and n = 1024 matters.
+same places in a cache. Cache-miss counts bear on this, though only at two sizes: the counting
+run (see [What the counters show](#what-the-counters-show) below) found, at n = 1024,
+that the naive loop missed the L1 data cache on {{count l1d_miss_rate naive n=1024}} of its loads and level 2 on
+{{count l1d_miss_rate cache_friendly n=1024}}, and sent {{count llc_loads naive n=1024}} loads on to the
+last-level cache against level 2's {{count llc_loads cache_friendly n=1024}}. That fits the memory
+system as the cause. At n = {{env counters_n}} the naive loop's loads that reach the last-level cache and
+miss it number {{count llc_misses naive}}, against level 2's {{count llc_misses cache_friendly}}: the
+naive walk goes to main memory. The counts were taken at two sizes, neither of them between
+n = 512 and n = 1024, so they cannot say which of the two changes there matters.
 
 Level 3's gain over level 2 is much smaller, though its micro-kernel
 [keeps a block of the output in vector registers](crate::simd). The experiment does not
@@ -153,31 +155,53 @@ other in memory, while level 3 works on the full matrices, whose rows lie n × 8
 same places in a cache. Level 4 copies only the second matrix, in blocks, and keeps level 3's
 loops otherwise, and it recovers most of the lead. That is evidence that the way the second
 matrix is read in place is most of what level 5 avoids at these sizes, because a change that
-touches nothing else gets most of the gain. It does not show that cache-set conflicts are the
-mechanism. The strided reads also touch more cache lines and more pages for the same data, and
-the run cannot separate those effects. A smaller part of level 5's lead, the step from level 4
+touches nothing else gets most of the gain. The counts below agree: packing sends far fewer loads past the L2, and
+the cycles fall. They do not show that cache-set conflicts are the mechanism. The strided reads
+also touch more cache lines and more pages for the same data, and the run cannot separate
+those effects. A smaller part of level 5's lead, the step from level 4
 to level 5, is still not explained.
 
 # What the counters show
 
-A separate run counted hardware events (with `perf stat`) for one multiplication per level, at
-n = {{env counters_n}} on {{env counters_threads}} thread, user-space events only. Level 4 had
-{{count l1d_misses packed}} L1 data-cache misses against level 3's {{count l1d_misses simd}},
-{{countratio l1d_misses simd/packed}} fewer, and sent {{count llc_loads packed}} loads on to the
-last-level cache against {{count llc_loads simd}}. Its cycle count did not follow:
-{{count cycles packed}} against {{count cycles simd}}, at about the same instructions per
-cycle ({{count ipc packed}} against {{count ipc simd}}). One reading is that the misses of level 3
-were already overlapped with arithmetic, by the processor running ahead and prefetching the
-strided reads, so removing them frees no time; the counts do not test that. Both levels counted
-only a few thousand data-TLB misses, so a TLB effect, which the chapter on level 4 lists as a
-possible gain, does not show here.
+A separate run counted hardware events (with `perf stat`) for one multiplication per level on
+one thread, at n = 1024 and at n = {{env counters_n}}, user-space events only, in a binary built
+with the same compiler as the timed runs. The two sizes give different answers.
 
-Two limits matter. The counts were taken at n = {{env counters_n}}, where level 4's lead over
-level 3 is small, and not at n = {{env largest}}, where it is largest. They show that packing changes what the
-cache does, and not that this change is what produced the faster time at the largest size. A
-count at that size would. The counts also include one that is not explained: level 1 on one
-thread counted {{count l1d_loads threaded}} L1 data-cache loads against level 0's
-{{count l1d_loads naive}}, though the two run the same loop in the same time. The L1 counts
+At n = 1024, level 4 had {{count l1d_misses packed n=1024}} L1 data-cache misses against level 3's
+{{count l1d_misses simd n=1024}}, {{countratio l1d_misses simd/packed n=1024}} fewer. Its cycle
+count did not follow: {{count cycles packed n=1024}} against {{count cycles simd n=1024}}, at about the same
+instructions per cycle ({{count ipc packed n=1024}} against {{count ipc simd n=1024}}). That matches the
+timings at that size, where level 4 is only slightly ahead. One reading is that the misses of
+level 3 were served from the L2 cache and overlapped with arithmetic by the processor running
+ahead, so removing them freed no time; the counts do not test that.
+
+At n = {{env counters_n}} the same removal pays. Level 4 had {{count l1d_misses packed}} L1 misses against
+level 3's {{count l1d_misses simd}}, {{countratio l1d_misses simd/packed}} fewer, and it sent
+{{count llc_loads packed}} loads on to the last-level cache against level 3's
+{{count llc_loads simd}}: the strided reads of the second matrix had stopped being caught by the L2.
+Its cycles fell with them, {{count cycles packed}} against {{count cycles simd}}, by about the
+fraction by which its one-thread time was shorter ({{ms packed t=1}} against {{ms simd t=1}}), and its
+instructions per cycle rose from {{count ipc simd}} to {{count ipc packed}}. So on one thread the faster time
+comes with fewer cycles and fewer loads that left the L2, which is what the reading that the
+cost lies in reading the second matrix in place predicted. This is the strongest evidence in this paper for a
+cause, and it still has limits: it is one thread, and it shows that the misses went away and the cycles went with them, not
+that the misses were the whole of the saving.
+
+Level 5 goes further at that size: {{count cycles streaming}} cycles, {{count ipc streaming}} instructions per cycle, and
+{{count llc_loads streaming}} loads sent to the last-level cache. It executes more L1 loads than level 4
+({{count l1d_loads streaming}} against {{count l1d_loads packed}}), because its kernel is level 2's
+rather than the register-blocked one, so it does more work and spends less time waiting. The
+cycles order levels 3, 4 and 5 as the times do. The step from level 4 to level 5 is therefore a
+step in waiting for memory, not in instructions.
+
+Both levels 3 and 4 counted only a few thousand to a few tens of thousands of data-TLB misses
+at either size, so a TLB effect, which the chapter on level 4 lists as a possible gain, does not
+show here.
+
+Two limits matter. The counts are from one thread, so they say nothing about why the gains
+shrink with more threads. And one count is not explained: level 1 on one thread counted about
+twice as many L1 data-cache loads as level 0 at both sizes ({{count l1d_loads threaded}} against
+{{count l1d_loads naive}} at n = {{env counters_n}}), though the two run the same loop in the same time. The L1 counts
 of those two levels should not be over-read.
 
 # Browser against native
@@ -243,10 +267,10 @@ builds causes which result is not something this experiment can separate.
   design no level uses fused multiply-add, which would change the result bits. Both choices
   keep the comparison honest and keep the results identical. They also mean that none of
   these figures is the most this CPU can do.
-- **Explanations are interpretations.** The levels were timed, and counted at one size on one
+- **Explanations are interpretations.** The levels were timed, and counted at two sizes on one
   thread. The reference run recorded the cache sizes, a triad bandwidth ({{env triad_max}} at
-  most), the rate of an arithmetic test ({{env peak_max}} at most) and, at n = {{env counters_n}}
-  on {{env counters_threads}} thread, cycles, instructions and misses in the L1, the last-level
+  most), the rate of an arithmetic test ({{env peak_max}} at most) and, at n = 1024 and
+  n = {{env counters_n}} on {{env counters_threads}} thread, cycles, instructions and misses in the L1, the last-level
   cache and the data TLB. It did not count memory traffic, the use of the execution units,
   anything with several threads running, or anything in the browser. Each statement above about
   why a difference arises is a reading consistent with the numbers, not a measurement of the

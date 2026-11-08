@@ -94,8 +94,20 @@ test('level 5 on four threads, natively, is the fastest case measured at the lar
   assert.equal(fastest.threads, 4);
 });
 
-test('the event counts: packing removes most L1 misses without changing the cycles by more than a tenth (Discussion, results.md)', () => {
-  const counted = data.environment.counters.per_multiplication;
+const countsAt = (n) => data.environment.counters.find((r) => r.n === n);
+
+test('the event counts were taken at two sizes, 1024 and the largest, on one thread, with the compiler of the timed runs (Discussion, results.md)', () => {
+  assert.deepEqual(data.environment.counters.map((r) => r.n), [1024, largest]);
+  for (const report of data.environment.counters) {
+    assert.equal(report.threads, 1);
+    assert.equal(report.min_counted_pct, 100, 'no event was time-shared');
+    // "native rustc" is the nightly the timed runs used; the counts must come from the same one.
+    assert.ok(data.environment.toolchains.native.startsWith(report.rustc.split(' (')[0]), report.rustc);
+  }
+});
+
+test('the event counts at n=1024: packing removes most L1 misses without changing the cycles by more than a tenth (Discussion, results.md)', () => {
+  const counted = countsAt(1024).per_multiplication;
   const misses = (level) => counted[level]['L1-dcache-load-misses'];
   assert.ok(misses('simd') / misses('packed') > 5, 'packing removes most of the L1 misses');
   assert.ok(Math.abs(counted.packed.cycles / counted.simd.cycles - 1) < 0.1, 'cycles within a tenth');
@@ -105,18 +117,39 @@ test('the event counts: packing removes most L1 misses without changing the cycl
     assert.ok(counted[level].l1d_miss_rate < 0.35, level);
     assert.ok(counted[level].cycles < 0.2 * counted.naive.cycles, level);
   }
-  // Fewer loads sent on to the last-level cache, about the same instructions per cycle, and
-  // only a few thousand data-TLB misses in either (so no TLB effect to read).
+  // Fewer loads sent on to the last-level cache, about the same instructions per cycle.
   assert.ok(counted.packed['LLC-loads'] < counted.simd['LLC-loads']);
   assert.ok(Math.abs(counted.packed.ipc / counted.simd.ipc - 1) < 0.1);
-  for (const level of ['simd', 'packed']) assert.ok(counted[level]['dTLB-load-misses'] < 1e5, level);
-  // The two L1-load counts the Discussion calls unexplained: level 1 about twice level 0.
-  assert.ok(counted.threaded['L1-dcache-loads'] > 1.5 * counted.naive['L1-dcache-loads']);
   // The naive loop sends far more loads to the last-level cache than level 2 does.
   assert.ok(counted.naive['LLC-loads'] > 10 * counted.cache_friendly['LLC-loads']);
-  // The counts were taken at a size where level 4 leads level 3 by less than a tenth.
-  const n = data.environment.counters.n;
-  assert.ok(native(4, n, data.environment.counters.threads) / native(3, n, data.environment.counters.threads) > 0.9);
+  // Level 4 leads level 3 by less than a tenth in time here too (one thread).
+  assert.ok(native(4, 1024, 1) / native(3, 1024, 1) > 0.9);
+});
+
+test('the event counts at the largest size: the cycles follow the times, and packing sends far fewer loads past the L2 (Discussion, results.md)', () => {
+  const counted = countsAt(largest).per_multiplication;
+  const misses = (level) => counted[level]['L1-dcache-load-misses'];
+  assert.ok(misses('simd') / misses('packed') > 5, 'packing removes most of the L1 misses');
+  assert.ok(counted.simd['LLC-loads'] > 10 * counted.packed['LLC-loads'], 'and most of the loads that reach the last-level cache');
+  // Cycles fall by about the fraction that the one-thread time falls, for level 4 against level 3.
+  const cycles = counted.packed.cycles / counted.simd.cycles;
+  const time = native(4, largest, 1) / native(3, largest, 1);
+  assert.ok(cycles < 0.95 && Math.abs(cycles - time) < 0.05, `cycles ${cycles}, time ${time}`);
+  // The cycles order levels 3, 4 and 5 as the times do, and level 5 does more loads than level 4.
+  assert.ok(counted.streaming.cycles < counted.packed.cycles && counted.packed.cycles < counted.simd.cycles);
+  assert.ok(native(5, largest, 1) < native(4, largest, 1) && native(4, largest, 1) < native(3, largest, 1));
+  assert.ok(counted.streaming['L1-dcache-loads'] > 2 * counted.packed['L1-dcache-loads']);
+  assert.ok(counted.streaming['LLC-loads'] < 0.1 * counted.simd['LLC-loads']);
+  assert.ok(counted.packed.ipc > counted.simd.ipc && counted.streaming.ipc > counted.packed.ipc);
+  // Few data-TLB misses for levels 3 and 4 (so no TLB effect to read), at both sizes.
+  for (const n of [1024, largest]) {
+    for (const level of ['simd', 'packed']) assert.ok(countsAt(n).per_multiplication[level]['dTLB-load-misses'] < 1e5, `${level} n=${n}`);
+  }
+  // Level 1 counted about twice level 0's L1 loads, at both sizes: the Discussion calls it unexplained.
+  for (const n of [1024, largest]) {
+    const c = countsAt(n).per_multiplication;
+    assert.ok(Math.abs(c.threaded['L1-dcache-loads'] / c.naive['L1-dcache-loads'] - 2) < 0.1, `n=${n}`);
+  }
 });
 
 test('levels 0 and 1 one-thread native runs at the largest size are tight, and level 1 is no faster than level 0 (Discussion)', () => {
