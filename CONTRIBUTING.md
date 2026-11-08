@@ -145,7 +145,8 @@ One Manim scene per level, in `anim/`:
 | 1 | `naive_matmul_parallel.py` | `ParallelNaiveMatMul` |
 | 2 | `cache_friendly_matmul.py` | `CacheFriendlyMatMul` |
 | 3 | `simd_matmul.py` | `SimdMatMul` |
-| 4 | `streaming_matmul.py` | `StreamingMatMul` |
+| 4 | `packed_matmul.py` | `PackedMatMul` |
+| 5 | `streaming_matmul.py` | `StreamingMatMul` |
 
 ```sh
 manim -ql anim/<file>.py <SceneClass>      # output lands in anim/media/

@@ -143,10 +143,19 @@ export const insertions = [
       'One output tile of C at a time: slices of A and B stream through three small buffers into a running sum, and workers claim tiles from a shared counter.',
     ),
   },
+  {
+    chapter: 'levels/packed',
+    afterHeading: 'What changed from level 3',
+    html: video(
+      'PackedMatMul.mp4',
+      'A strip of B, read in place, touches a new cache line on every step along k; packed into a contiguous buffer first, the same strip is a short run of adjacent values, read by the unchanged micro-kernel.',
+    ),
+  },
   // Level 4: what one strip of B touches, in place and packed, after the paragraph that says
-  // the micro-kernel is level 3's (the heading's blocks: three paragraphs, the diagram, the
-  // paragraph on strips, then that one = 5 from the heading, counting the diagram code block).
-  { chapter: 'levels/packed', afterHeading: 'What changed from level 3', blocksAfter: 5,
+  // the micro-kernel is level 3's (the heading's blocks: the video, three paragraphs, the
+  // diagram, the paragraph on strips, then that one = 6 from the heading, counting the diagram
+  // code block).
+  { chapter: 'levels/packed', afterHeading: 'What changed from level 3', blocksAfter: 6,
     html: `<p class="st-lookfor"><strong>What to look for.</strong> The same strip of B, read two ways. In place, every step along k lands on a different line, and with a long row, a different page; packed, the strip is a short run of adjacent lines.</p>` +
       packFigure({ n: Math.max(...results.parameters.sizes), tileK: results.parameters.block[0], nr: results.environment.native_micro_tile[1] }) },
   // Level 2: how often B is fetched, after the paragraph that gives the size of a block of B
