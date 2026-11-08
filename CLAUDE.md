@@ -104,10 +104,10 @@ functions with its own runners. Nightly and wasm dependencies live only in `web/
 
 ## Notes
 
-- The crate has six levels but `web/` (wasm crate, `results.json`, `results.py`, site chapters,
-  playground, `anim/`) still describes five and calls streaming "level 4". `packed` is not in
-  the reference run yet. Updating that is its own stage; the wasm crate still builds, since
-  module names did not change.
+- The crate, `web/` (wasm crate, `results.json`, `results.py`, site, playground) and the paper
+  all describe six levels, and the reference run in `results.json` covers them with event
+  counts. Only the Manim videos in `anim/` still say five and call streaming "level 4"; they
+  have no packed scene and need Docker/LaTeX to re-render.
 - `web/dev/perf_counters.py` counts cache/TLB events per level with `perf stat` (Linux, runs
   `examples/level_once.rs` once per level and subtracts an operands-only run). Output is not
   wired into the site.
