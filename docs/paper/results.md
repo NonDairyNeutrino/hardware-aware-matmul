@@ -1,3 +1,7 @@
+These are the measurements the case rests on: every level, timed natively and in a browser, with
+hardware event counts for the cache-related suspects. They report what happened; the
+[Discussion](crate::discussion) says what it means.
+
 The same matrix product was timed at every level, natively and in a web browser, on one
 machine. This page reports the measurements, with a question to answer before each
 group of figures, and nothing else: the [Discussion](crate::discussion) compares them. Every figure on it comes from the committed
@@ -27,6 +31,8 @@ build) with {{env browser_isa}} enabled; the threaded build used a pool of {{env
 threads.
 
 # Native
+
+This section answers the first question: how much faster is each suspect than the textbook loop?
 
 > **Predict.** Before you read the tables: with all the threads, which level will be fastest?
 > At the larger size, how many times faster than level 0 will each level be?
@@ -76,6 +82,8 @@ scaling to show.
 > L1 data cache more often than level 3, or less? Will it need fewer cycles, and does the answer
 > depend on the size?
 
+The timings say which levels are faster; these counts say what the hardware was doing differently, and are the nearest thing to direct evidence for the memory-system suspects.
+
 The timings above say how long each level took, not why. A separate native run counted
 hardware events instead, with `perf stat`, one process per level, at two sizes (1024 and
 {{env counters_n}}) on {{env counters_threads}} thread, counting user-space events only, in a
@@ -98,6 +106,8 @@ The [playground](crate::playground) runs the same benchmark on your own machine,
 browser, and reports whether every level gave the same answer.
 
 # Noise and limits
+
+Before the Discussion weighs this evidence, here is how much to trust it.
 
 These are the measurements of one machine on one day.
 
