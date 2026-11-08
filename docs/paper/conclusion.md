@@ -1,12 +1,12 @@
-This project asked how much of a program's speed is a matter of how the hardware is
-used, with the arithmetic held fixed. Dense matrix multiplication was the worked example,
-chosen because the algorithm is easy to state and its performance is not.
+The case began with one question: why does the textbook matrix product use so little of what
+the core can do, when a version with the same arithmetic is so much faster? The answer is
+mostly in how the work meets memory, and partly still open.
 
-# What was done
+# The suspects
 
-The [Introduction](crate::introduction) set the rule: six implementations of the same
-product, each computing the same result bit for bit, so that nothing but the use of the
-hardware can explain a difference. The Methods then added one idea at a time:
+The [Introduction](crate::introduction) set the rule of the case: six implementations of the
+same product, each computing the same result bit for bit, so that nothing but the use of the
+hardware can explain a difference. The Methods then tried one suspect at a time:
 
 - [Level 1](crate::threaded) splits the output rows across threads.
 - [Level 2](crate::cache_friendly) reorders the loops and blocks them for the cache.
@@ -19,11 +19,16 @@ hardware can explain a difference. The Methods then added one idea at a time:
 Each is a small change to the previous level, written in safe Rust without dependencies,
 and each chapter says what it fixes and what it still costs.
 
-# What was found
+# The verdict
 
-The [Results](crate::results) timed every level, natively and in a web browser, on one
-machine, and the [Discussion](crate::discussion) compared them. In that run every case
-returned the same result, whatever the level, the thread count or the environment. At n = {{env largest}}, natively, level 3 with all of its threads was {{speedup simd/naive}}
+The cores were not the main cause: at the largest size, the cache-friendly level on one
+thread beat the simplest threaded level at every thread count. Most of the one-thread gain
+came from reordering the loops and blocking for the cache, the vector kernel then took a
+smaller step, the packed copy helped further at the two largest sizes, and streaming, built
+for a different reason, was the fastest case measured, natively at the largest size on four
+threads.
+
+In the reference run every case returned the same result, whatever the level, the thread count or the environment. At n = {{env largest}}, natively, level 3 with all of its threads was {{speedup simd/naive}}
 faster than the textbook loop, and level 5 on four threads {{speedup streaming/naive t=4}}.
 On one thread, most of the gain arrived with level 2, which
 reorders the loops and blocks for the cache ({{speedup cache_friendly/naive t=1}}); the
@@ -51,6 +56,14 @@ come from one machine on one day, the explanations are mostly readings of the nu
 event counts, from one size and one thread, test only some of them), and none of the levels is a replacement for a tuned linear
 algebra library. The [playground](crate::playground) is there so that a reader can run the
 comparison on their own hardware, and see whether the same shape appears.
+
+One question is left open, and it is the one to take away from the case. Threads stopped
+helping levels 3 to 5 where the physical cores ran out, while a test of arithmetic alone kept
+gaining. A rough count of level 5's reads from main memory made main-memory bandwidth look an
+unlikely limit for that level, but the count is an estimate, and the data cannot settle it.
+What the cores share besides the arithmetic (their caches, the machinery that feeds the
+execution units) was not measured. The [playground](crate::playground) lets a reader see
+whether the same shape appears on their own machine.
 
 # Four questions to take with you
 
