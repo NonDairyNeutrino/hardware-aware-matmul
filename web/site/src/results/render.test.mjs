@@ -136,6 +136,9 @@ test('the real results.json renders every table and chart without gaps', () => {
     assert.doesNotMatch(scalingChart(real, { environment }), /NaN|undefined|Infinity/);
   }
   assert.doesNotMatch(throughputChart(real, {}), /NaN|undefined|Infinity/);
+  const counters = countersTable(real);
+  assert.equal(count(counters, '<tr>'), 7);
+  assert.doesNotMatch(counters, /NaN|undefined|Infinity|null|n\/a/);
 });
 
 test('the noise threshold is the 20% that docs/paper/results.md states', () => {
