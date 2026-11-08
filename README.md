@@ -82,7 +82,7 @@ RUSTFLAGS="-C target-cpu=native" cargo run --release
 ```
 
 `compare` multiplies two `n × n` matrices at every level, verifies that the
-five results are identical, and prints each level's time relative to the
+six results are identical, and prints each level's time relative to the
 previous level and to the naive baseline. The documentation contains no
 benchmark numbers: measure on your own hardware, and always use `--release`. (The
 project's website publishes one reference run, as generated data, with the machine it

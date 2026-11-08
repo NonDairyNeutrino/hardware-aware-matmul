@@ -109,8 +109,9 @@ functions with its own runners. Nightly and wasm dependencies live only in `web/
   counts. Only the Manim videos in `anim/` still say five and call streaming "level 4"; they
   have no packed scene and need Docker/LaTeX to re-render.
 - `web/dev/perf_counters.py` counts cache/TLB events per level with `perf stat` (Linux, runs
-  `examples/level_once.rs` once per level and subtracts an operands-only run). Output is not
-  wired into the site.
+  `examples/level_once.rs` once per level and subtracts an operands-only run). The reference
+  script runs it at 1024 and the largest size, with the toolchain `web/wasm` pins, and
+  `results.py --counters` records the reports as the list `environment.counters`.
 - Trunk branch is `trunk`; the root `Cargo.lock` is gitignored (`web/wasm/Cargo.lock` is
   tracked).
 - Commit only when asked. Keep commits small, with short one-line messages.

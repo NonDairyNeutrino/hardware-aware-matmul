@@ -68,14 +68,16 @@ states in words against the committed `results.json`. After a new reference run,
 failure there means the run flipped the claim: reword the prose and the test, never
 the data.
 
-`environment.hardware` (the hardware probe) and `environment.caches` (read from
-Linux sysfs) are optional in `results.json`. Older files have neither and still
-validate.
+`environment.hardware` (the hardware probe), `environment.caches` (read from
+Linux sysfs) and `environment.counters` (hardware event counts from
+`web/dev/perf_counters.py`, passed to `results.py` with `--counters`) are optional in
+`results.json`. Older files lack them and still validate.
 
 ## The step-through
 
 A `<step-through>` custom element (`web/site/src/components/`) is placed by the
-`demos` list in `site.config.mjs` in chapters 1 to 4. It draws the real work
+`demos` list in `site.config.mjs` in the chapters for levels 1, 2, 3 and 5 (level 4 has a
+static pack figure instead). It draws the real work
 partition from the wrapper's `partition_plan` and `env_info` on the lite module, so
 chapters need no threads and no service worker. Its pure model and figures
 (`step-model.mjs`, `cache-figure.mjs`, `register-figure.mjs`, `reuse-figure.mjs`)
