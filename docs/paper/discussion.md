@@ -104,10 +104,17 @@ gain level 3 captures.
 
 [Level 4](crate::packed) adds a copy to level 3: each block of the second matrix is moved
 into a contiguous buffer before the vector kernel reads it. At the two largest sizes the cost
-one might expect did not appear: level 4 was faster than level 3 at every thread count. At
-n = {{env largest}}, level 4 takes {{ms packed t=1}} on one thread against level 3's
-{{ms simd t=1}}, {{ms packed t=2}} on two against {{ms simd t=2}}, {{ms packed t=4}} on four
-against {{ms simd t=4}}, and {{ms packed t=8}} on eight against {{ms simd t=8}}. At n = 1024
+one might expect did not appear: level 4 was faster than level 3 at every thread count.
+At n = {{env largest}}:
+
+| threads | level 3 | level 4 |
+|---|---|---|
+| 1 | {{ms simd t=1}} | {{ms packed t=1}} |
+| 2 | {{ms simd t=2}} | {{ms packed t=2}} |
+| 4 | {{ms simd t=4}} | {{ms packed t=4}} |
+| 8 | {{ms simd t=8}} | {{ms packed t=8}} |
+
+At n = 1024
 the lead is much smaller ({{ms packed t=4 n=1024}} against {{ms simd t=4 n=1024}} on four
 threads), and at the two smaller sizes the two levels are within a tenth of each other,
 neither always ahead.
@@ -118,29 +125,39 @@ A separate run counted hardware events (with `perf stat`) for one multiplication
 one thread, at n = 1024 and at n = {{env counters_n}}, user-space events only, in a binary built
 with the same compiler as the timed runs. The two sizes give different answers.
 
-At n = 1024, level 4 had {{count l1d_misses packed n=1024}} L1 data-cache misses against level 3's
-{{count l1d_misses simd n=1024}}, {{countratio l1d_misses simd/packed n=1024}} fewer. Its cycle
-count did not follow: {{count cycles packed n=1024}} against {{count cycles simd n=1024}}, at about the same
-instructions per cycle ({{count ipc packed n=1024}} against {{count ipc simd n=1024}}). That matches the
+At n = 1024, level 4 had {{countratio l1d_misses simd/packed n=1024}} fewer L1 data-cache misses
+than level 3, but its cycle count did not follow, at about the same instructions per cycle:
+
+| n = 1024 | L1 data-cache misses | cycles | instructions per cycle |
+|---|---|---|---|
+| level 3 | {{count l1d_misses simd n=1024}} | {{count cycles simd n=1024}} | {{count ipc simd n=1024}} |
+| level 4 | {{count l1d_misses packed n=1024}} | {{count cycles packed n=1024}} | {{count ipc packed n=1024}} |
+
+That matches the
 timings at that size, where level 4 is only slightly ahead. One reading is that the misses of
 level 3 were served from the L2 cache and overlapped with arithmetic by the processor running
 ahead, so removing them freed no time; the counts do not test that.
 
-At n = {{env counters_n}} the same removal pays. Level 4 had {{count l1d_misses packed}} L1 misses against
-level 3's {{count l1d_misses simd}}, {{countratio l1d_misses simd/packed}} fewer, and it sent
-{{count llc_loads packed}} loads on to the last-level cache against level 3's
-{{count llc_loads simd}}: the strided reads of the second matrix had stopped being caught by the L2.
-Its cycles fell with them, {{count cycles packed}} against {{count cycles simd}}, by about the
+At n = {{env counters_n}} the same removal pays: level 4 had {{countratio l1d_misses simd/packed}}
+fewer L1 misses than level 3, and sent far fewer loads on to the last-level cache, because the
+strided reads of the second matrix had stopped being caught by the L2.
+
+| n = {{env counters_n}} | L1 data-cache misses | loads to the last-level cache | cycles | instructions per cycle | L1 loads |
+|---|---|---|---|---|---|
+| level 3 | {{count l1d_misses simd}} | {{count llc_loads simd}} | {{count cycles simd}} | {{count ipc simd}} | {{count l1d_loads simd}} |
+| level 4 | {{count l1d_misses packed}} | {{count llc_loads packed}} | {{count cycles packed}} | {{count ipc packed}} | {{count l1d_loads packed}} |
+| level 5 | {{count l1d_misses streaming}} | {{count llc_loads streaming}} | {{count cycles streaming}} | {{count ipc streaming}} | {{count l1d_loads streaming}} |
+
+Its cycles fell with them, by about the
 fraction by which its one-thread time was shorter ({{ms packed t=1}} against {{ms simd t=1}}), and its
-instructions per cycle rose from {{count ipc simd}} to {{count ipc packed}}. So on one thread the faster time
+instructions per cycle rose. So on one thread the faster time
 comes with fewer cycles and fewer loads that left the L2, which is what the reading that the
 cost lies in reading the second matrix in place predicted. This is the strongest evidence in this paper for a
 cause, and it still has limits: it is one thread, and it shows that the misses went away and the cycles went with them, not
 that the misses were the whole of the saving.
 
-Level 5 goes further at that size: {{count cycles streaming}} cycles, {{count ipc streaming}} instructions per cycle, and
-{{count llc_loads streaming}} loads sent to the last-level cache. It executes more L1 loads than level 4
-({{count l1d_loads streaming}} against {{count l1d_loads packed}}), because its kernel is level 2's
+Level 5 goes further at that size: fewer cycles and a higher rate of instructions per cycle.
+It executes more L1 loads than level 4, because its kernel is level 2's
 rather than the register-blocked one, so it does more work and spends less time waiting. The
 cycles order levels 3, 4 and 5 as the times do (level 5's times follow in the twist below). The step from level 4 to level 5 is therefore a
 step in waiting for memory, not in instructions.
@@ -164,10 +181,16 @@ at the largest size it is nonetheless the fastest case measured.
 fit in memory, not to make it faster when they do, and the chapter says so. The reference
 run measures it only on matrices that fit. It copies tiles into buffers, and at the two
 largest sizes it was faster than level 3 at every thread count, as level 4 was. At n = {{env largest}}
-it takes {{ms streaming t=1}} on one thread, {{ms streaming t=2}} on two,
-{{ms streaming t=4}} on four and {{ms streaming t=8}} on eight, each ahead of level 4's time
-with the same threads, though by little: level 4 gets most of the way from level 3 to level 5
-at every thread count. At the two smaller sizes level 5 loses the lead: it is close to
+it was ahead of level 4 at every thread count, though by little:
+
+| threads | level 4 | level 5 |
+|---|---|---|
+| 1 | {{ms packed t=1}} | {{ms streaming t=1}} |
+| 2 | {{ms packed t=2}} | {{ms streaming t=2}} |
+| 4 | {{ms packed t=4}} | {{ms streaming t=4}} |
+| 8 | {{ms packed t=8}} | {{ms streaming t=8}} |
+
+Level 4 gets most of the way from level 3 to level 5 at every thread count. At the two smaller sizes level 5 loses the lead: it is close to
 level 3, sometimes ahead and sometimes behind, but never more than about a tenth behind.
 
 Level 4 also helps explain the twist. One reading offered for level 5's lead was that its
