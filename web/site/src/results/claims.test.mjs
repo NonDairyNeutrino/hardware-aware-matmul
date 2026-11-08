@@ -328,3 +328,8 @@ test('the verdict: the fastest case at the largest size is level 5 on four threa
   const fastest = all.reduce((a, b) => (b[2] < a[2] ? b : a));
   assert.deepEqual(fastest.slice(0, 2), [5, physicalCores]);
 });
+
+test('the opening: the textbook loop takes over half a minute and level 5 on four threads under two seconds at the largest size (Introduction heading)', () => {
+  assert.ok(native(0, largest, 1) > 30000, `level 0: ${native(0, largest, 1)} ms`);
+  assert.ok(native(5, largest, physicalCores) < 2000, `level 5: ${native(5, largest, physicalCores)} ms`);
+});
