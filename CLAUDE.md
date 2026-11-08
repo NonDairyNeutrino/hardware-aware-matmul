@@ -104,10 +104,9 @@ functions with its own runners. Nightly and wasm dependencies live only in `web/
 
 ## Notes
 
-- The crate, `web/` (wasm crate, `results.json`, `results.py`, site, playground) and the paper
-  all describe six levels, and the reference run in `results.json` covers them with event
-  counts. Only the Manim videos in `anim/` still say five and call streaming "level 4"; they
-  have no packed scene and need Docker/LaTeX to re-render.
+- The crate, `web/` (wasm crate, `results.json`, `results.py`, site, playground), the paper and
+  the animations all describe six levels, and the reference run in `results.json` covers them
+  with event counts.
 - `web/dev/perf_counters.py` counts cache/TLB events per level with `perf stat` (Linux, runs
   `examples/level_once.rs` once per level and subtracts an operands-only run). The reference
   script runs it at 1024 and the largest size, with the toolchain `web/wasm` pins, and
