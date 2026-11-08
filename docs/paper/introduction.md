@@ -2,8 +2,7 @@ Multiplying two {{env largest}} × {{env largest}} matrices takes {{env madds}} 
 On the laptop used for this paper, the textbook way to do it, three nested loops, takes
 {{ms naive}}. A version that does exactly the same multiply-adds, spread over all {{env threads_native}}
 hardware threads ({{env physical_cores}} physical cores, each running two; the [primer](crate::primer) explains), takes {{ms simd}}, which is {{speedup simd/naive}} faster, on the same
-laptop, and returns the same answer, bit for bit. (The textbook loop's runs varied, so that
-ratio is approximate; the [Discussion](crate::discussion) says why.)
+laptop, and returns the same answer, bit for bit.
 
 Nothing clever happened to the arithmetic. No multiplication was skipped, no sum was
 reordered, and nobody found a better algorithm. The whole difference is in *how the work was

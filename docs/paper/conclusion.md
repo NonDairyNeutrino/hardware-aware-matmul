@@ -24,27 +24,30 @@ and each chapter says what it fixes and what it still costs.
 The [Results](crate::results) timed every level, natively and in a web browser, on one
 machine, and the [Discussion](crate::discussion) compared them. In that run every case
 returned the same result, whatever the level, the thread count or the environment. At n = {{env largest}}, natively, level 3 with all of its threads was {{speedup simd/naive}}
-faster than the textbook loop, and level 5 on four threads {{speedup streaming/naive t=4}};
-each divides by the textbook loop's median, whose runs varied, so both are
-approximate. On one thread, most of the gain arrived with level 2, which
+faster than the textbook loop, and level 5 on four threads {{speedup streaming/naive t=4}}.
+On one thread, most of the gain arrived with level 2, which
 reorders the loops and blocks for the cache ({{speedup cache_friendly/naive t=1}}); the
 vector micro-kernel added a further {{speedup simd/cache_friendly t=1}}. Threads helped the
 blocked, vector and streaming levels until the physical cores ran out, and little beyond.
-Level 5, built for matrices that do not fit in memory, was about as fast as level 3 on
-matrices that do at the two smaller sizes, and faster at every thread count at the two
-largest; the run does not say why. In the browser, at the largest size, the single-threaded
-build ran more slowly than native code at levels 2 to 5, by an amount that depended on the level; level 3,
-which is written around vector registers, came closest of those three, at
-{{gflops simd lite}} against {{gflops simd t=1}} natively. Levels 0 and 1 were no slower in
-the browser at the largest size, where their native one-thread times are uncertain.
+Level 4, which copies each block of the second matrix first, was no faster than level 3 at
+the two smaller sizes and faster at every thread count at the two largest. Level 5, built for
+matrices that do not fit in memory, was likewise about as fast as level 3 on matrices that do
+at the two smaller sizes and faster at the two largest, and level 4 recovered most of that
+lead. Counting events at one size and one thread, level 4 had {{countratio l1d_misses simd/packed}}
+times fewer L1 misses than level 3 but took about the same cycles, so the counts show what
+packing changes, not why the largest size gains; the run does not say. In the browser, at the
+largest size, the single-threaded build ran more slowly than native code at levels 2 to 5, by
+an amount that depended on the level; levels 3 and 4, which are written around vector
+registers, came closest, level 3 at {{gflops simd lite}} against {{gflops simd t=1}} natively.
+Levels 0 and 1 ran about as fast in the browser as natively at the largest size.
 
 # What it means, and what it does not
 
 The lesson of the measurements is the one the project set out to show: with the arithmetic
 unchanged, the way the work is laid out over memory, registers and cores moved the running
 time by more than an order of magnitude. It is also the lesson of the limits. The figures
-come from one machine on one day, the explanations are readings of the numbers rather than
-measurements of their causes, and none of the levels is a replacement for a tuned linear
+come from one machine on one day, the explanations are mostly readings of the numbers (the
+event counts, from one size and one thread, test only some of them), and none of the levels is a replacement for a tuned linear
 algebra library. The [playground](crate::playground) is there so that a reader can run the
 comparison on their own hardware, and see whether the same shape appears.
 

@@ -9,9 +9,11 @@ splitting the output rows across threads; reordering the loops and blocking for 
 keeping a block of the output in vector registers; copying each block of the second matrix
 into a contiguous buffer before the vector kernel reads it; and streaming tiles of the matrices
 through small buffers so that they need not fit in memory at all. On one laptop, level 3 with all its threads ran {{speedup simd/naive}} faster than the
-textbook loop, and level 5 on four threads {{speedup streaming/naive t=4}} (each divides by
-the textbook loop's median, whose runs varied, so both are approximate); on one thread,
-most of the gain arrived with the cache blocking of level 2. Compiled to WebAssembly, the same code ran in a browser at {{gflops simd lite}} on
+textbook loop, and level 5 on four threads {{speedup streaming/naive t=4}}; on one thread,
+most of the gain arrived with the cache blocking of level 2. Packing the second matrix
+(level 4) cut its L1 cache misses {{countratio l1d_misses simd/packed}}-fold in a counted run
+without changing the cycles, yet at the largest size it recovered most of the lead that
+streaming had over level 3. Compiled to WebAssembly, the same code ran in a browser at {{gflops simd lite}} on
 one thread, against {{gflops simd t=1}} natively. Matrix multiplication is only the worked
 example; the ideas apply wherever code moves a lot of data. Each level is presented as a
 method, with an interactive diagram, driven by the real code, that shows how it divides the
