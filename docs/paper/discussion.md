@@ -58,29 +58,38 @@ gain therefore arrives with level 2, which changes the
 the same operations, arranged this way, use data while it is still in the cache instead of
 fetching it from memory again; the run did not measure that.
 
-The size of that gain depends on the size of the problem, though not smoothly. On one
-thread level 2 was {{speedup cache_friendly/naive t=1 n=256}} faster than level 0 at
-n = 256, {{speedup cache_friendly/naive t=1 n=512}} at n = 512,
-{{speedup cache_friendly/naive t=1 n=1024}} at n = 1024 and
-{{speedup cache_friendly/naive t=1}} at n = {{env largest}}. The gain barely moves between
-the two smaller sizes and grows after them, mostly because level 0 slows down: its
-throughput is {{gflops naive n=512}} at n = 512, {{gflops naive n=1024}} at n = 1024 and
-{{gflops naive}} at n = {{env largest}}. This is what one would expect if the cause is the
-memory system, and two things about this machine's caches change between n = 512 and
-n = 1024. The three matrices together take 6 MiB at n = 512, which fits in the {{env l3}}
+The size of that gain depends on the size of the problem, though not smoothly. On one thread
+it barely moves between the two smaller sizes and grows after them, mostly because level 0
+slows down:
+
+| n | level 2 faster than level 0, one thread | level 0 throughput |
+|---|---|---|
+| 256 | {{speedup cache_friendly/naive t=1 n=256}} | {{gflops naive n=256}} |
+| 512 | {{speedup cache_friendly/naive t=1 n=512}} | {{gflops naive n=512}} |
+| 1024 | {{speedup cache_friendly/naive t=1 n=1024}} | {{gflops naive n=1024}} |
+| {{env largest}} | {{speedup cache_friendly/naive t=1}} | {{gflops naive}} |
+
+This is what one would expect if the cause is the memory system, and two things about this
+machine's caches change between n = 512 and n = 1024. The three matrices together take 6 MiB
+at n = 512, which fits in the {{env l3}}
 last-level cache, and 24 MiB at n = 1024, which does not. And the naive loop's walk down a
 column of the second matrix touches n cache lines, 32 KiB at n = 512, as much as the
 {{env l1d}} L1 data cache holds, and 64 KiB at n = 1024 (the [primer](crate::primer)
 explains why). Either could explain the fall, and the data cannot tell them apart; nor can
 they rule out a third cause, such as rows whose length is a power of two competing for the
-same places in a cache. Cache-miss counts bear on this, though only at two sizes: the counting
-run (see [What the counters show](#what-the-counters-show) below) found, at n = 1024,
-that the naive loop missed the L1 data cache on {{count l1d_miss_rate naive n=1024}} of its loads and level 2 on
-{{count l1d_miss_rate cache_friendly n=1024}}, and sent {{count llc_loads naive n=1024}} loads on to the
-last-level cache against level 2's {{count llc_loads cache_friendly n=1024}}. That fits the memory
-system as the cause. At n = {{env counters_n}} the naive loop's loads that reach the last-level cache and
-miss it number {{count llc_misses naive}}, against level 2's {{count llc_misses cache_friendly}}: the
-naive walk goes to main memory. The counts were taken at two sizes, neither of them between
+same places in a cache.
+
+Cache-miss counts bear on this, though only at two sizes (see
+[What the counters show](#what-the-counters-show) below). The counting run found:
+
+| | naive loop | level 2 |
+|---|---|---|
+| L1 data-cache miss rate, n = 1024 | {{count l1d_miss_rate naive n=1024}} | {{count l1d_miss_rate cache_friendly n=1024}} |
+| loads sent on to the last-level cache, n = 1024 | {{count llc_loads naive n=1024}} | {{count llc_loads cache_friendly n=1024}} |
+| loads that reach the last-level cache and miss it, n = {{env counters_n}} | {{count llc_misses naive}} | {{count llc_misses cache_friendly}} |
+
+That fits the memory system as the cause: at n = {{env counters_n}} the naive walk goes to main
+memory. The counts were taken at two sizes, neither of them between
 n = 512 and n = 1024, so they cannot say which of the two changes there matters.
 
 # Cleaning up: registers and packing
