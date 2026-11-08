@@ -2,6 +2,11 @@
 thread's loops are rearranged so that each thread reuses data while it is still in
 the cache.
 
+Level 1 left a clue: adding threads did not fix the loop, so how many cores did the arithmetic
+was not what held it back. This level goes after the best remaining suspect, the way the
+loop walks memory, and the measurements show that this one change does more on a single thread
+than all the cores did at level 1.
+
 # What changed from level 1
 
 Only the kernel, the loop nest each thread runs. The row-block partitioning
@@ -124,9 +129,9 @@ exact equality with [`naive`](crate::naive) across shapes and thread counts.
 
 # Where to go next
 
-The inner loop still moves `C` through memory on every step.
-[`simd`](crate::simd) keeps a block of `C` in vector registers instead.
+Most of the gain is in, but the inner loop still moves `C` through memory on every step: the
+data is now close to the core, and it still travels. [`simd`](crate::simd) keeps a block of `C`
+in vector registers instead.
 
-After that, one assumption remains: every level so far needs `A`, `B`, and `C`
-to fit in memory. For a `100 000 × 100 000` product that is 240 GB.
-[`streaming`](crate::streaming) removes it.
+After that, one assumption remains: every level so far needs `A`, `B`, and `C` to fit in memory.
+For a `100 000 × 100 000` product that is 240 GB. [`streaming`](crate::streaming) removes it.

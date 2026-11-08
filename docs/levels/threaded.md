@@ -1,6 +1,10 @@
 **Level 1 of 5.** The same triple loop, spread across threads. One idea, a
 few lines of new code.
 
+The obvious suspect is that the loop leaves most of the machine's cores idle. This level tests
+that by giving every core a share of the same loop. The chapter shows how, and the measurements
+show how far it gets.
+
 # What changed from level 0
 
 The rows of the output do not depend on each other. Row `i` of `C` needs only
@@ -104,6 +108,7 @@ partitioning on the other, is kept at every level from here on.
 
 # Where to go next
 
-The arithmetic each thread does is still the slow part.
-[`cache_friendly`](crate::cache_friendly) rewrites that loop nest so that it
-walks memory the way the hardware likes.
+More cores helped, but less than the number of cores suggests, and the arithmetic each thread
+does is still the slow part. Whatever holds each thread back, more threads do not fix it.
+[`cache_friendly`](crate::cache_friendly) looks at the best remaining suspect: the order in
+which the loop walks memory.

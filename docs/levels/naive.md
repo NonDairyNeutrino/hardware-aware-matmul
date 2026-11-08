@@ -3,6 +3,10 @@ tricks. Everything else in this crate is a modification of this function, and
 every other level is tested against it.
 New to caches, cache lines or SIMD? The project's website has a short primer on them.
 
+This is where the case starts. It is the baseline that every other level is measured against,
+and it is correct and easy to read. It is also far from what the processor can do, and nothing
+in the code says why. The chapters that follow look for the reason one suspect at a time.
+
 # The idea
 
 For `A` (`m × n`) and `B` (`n × p`), each element of the product `C` (`m × p`)
@@ -71,7 +75,7 @@ touches memory and processors:
 
 # Where to go next
 
-[`threaded`](crate::threaded) is the smallest possible change that uses more
-than one core.
+The first suspect is the obvious one: this loop uses one core. [`threaded`](crate::threaded) is
+the smallest possible change that uses more.
 
 [`matmul`]: crate::naive::matmul
