@@ -40,8 +40,13 @@ column of the second matrix touches n cache lines, 32 KiB at n = 512, as much as
 {{env l1d}} L1 data cache holds, and 64 KiB at n = 1024 (the [primer](crate::primer)
 explains why). Either could explain the fall, and the data cannot tell them apart; nor can
 they rule out a third cause, such as rows whose length is a power of two competing for the
-same places in a cache. That would take cache-miss counts: the run recorded the sizes of the
-caches, but not how often they missed.
+same places in a cache. Cache-miss counts bear on this, though only at one size: the counting
+run (see [What the counters show](#what-the-counters-show) below) was made at n = {{env counters_n}},
+where the naive loop missed the L1 data cache on {{count l1d_miss_rate naive}} of its loads and level 2 on
+{{count l1d_miss_rate cache_friendly}}, and sent {{count llc_loads naive}} loads on to the
+last-level cache against level 2's {{count llc_loads cache_friendly}}. That fits the memory
+system as the cause. It was counted at one size, so it cannot say which of the two changes
+between n = 512 and n = 1024 matters.
 
 Level 3's gain over level 2 is much smaller, though its micro-kernel
 [keeps a block of the output in vector registers](crate::simd). The experiment does not
@@ -55,33 +60,28 @@ nothing until there is more than one of them.
 
 # What threads add
 
-Level 1 is the hardest level to read at n = {{env largest}}, because its one-thread time is
-uncertain. Like level 0's, its {{env repeats}} one-thread runs did not all land near the
-median: most did, and the rest were clearly faster, so the medians ({{ms threaded t=1}} for
-level 1, {{ms naive}} for level 0) depend on how many runs happened to be fast. Their
-interquartile ranges ({{iqr threaded t=1}} and {{iqr naive}}) stay under the 20% mark, so
-the Results do not flag them, but they should be read with that caveat; so should every
-speedup over level 0 at this size, which divides by that median. With two threads level 1
-takes {{ms threaded t=2}}, more than twice as fast, which probably says more about the
-one-thread median than about the threads, though two threads may also have more cache to
-work with than one. It reaches {{ms threaded t=4}} with four threads, and with eight it
-takes {{ms threaded t=8}}: slightly slower, though the eight threads are all the machine's
-hardware threads on {{env physical_cores}} physical cores.
+At n = {{env largest}} level 1 takes {{ms threaded t=1}} on one thread, which is no
+faster than level 0's {{ms naive}}, and all {{env repeats}} runs of each landed within a few per
+cent of their median. With two threads it takes {{ms threaded t=2}}, about half, and with
+four {{ms threaded t=4}}. With eight it takes {{ms threaded t=8}}: no slower, and less than a
+tenth faster, though the eight threads are all the machine's hardware threads on
+{{env physical_cores}} physical cores.
 
-At n = 1024, where the one-thread runs do not spread this way, level 1 roughly halves its
-time with two threads ({{ms threaded t=1 n=1024}} to {{ms threaded t=2 n=1024}}) and still
-gains a little from the second four ({{ms threaded t=4 n=1024}} to
-{{ms threaded t=8 n=1024}}). One plausible reading of that last gain is that level 1's
-inner loop spends much of its time waiting for memory, and a thread that is waiting leaves
-its core free for the thread that shares it. The measurements at n = 1024 are consistent
-with that and do not test it; those at n = {{env largest}} do not support it.
+At n = 1024 level 1 also roughly halves its time with two threads
+({{ms threaded t=1 n=1024}} to {{ms threaded t=2 n=1024}}) and gains a little more from the
+second four ({{ms threaded t=4 n=1024}} to {{ms threaded t=8 n=1024}}). One plausible reading
+of that last gain is that level 1's inner loop spends much of its time waiting for memory,
+and a thread that is waiting leaves its core free for the thread that shares it. The
+measurements at n = 1024 are consistent with that and do not test it; those at
+n = {{env largest}} do not support it.
 
-Levels 2, 3 and 4 behave differently. Level 3 takes {{ms simd t=1}} on one thread,
+Levels 2 to 5 behave differently. Level 3 takes {{ms simd t=1}} on one thread,
 {{ms simd t=2}} on two and {{ms simd t=4}} on four, and then {{ms simd t=8}} on eight:
-almost nothing from the second four threads. Level 5 is the same, {{ms streaming t=4}} on
-four threads and {{ms streaming t=8}} on eight. Level 2 gains a little more from them
+almost nothing from the second four threads. Levels 4 and 5 are the same, level 4 taking
+{{ms packed t=4}} on four threads and {{ms packed t=8}} on eight, level 5 {{ms streaming t=4}} and
+{{ms streaming t=8}}. Level 2 gains a little more from them
 ({{ms cache_friendly t=4}} to {{ms cache_friendly t=8}}), far less than from its first
-four. For these three levels most of the scaling stops where the physical cores run out,
+four. For these four levels most of the scaling stops where the physical cores run out,
 not where the hardware threads do.
 
 The Methods say that threads stop helping when something they share is used up, such as
@@ -103,46 +103,82 @@ limit, for level 5 at least, but the count is an estimate and the triad is one a
 pattern among many, so the data cannot rule it out. The other candidates are what two
 hyper-threads of one core share besides the arithmetic: the L1 and the {{env l2}} L2
 cache of that core, and the machinery that feeds the execution units. The run did not
-measure those, and hardware counters would be needed to tell these explanations apart.
+measure those. The counting run below used one thread, so it cannot tell these explanations
+apart either.
 
 The throughput of the fastest levels also depends on the problem size, and here too the
 change falls between n = 512 and n = 1024. Level 3 on four threads reaches
 {{gflops simd t=4 n=512}} at n = 512, {{gflops simd t=4 n=1024}} at n = 1024 and
 {{gflops simd t=4}} at n = {{env largest}}. On one thread it hardly changes:
-{{gflops simd t=1 n=512}}, {{gflops simd t=1 n=1024}} and {{gflops simd t=1}}. The fall
-therefore appears only when several threads run, and it comes where the three matrices outgrow the
-{{env l3}} cache that all the cores share. That fits a reading in which several threads
-competing for the shared cache, or for what lies behind it, set the pace, but the run did
-not measure it.
+{{gflops simd t=1 n=512}}, {{gflops simd t=1 n=1024}} and {{gflops simd t=1}}: it falls too,
+but much less. The fall is therefore mostly a fall with several threads, and it comes where the
+three matrices outgrow the {{env l3}} cache that all the cores share. That fits a reading in
+which several threads competing for the shared cache, or for what lies behind it, set the
+pace, but the run did not measure it. The one-thread fall that remains is the part that
+packing removes: level 4 on one thread reaches {{gflops packed t=1 n=512}} at n = 512 and
+{{gflops packed t=1}} at n = {{env largest}}, a smaller fall than level 3's.
 
 Taken together, level 3 with {{env threads_native}} threads is {{speedup simd/naive}} faster
 than the textbook loop at n = {{env largest}}, with the same answer. Level 5 on four
 threads is faster still, {{speedup streaming/naive t=4}}, the fastest case measured at that
-size. Both figures divide by level 0's uncertain median, so their exact size matters less
-than their order of magnitude.
+size. Both figures divide by the median of level 0's one-thread runs, which agreed to within an
+interquartile range of {{iqr naive}}.
 
-# What streaming costs, and what it did not
+# What packing and streaming cost, and what they did not
+
+[Level 4](crate::packed) adds a copy to level 3: each block of the second matrix is moved
+into a contiguous buffer before the vector kernel reads it. At the two largest sizes the cost
+one might expect did not appear: level 4 was faster than level 3 at every thread count. At
+n = {{env largest}}, level 4 takes {{ms packed t=1}} on one thread against level 3's
+{{ms simd t=1}}, {{ms packed t=2}} on two against {{ms simd t=2}}, {{ms packed t=4}} on four
+against {{ms simd t=4}}, and {{ms packed t=8}} on eight against {{ms simd t=8}}. At n = 1024
+the lead is much smaller ({{ms packed t=4 n=1024}} against {{ms simd t=4 n=1024}} on four
+threads), and at the two smaller sizes the two levels are within a tenth of each other,
+neither always ahead.
 
 [Level 5](crate::streaming) exists to make the problem possible when the matrices do not
 fit in memory, not to make it faster when they do, and the chapter says so. The reference
-run measures it only on matrices that fit, and at the two largest sizes the cost one might
-expect from copying tiles into buffers did not appear: level 5 was faster than level 3. At
-n = {{env largest}}, level 5 takes {{ms streaming t=1}} on one thread against level 3's
-{{ms simd t=1}}, {{ms streaming t=2}} on two against {{ms simd t=2}},
-{{ms streaming t=4}} on four against {{ms simd t=4}}, and {{ms streaming t=8}} on eight
-against {{ms simd t=8}}. At n = 1024 it is ahead at every thread count too, by less
-({{ms streaming t=4 n=1024}} against {{ms simd t=4 n=1024}} on four threads). At the two
-smaller sizes level 5 loses that lead: the two levels are close, level 5 sometimes ahead
-and sometimes behind, but never more than about a tenth behind.
+run measures it only on matrices that fit. It copies tiles into buffers, and at the two
+largest sizes it was faster than level 3 at every thread count too. At n = {{env largest}}
+it takes {{ms streaming t=1}} on one thread, {{ms streaming t=2}} on two,
+{{ms streaming t=4}} on four and {{ms streaming t=8}} on eight, each ahead of level 4's time
+with the same threads, though by little: level 4 gets most of the way from level 3 to level 5
+at every thread count. At the two smaller sizes level 5 loses the lead: it is close to
+level 3, sometimes ahead and sometimes behind, but never more than about a tenth behind.
 
-The reference run does not say why. One reading, untested here: level 5 copies each tile
-into a small buffer of its own, so its inner loop walks short rows that lie next to each
-other in memory, while level 3 works on the full matrices, whose rows lie n × 8 bytes
-apart (16 KiB at n = 2048). Rows that far apart, at a power-of-two distance, may compete for
-the same places in a cache, and a small buffer avoids that. Cache-miss counts would test
-this reading; the run did not record them. What the run does show is narrower: on this
-machine, at these sizes, the copies never made level 5 much slower than level 3, and at the
-two largest sizes it was faster.
+This answers a question the earlier version of this page could only ask. The reading
+offered for level 5's lead was that its small buffers hold short rows that lie next to each
+other in memory, while level 3 works on the full matrices, whose rows lie n × 8 bytes apart
+(16 KiB at n = 2048), and rows that far apart, at a power-of-two distance, may compete for the
+same places in a cache. Level 4 copies only the second matrix, in blocks, and keeps level 3's
+loops otherwise, and it recovers most of the lead. That is evidence that the way the second
+matrix is read in place is most of what level 5 avoids at these sizes, because a change that
+touches nothing else gets most of the gain. It does not show that cache-set conflicts are the
+mechanism. The strided reads also touch more cache lines and more pages for the same data, and
+the run cannot separate those effects. A smaller part of level 5's lead, the step from level 4
+to level 5, is still not explained.
+
+# What the counters show
+
+A separate run counted hardware events (with `perf stat`) for one multiplication per level, at
+n = {{env counters_n}} on {{env counters_threads}} thread, user-space events only. Level 4 had
+{{count l1d_misses packed}} L1 data-cache misses against level 3's {{count l1d_misses simd}},
+{{countratio l1d_misses simd/packed}} fewer, and sent {{count llc_loads packed}} loads on to the
+last-level cache against {{count llc_loads simd}}. Its cycle count did not follow:
+{{count cycles packed}} against {{count cycles simd}}, at about the same instructions per
+cycle ({{count ipc packed}} against {{count ipc simd}}). One reading is that the misses of level 3
+were already overlapped with arithmetic, by the processor running ahead and prefetching the
+strided reads, so removing them frees no time; the counts do not test that. Both levels counted
+only a few thousand data-TLB misses, so a TLB effect, which the chapter on level 4 lists as a
+possible gain, does not show here.
+
+Two limits matter. The counts were taken at n = {{env counters_n}}, where level 4's lead over
+level 3 is small, and not at n = {{env largest}}, where it is largest. They show that packing changes what the
+cache does, and not that this change is what produced the faster time at the largest size. A
+count at that size would. The counts also include one that is not explained: level 1 on one
+thread counted {{count l1d_loads threaded}} L1 data-cache loads against level 0's
+{{count l1d_loads naive}}, though the two run the same loop in the same time. The L1 counts
+of those two levels should not be over-read.
 
 # Browser against native
 
@@ -150,30 +186,29 @@ At n = {{env largest}}, the same Rust code, compiled to WebAssembly and run in
 {{env firefox}}, was slower than the native build at levels 2 to 5, by an amount that
 depends on the level. On one thread, level 2 took {{ms cache_friendly lite}} in the browser's
 single-threaded build against {{ms cache_friendly t=1}} natively, level 3 took
-{{ms simd lite}} against {{ms simd t=1}}, and level 5 took {{ms streaming lite}} against
-{{ms streaming t=1}}. Of these three, the level written around vector registers comes
-closest to native speed. Both builds use 128-bit vectors,
-{{env native_isa}} natively and {{env browser_isa}} in the browser, so the level 3
-micro-kernel asks for the same width in both. That is a reason to expect it to travel well;
-the experiment shows that it does, but not why the others lose more. Level 3 came closest
-of the three at every size, and at n = 1024 the browser was even slightly faster
-({{ms simd lite n=1024}} against {{ms simd t=1 n=1024}} natively).
+{{ms simd lite}} against {{ms simd t=1}}, level 4 took {{ms packed lite}} against
+{{ms packed t=1}}, and level 5 took {{ms streaming lite}} against {{ms streaming t=1}}. The
+two levels written around vector registers, 3 and 4, come closest to native speed. Both
+builds use 128-bit vectors, {{env native_isa}} natively and {{env browser_isa}} in the
+browser, so the micro-kernel of levels 3 and 4 asks for the same width in both. That is a
+reason to expect them to travel well; the experiment shows that they do, but not why levels 2
+and 5 lose more. Levels 3 and 4 came closest of the four at every size.
 
-Levels 0 and 1 are a different case. At n = {{env largest}} they were no slower in the
-browser than natively: level 0 took {{ms naive lite}} against {{ms naive}}, level 1
-{{ms threaded lite}} against {{ms threaded t=1}}. Those are the two native medians that rest
-on spread runs, so the comparison is uncertain. At n = 1024, where the native
-runs are not spread, both were slower in the browser: level 0 took {{ms naive lite n=1024}}
-against {{ms naive n=1024}}, level 1 {{ms threaded lite n=1024}} against
-{{ms threaded t=1 n=1024}}.
+Levels 0 and 1 are a different case. At n = {{env largest}} they ran about as fast in the
+browser as natively: level 0 took {{ms naive lite}} against {{ms naive}}, level 1
+{{ms threaded lite}} against {{ms threaded t=1}}. At n = 1024 both were much slower in the
+browser: level 0 took {{ms naive lite n=1024}} against {{ms naive n=1024}}, level 1
+{{ms threaded lite n=1024}} against {{ms threaded t=1 n=1024}}. The run does not show why the
+gap closes at the largest size.
 
 The gaps between the levels are therefore not the same in the two environments. Natively, at
-this size, level 5 is faster than level 3. In the browser's single-threaded build it is slower, taking
-{{ms streaming lite}} against level 3's {{ms simd lite}}. The reference run does not show why:
-the tile copies, or another part of level 5's loop, may cost more in WebAssembly than they
-do natively.
+this size, levels 4 and 5 are both faster than level 3. In the browser's single-threaded
+build level 4 is still ahead of level 3 ({{ms packed lite}} against {{ms simd lite}}), but
+level 5 is far behind, taking {{ms streaming lite}}. The reference run does not show why:
+copying blocks of the second matrix seems to cost little in WebAssembly, while the tile
+copies, or another part of level 5's loop, may cost more there than they do natively.
 
-With threads, level 3 comes within about a tenth of native speed: it took {{ms simd threads}} in the
+With threads, level 3 comes within about an eighth of native speed: it took {{ms simd threads}} in the
 browser's threaded build ({{env threads_threaded}} threads), against {{ms simd}} natively
 ({{env threads_native}} threads). At n = {{env largest}} it also stops improving after four threads,
 like the native build: {{ms simd threads t=4}} on four threads, {{ms simd threads t=8}} on
@@ -182,12 +217,12 @@ eight. The reference run does not say why the threaded build comes so close here
 The two browser builds differ in more than threads. The single-threaded build was compiled
 with {{env rustc_lite}}, the threaded one, like the native code, with {{env rustc_threads}},
 and only the threaded build uses shared memory. On one thread, at n = {{env largest}}, the
-threaded build was faster than the single-threaded one for levels 0, 2 and 4
+threaded build was faster than the single-threaded one for levels 0, 2, 4 and 5
 ({{ms naive threads}} against {{ms naive lite}}, {{ms cache_friendly threads t=1}} against
-{{ms cache_friendly lite}}, {{ms streaming threads t=1}} against {{ms streaming lite}}),
-about the same for level 3 ({{ms simd threads t=1}} against {{ms simd lite}}), and much
-slower for level 1 ({{ms threaded threads t=1}} against {{ms threaded lite}}), whose
-one-thread runs in the threaded build varied widely. Which of the differences between the
+{{ms cache_friendly lite}}, {{ms packed threads t=1}} against {{ms packed lite}},
+{{ms streaming threads t=1}} against {{ms streaming lite}}), and about the same for levels 1
+and 3 ({{ms threaded threads t=1}} against {{ms threaded lite}}, {{ms simd threads t=1}}
+against {{ms simd lite}}). Which of the differences between the
 builds causes which result is not something this experiment can separate.
 
 # What the measurements cannot say
@@ -208,11 +243,13 @@ builds causes which result is not something this experiment can separate.
   design no level uses fused multiply-add, which would change the result bits. Both choices
   keep the comparison honest and keep the results identical. They also mean that none of
   these figures is the most this CPU can do.
-- **Explanations are interpretations.** The levels were timed, not profiled. The
-  reference run recorded the cache sizes, a triad bandwidth ({{env triad_max}} at most) and
-  the rate of an arithmetic test ({{env peak_max}} at most), but read no hardware counters: no cache
-  misses, no memory traffic, no use of the execution units. Each statement above about why
-  a difference arises is a reading consistent with the numbers, not a measurement of the
+- **Explanations are interpretations.** The levels were timed, and counted at one size on one
+  thread. The reference run recorded the cache sizes, a triad bandwidth ({{env triad_max}} at
+  most), the rate of an arithmetic test ({{env peak_max}} at most) and, at n = {{env counters_n}}
+  on {{env counters_threads}} thread, cycles, instructions and misses in the L1, the last-level
+  cache and the data TLB. It did not count memory traffic, the use of the execution units,
+  anything with several threads running, or anything in the browser. Each statement above about
+  why a difference arises is a reading consistent with the numbers, not a measurement of the
   cause.
 - **Noise.** Cases whose interquartile range exceeds 20% of the median are marked † on the
   Results page and should be read as indicative. Browser timings in particular depend on
