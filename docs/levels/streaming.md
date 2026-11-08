@@ -3,6 +3,11 @@ matrices no longer have to be in memory at all. The product is computed one
 small output tile at a time, by streaming the matching tiles of the inputs
 past a running accumulator and handing each finished tile to an output sink.
 
+The earlier levels asked how to make the product faster. This one asks a different question:
+what if the matrices do not fit in memory at all? It was built to make that possible, not to
+win a race, and what happened when it was timed against the others is the twist in the story,
+told in the Discussion.
+
 This is the only level that is not about speed on data that already fits in
 RAM. It is what makes the problem *possible* when it does not.
 
@@ -214,6 +219,9 @@ stored exactly once: the product, with the same bits as
   richer error type, [`MatmulError`](crate::MatmulError).
 - **More machinery.** A tile abstraction, a plan, per-worker buffers, and an
   error-propagation protocol: that is the cost of the generality.
+
+That is the last level. What the six together do and do not explain is in the Discussion, and
+one question, what stops the threads, is still open there.
 
 [`TileSource`]: crate::streaming::TileSource
 [`TileSink`]: crate::streaming::TileSink

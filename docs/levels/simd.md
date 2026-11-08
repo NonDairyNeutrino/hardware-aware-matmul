@@ -1,6 +1,12 @@
 **Level 3 of 5.** Same threads, same partitioning, same results as level 2,
 but the innermost step is rebuilt around the processor's vector registers.
 
+Level 2 put the data close to the core, and the loop still carries the output block through
+memory on every step. This level removes that last trip: it keeps a small block of the output
+in the processor's vector registers for the whole inner loop. The gain is much smaller than
+level 2's, which is itself part of the answer: on one thread, most of the gain over the
+textbook loop had already arrived with level 2.
+
 # What changed from level 2
 
 Only the innermost step of the kernel. Level 2's loops visit every `(i, k)`
@@ -212,8 +218,10 @@ assert_eq!(c, Matrix::new(2, 2, vec![58.0, 64.0, 139.0, 154.0]));
 
 # Where to go next
 
-[`packed`](crate::packed) keeps this micro-kernel and changes where it reads `B`
-from: a contiguous copy of each cache block instead of the matrix itself.
+One cost is still hidden. The kernel reads `B` where it lies in memory, a whole row apart at
+every step, and that spreads each small block over many cache lines. [`packed`](crate::packed)
+keeps this micro-kernel and changes where it reads `B` from: a contiguous copy of each cache
+block instead of the matrix itself.
 
 [`micro_tile_shape`]: crate::simd::micro_tile_shape
 [`target_vector_isa`]: crate::simd::target_vector_isa
