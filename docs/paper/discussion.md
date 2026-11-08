@@ -39,19 +39,18 @@ Level 1 by thread count:
 | 4 | {{ms threaded t=4 n=1024}} | {{ms threaded t=4}} |
 | 8 | {{ms threaded t=8 n=1024}} | {{ms threaded t=8}} |
 
-At the larger size, with two threads it takes about half. With eight it is no slower, and
-less than a tenth faster, though the eight threads are all the machine's hardware threads
-on {{env physical_cores}} physical cores.
+At the larger size, with two threads it takes about half. With eight it is no slower than
+with four, and less than a tenth faster, though the eight threads are all the machine's
+hardware threads on {{env physical_cores}} physical cores.
 
 At n = 1024 level 1 also roughly halves its time with two threads and gains a little more
-from the second four. One plausible reading
-of that last gain is that level 1's inner loop spends much of its time waiting for memory,
-and a thread that is waiting leaves its core free for the thread that shares it. The
-measurements at n = 1024 are consistent with that and do not test it; those at
-n = {{env largest}} do not support it. And at n = {{env largest}} none of it comes close to
-[level 2](crate::cache_friendly) on a single thread: {{ms cache_friendly t=1}}, against
-level 1's {{ms threaded t=8}} on all eight threads. More cores were not the main thing the
-loop was missing.
+from the second four. One plausible reading of that last gain is that level 1's inner loop
+spends much of its time waiting for memory, and a thread that is waiting leaves its core
+free for the thread that shares it. The measurements at n = 1024 are consistent with that
+and do not test it; those at n = {{env largest}} do not support it. And at n =
+{{env largest}} none of it comes close to [level 2](crate::cache_friendly) on a single
+thread: {{ms cache_friendly t=1}}, against level 1's {{ms threaded t=8}} on all eight
+threads. More cores were not the main thing the loop was missing.
 
 # The culprit: memory
 
