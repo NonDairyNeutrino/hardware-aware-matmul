@@ -25,9 +25,9 @@ Level 1 on one thread ({{ms threaded t=1}}) is no faster than level 0
 ({{speedup threaded/naive t=1}}), as it should be: [threads](crate::threaded) change
 nothing until there is more than one of them.
 
-At n = {{env largest}} level 1 takes {{ms threaded t=1}} on one thread, which is no
-faster than level 0's {{ms naive}}, and all {{env repeats}} runs of each landed within a few per
-cent of their median. With two threads it takes {{ms threaded t=2}}, about half, and with
+Neither figure is noise: at n = {{env largest}} level 1's {{ms threaded t=1}} on one thread
+and level 0's {{ms naive}} come from {{env repeats}} runs each, all within a few per cent of
+their median. With two threads it takes {{ms threaded t=2}}, about half, and with
 four {{ms threaded t=4}}. With eight it takes {{ms threaded t=8}}: no slower, and less than a
 tenth faster, though the eight threads are all the machine's hardware threads on
 {{env physical_cores}} physical cores.
@@ -38,11 +38,11 @@ second four ({{ms threaded t=4 n=1024}} to {{ms threaded t=8 n=1024}}). One plau
 of that last gain is that level 1's inner loop spends much of its time waiting for memory,
 and a thread that is waiting leaves its core free for the thread that shares it. The
 measurements at n = 1024 are consistent with that and do not test it; those at
-n = {{env largest}} do not support it.
+n = {{env largest}} do not support it. The next section shows a single thread doing better than all of these.
 
 # The culprit: memory
 
-The best explanation of the rest is the memory system, with the caveat that the run measured it directly only at two sizes.
+The best explanation of the rest is the memory system, with the caveat that the run measured its caches directly only at two sizes.
 
 At n = {{env largest}}, on one thread, the naive loop took {{ms naive}}. Level 2 took
 {{ms cache_friendly t=1}}, which is {{speedup cache_friendly/naive t=1}} faster. Level 3
@@ -128,7 +128,7 @@ Level 5 goes further at that size: {{count cycles streaming}} cycles, {{count ip
 {{count llc_loads streaming}} loads sent to the last-level cache. It executes more L1 loads than level 4
 ({{count l1d_loads streaming}} against {{count l1d_loads packed}}), because its kernel is level 2's
 rather than the register-blocked one, so it does more work and spends less time waiting. The
-cycles order levels 3, 4 and 5 as the times do. The step from level 4 to level 5 is therefore a
+cycles order levels 3, 4 and 5 as the times do (level 5's times follow in the twist below). The step from level 4 to level 5 is therefore a
 step in waiting for memory, not in instructions.
 
 Both levels 3 and 4 counted only a few thousand to a few tens of thousands of data-TLB misses
@@ -143,12 +143,12 @@ of those two levels should not be over-read.
 
 # The twist: streaming
 
-Level 5 was built for matrices that do not fit in memory, not for speed, and it is nonetheless the fastest case measured.
+Level 5 was built for matrices that do not fit in memory, not for speed, and on four threads at the largest size it is nonetheless the fastest case measured.
 
 [Level 5](crate::streaming) exists to make the problem possible when the matrices do not
 fit in memory, not to make it faster when they do, and the chapter says so. The reference
 run measures it only on matrices that fit. It copies tiles into buffers, and at the two
-largest sizes it was faster than level 3 at every thread count too. At n = {{env largest}}
+largest sizes it was faster than level 3 at every thread count, as level 4 was. At n = {{env largest}}
 it takes {{ms streaming t=1}} on one thread, {{ms streaming t=2}} on two,
 {{ms streaming t=4}} on four and {{ms streaming t=8}} on eight, each ahead of level 4's time
 with the same threads, though by little: level 4 gets most of the way from level 3 to level 5
@@ -166,7 +166,7 @@ touches nothing else gets most of the gain. The counts above agree: packing send
 the cycles fall. They do not show that cache-set conflicts are the mechanism. The strided reads
 also touch more cache lines and more pages for the same data, and the run cannot separate
 those effects. A smaller part of level 5's lead, the step from level 4
-to level 5, is still not explained.
+to level 5, is still not explained: the counts above show less waiting for memory, not why.
 
 # The part left open: what stops the threads
 
@@ -182,7 +182,7 @@ four. For these four levels most of the scaling stops where the physical cores r
 not where the hardware threads do.
 
 The Methods say that threads stop helping when something they share is used up, such as
-the memory system. The reference run also measured two limits of the machine directly,
+the memory system. The reference run also measured two rates of the machine directly,
 natively and with the same thread counts. A bandwidth test (the STREAM triad, which streams
 three arrays far larger than the caches) moved {{triad t=1}} on one thread,
 {{triad t=4}} on four and {{triad t=8}} on eight: like the levels, it stops gaining at
