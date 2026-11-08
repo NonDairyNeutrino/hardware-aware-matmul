@@ -213,52 +213,6 @@ Measured against the textbook loop at n = {{env largest}}, level 3 with
 level 5 on four threads {{speedup streaming/naive t=4}}. Both figures divide by the median of
 level 0's one-thread runs, which agreed to within an interquartile range of {{iqr naive}}.
 
-# Browser against native
-
-At n = {{env largest}}, the same Rust code, compiled to WebAssembly and run in
-{{env firefox}}, was slower than the native build at levels 2 to 5, by an amount that
-depends on the level. On one thread, level 2 took {{ms cache_friendly lite}} in the browser's
-single-threaded build against {{ms cache_friendly t=1}} natively, level 3 took
-{{ms simd lite}} against {{ms simd t=1}}, level 4 took {{ms packed lite}} against
-{{ms packed t=1}}, and level 5 took {{ms streaming lite}} against {{ms streaming t=1}}. The
-two levels written around vector registers, 3 and 4, come closest to native speed. Both
-builds use 128-bit vectors, {{env native_isa}} natively and {{env browser_isa}} in the
-browser, so the micro-kernel of levels 3 and 4 asks for the same width in both. That is a
-reason to expect them to travel well; the experiment shows that they do, but not why levels 2
-and 5 lose more. Levels 3 and 4 came closest of the four at every size.
-
-Levels 0 and 1 are a different case. At n = {{env largest}} they ran about as fast in the
-browser as natively: level 0 took {{ms naive lite}} against {{ms naive}}, level 1
-{{ms threaded lite}} against {{ms threaded t=1}}. At n = 1024 both were much slower in the
-browser: level 0 took {{ms naive lite n=1024}} against {{ms naive n=1024}}, level 1
-{{ms threaded lite n=1024}} against {{ms threaded t=1 n=1024}}. The run does not show why the
-gap closes at the largest size.
-
-The gaps between the levels are therefore not the same in the two environments. Natively, at
-this size, levels 4 and 5 are both faster than level 3. In the browser's single-threaded
-build level 4 is still ahead of level 3 ({{ms packed lite}} against {{ms simd lite}}), but
-level 5 is far behind, taking {{ms streaming lite}}. The reference run does not show why:
-copying blocks of the second matrix seems to cost little in WebAssembly, while the tile
-copies, or another part of level 5's loop, may cost more there than they do natively.
-
-With threads, level 3 comes within about an eighth of native speed: it took
-{{ms simd threads}} in the browser's threaded build ({{env threads_threaded}} threads),
-against {{ms simd}} natively ({{env threads_native}} threads). At n = {{env largest}} it
-also stops improving after four threads, like the native build (see the next section):
-{{ms simd threads t=4}} on four threads, {{ms simd threads t=8}} on eight. The reference run
-does not say why the threaded build comes so close here.
-
-The two browser builds differ in more than threads. The single-threaded build was compiled
-with {{env rustc_lite}}, the threaded one, like the native code, with {{env rustc_threads}},
-and only the threaded build uses shared memory. On one thread, at n = {{env largest}}, the
-threaded build was faster than the single-threaded one for levels 0, 2, 4 and 5
-({{ms naive threads}} against {{ms naive lite}}, {{ms cache_friendly threads t=1}} against
-{{ms cache_friendly lite}}, {{ms packed threads t=1}} against {{ms packed lite}},
-{{ms streaming threads t=1}} against {{ms streaming lite}}), and about the same for levels 1
-and 3 ({{ms threaded threads t=1}} against {{ms threaded lite}}, {{ms simd threads t=1}}
-against {{ms simd lite}}). Which of the differences between the
-builds causes which result is not something this experiment can separate.
-
 # The part left open: what stops the threads
 
 One question is not settled by these measurements, and it is the most interesting one:
@@ -318,6 +272,59 @@ mostly a fall with several threads, and it comes where the three matrices outgro
 competing for the shared cache, or for what lies behind it, set the pace, but the run did
 not measure it. The one-thread fall that remains is the part that packing removes: level 4
 on one thread, in the last column, shows a smaller fall than level 3's.
+
+# Browser against native
+
+A side trip: the same code, compiled to WebAssembly, in a browser.
+
+At n = {{env largest}}, the same Rust code, compiled to WebAssembly and run in
+{{env firefox}}, was slower than the native build at levels 2 to 5, by an amount that
+depends on the level.
+
+At n = {{env largest}}, on one thread:
+
+| level | native | browser, single-threaded build | browser, threaded build |
+|---|---|---|---|
+| 0 | {{ms naive}} | {{ms naive lite}} | {{ms naive threads}} |
+| 1 | {{ms threaded t=1}} | {{ms threaded lite}} | {{ms threaded threads t=1}} |
+| 2 | {{ms cache_friendly t=1}} | {{ms cache_friendly lite}} | {{ms cache_friendly threads t=1}} |
+| 3 | {{ms simd t=1}} | {{ms simd lite}} | {{ms simd threads t=1}} |
+| 4 | {{ms packed t=1}} | {{ms packed lite}} | {{ms packed threads t=1}} |
+| 5 | {{ms streaming t=1}} | {{ms streaming lite}} | {{ms streaming threads t=1}} |
+
+The
+two levels written around vector registers, 3 and 4, come closest to native speed. Both
+builds use 128-bit vectors, {{env native_isa}} natively and {{env browser_isa}} in the
+browser, so the micro-kernel of levels 3 and 4 asks for the same width in both. That is a
+reason to expect them to travel well; the experiment shows that they do, but not why levels 2
+and 5 lose more. Levels 3 and 4 came closest of the four at every size.
+
+Levels 0 and 1 are a different case. At n = {{env largest}} they ran about as fast in the
+browser as natively. At n = 1024 both were much slower in the
+browser: level 0 took {{ms naive lite n=1024}} against {{ms naive n=1024}}, level 1
+{{ms threaded lite n=1024}} against {{ms threaded t=1 n=1024}}. The run does not show why the
+gap closes at the largest size.
+
+The gaps between the levels are therefore not the same in the two environments. Natively, at
+this size, levels 4 and 5 are both faster than level 3. In the browser's single-threaded
+build level 4 is still ahead of level 3 ({{ms packed lite}} against {{ms simd lite}}), but
+level 5 is far behind, taking {{ms streaming lite}}. The reference run does not show why:
+copying blocks of the second matrix seems to cost little in WebAssembly, while the tile
+copies, or another part of level 5's loop, may cost more there than they do natively.
+
+With threads, level 3 comes within about an eighth of native speed: it took
+{{ms simd threads}} in the browser's threaded build ({{env threads_threaded}} threads),
+against {{ms simd}} natively ({{env threads_native}} threads). At n = {{env largest}} it
+also stops improving after four threads, like the native build (see the section above):
+{{ms simd threads t=4}} on four threads, {{ms simd threads t=8}} on eight. The reference run
+does not say why the threaded build comes so close here.
+
+The two browser builds differ in more than threads. The single-threaded build was compiled
+with {{env rustc_lite}}, the threaded one, like the native code, with {{env rustc_threads}},
+and only the threaded build uses shared memory. On one thread, at n = {{env largest}}, the
+threaded build was faster than the single-threaded one for levels 0, 2, 4 and 5, and about
+the same for levels 1 and 3. Which of the differences between the
+builds causes which result is not something this experiment can separate.
 
 # What the measurements cannot say
 
