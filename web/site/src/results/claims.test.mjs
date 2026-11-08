@@ -105,6 +105,15 @@ test('the event counts: packing removes most L1 misses without changing the cycl
     assert.ok(counted[level].l1d_miss_rate < 0.35, level);
     assert.ok(counted[level].cycles < 0.2 * counted.naive.cycles, level);
   }
+  // Fewer loads sent on to the last-level cache, about the same instructions per cycle, and
+  // only a few thousand data-TLB misses in either (so no TLB effect to read).
+  assert.ok(counted.packed['LLC-loads'] < counted.simd['LLC-loads']);
+  assert.ok(Math.abs(counted.packed.ipc / counted.simd.ipc - 1) < 0.1);
+  for (const level of ['simd', 'packed']) assert.ok(counted[level]['dTLB-load-misses'] < 1e5, level);
+  // The two L1-load counts the Discussion calls unexplained: level 1 about twice level 0.
+  assert.ok(counted.threaded['L1-dcache-loads'] > 1.5 * counted.naive['L1-dcache-loads']);
+  // The naive loop sends far more loads to the last-level cache than level 2 does.
+  assert.ok(counted.naive['LLC-loads'] > 10 * counted.cache_friendly['LLC-loads']);
   // The counts were taken at a size where level 4 leads level 3 by less than a tenth.
   const n = data.environment.counters.n;
   assert.ok(native(4, n, data.environment.counters.threads) / native(3, n, data.environment.counters.threads) > 0.9);
@@ -202,6 +211,11 @@ test('level 3 four-thread throughput falls after n=512 much more than one thread
   }
 });
 
+test('on one thread, level 4 loses less throughput after n=512 than level 3 does (Discussion)', () => {
+  const fall = (level) => gflops(level, 512, 1) / gflops(level, largest, 1);
+  assert.ok(fall(4) > 1 && fall(4) < fall(3), `level 4 falls ${fall(4)}, level 3 ${fall(3)}`);
+});
+
 test('the hardware probe: triad stops gaining at four threads, the peak keeps gaining, level 5 is far from the triad limit (Discussion)', () => {
   const triad = (t) => hardware.triad_gbs[t];
   const peak = (t) => hardware.peak_gflops[t];
@@ -248,7 +262,7 @@ test('browser against native at the largest size (Discussion, Conclusion)', () =
   const most = Math.max(...data.parameters.threads['browser-threads']);
   const threaded = (level, t) => ms('browser-threads', level, largest, t);
   const against = threaded(3, most) / native(3, largest, mostNative);
-  assert.ok(against > 1 && against < 1.15, `threaded level 3 against native: ${against}`);
+  assert.ok(against > 1 && against < 1.125, `threaded level 3 against native: ${against}`);
   assert.ok(threaded(3, most) > 0.95 * threaded(3, physicalCores));
   // One thread, against the single-threaded build: faster for levels 0, 2, 4 and 5, and
   // within 5% for levels 1 and 3.
