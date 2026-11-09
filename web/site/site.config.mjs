@@ -7,6 +7,7 @@ import { packFigure } from './src/components/pack-figure.mjs';
 import { registerFigure } from './src/components/register-figure.mjs';
 import { reuseFigure } from './src/components/reuse-figure.mjs';
 import { bestTable, countersTable, scalingChart, scalingTable, sizeChart, throughputChart } from './src/results/render.mjs';
+import { substitute } from './src/results/lookup.mjs';
 
 // GitHub Pages serves this repository at /hardware-aware-matmul/.
 export const base = '/hardware-aware-matmul/';
@@ -92,6 +93,29 @@ export const demos = [
   { chapter: 'levels/streaming', afterHeading: 'The algorithm', level: 5,
     lookFor: "The numbers show the order in which tiles are claimed; press Step to watch them complete, each by whichever worker is free. Each tile is a piece of the output computed from a strip of A and a strip of B streamed through small buffers. At most as many tiles are in flight as there are workers, and that bound is what limits the memory used." },
 ];
+
+// What the measurements found, one line per level chapter, shown in a box under the chapter's
+// first heading (generated here, not in docs/levels, which are rustdoc too and carry no numbers).
+// Plain text with placeholders, resolved at build time; every comparison in them is a claim
+// tested in src/results/claims.test.mjs.
+export const levelFindings = {
+  'levels/naive': 'At n = {{env largest}} the textbook loop took {{ms naive}}.',
+  'levels/threaded': 'At n = {{env largest}} it took {{ms threaded t=1}} on one thread, {{ms threaded t=4}} on four threads and {{ms threaded t=8}} on eight.',
+  'levels/cache_friendly': 'At n = {{env largest}} it took {{ms cache_friendly t=1}} on one thread, which is faster than level 1 on every thread count (it took {{ms threaded t=8}} on eight threads).',
+  'levels/simd': 'At n = {{env largest}} it took {{ms simd t=1}} on one thread and {{ms simd}} on {{env threads_native}} threads, which is {{speedup simd/naive}} faster than the textbook loop.',
+  'levels/packed': 'At n = {{env largest}} it took {{ms packed t=1}} on one thread, against level 3\'s {{ms simd t=1}}. At the two largest sizes it was faster than level 3 at every thread count.',
+  'levels/streaming': 'At n = {{env largest}} it took {{ms streaming t=4}} on four threads, {{speedup streaming/naive t=4}} faster than the textbook loop: the fastest case measured at that size.',
+};
+
+// The chapter's first heading, where the strip goes.
+const findingsHeading = {
+  'levels/naive': 'The idea',
+  'levels/threaded': 'What changed from level 0',
+  'levels/cache_friendly': 'What changed from level 1',
+  'levels/simd': 'What changed from level 2',
+  'levels/packed': 'What changed from level 3',
+  'levels/streaming': 'The problem',
+};
 
 // Figures and demos inserted after a heading of a chapter (by heading text).
 export const insertions = [
@@ -189,4 +213,13 @@ export const insertions = [
     html: countersTable(results) },
   { chapter: 'paper/results', afterHeading: 'Thread scaling in the browser', blocksAfter: 1,
     html: scalingTable(results, { environment: 'browser-threads' }) + scalingChart(results, { environment: 'browser-threads' }) },
+  // The measurements strips come last: insertions are spliced in order, each at heading + 1 +
+  // blocksAfter, so with blocksAfter 0 a strip lands above the videos and demos already put
+  // under the same heading, and it shifts no blocksAfter count above.
+  ...Object.entries(levelFindings).map(([chapter, text]) => ({
+    chapter,
+    afterHeading: findingsHeading[chapter],
+    blocksAfter: 0,
+    html: `<aside class="findings"><strong>What the measurements found.</strong> ${substitute(text, results)}</aside>`,
+  })),
 ];

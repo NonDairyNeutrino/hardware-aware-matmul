@@ -122,6 +122,9 @@ step-through:not([data-state]) { display: none; }
 .st-micro { stroke: var(--bg); stroke-width: 1; stroke-dasharray: 2 2; }
 .st-tile { fill: none; stroke: var(--fg); stroke-width: 1; }
 .st-lookfor { margin: 0 0 0.5rem; }
+
+/* The measured result of a level, boxed under the chapter's first heading. */
+.findings { margin: 1rem 0; padding: 0.6rem 0.9rem; border-left: 4px solid var(--accent); background: var(--code-bg); font-size: 0.95rem; }
 .st-caption { margin: 0.75rem 0 0; font-size: 0.9rem; }
 .st-plan pre { max-height: 14rem; overflow: auto; }
 @media (prefers-reduced-motion: no-preference) {
