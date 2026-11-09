@@ -64,7 +64,9 @@ hardware threads on {{env physical_cores}} physical cores.
 At n = 1024 level 1 also roughly halves its time with two threads and gains a little more
 from the second four. One plausible reading of that last gain is that level 1's inner loop
 spends much of its time waiting for memory, and a thread that is waiting leaves its core
-free for the thread that shares it. The measurements at n = 1024 are consistent with that
+free for the thread that shares it.
+
+The measurements at n = 1024 are consistent with that
 and do not test it; those at n = {{env largest}} do not support it. And at n =
 {{env largest}} none of it comes close to [level 2](crate::cache_friendly) on a single
 thread: {{ms cache_friendly t=1}}, against level 1's {{ms threaded t=8}} on all eight
@@ -75,10 +77,15 @@ threads. More cores were not the main thing the loop was missing.
 The best explanation of the rest is the memory system, with the caveat that the run measured
 its caches directly only at two sizes.
 
-At n = {{env largest}}, on one thread, the naive loop took {{ms naive}}. Level 2 took
-{{ms cache_friendly t=1}}, which is {{speedup cache_friendly/naive t=1}} faster. Level 3
-took {{ms simd t=1}}, {{speedup simd/naive t=1}} faster than level 0 but only
-{{speedup simd/cache_friendly t=1}} faster than level 2. Most of the single-thread
+At n = {{env largest}}, on one thread:
+
+| level | time | faster than level 0 |
+|---|---|---|
+| 0, the textbook loop | {{ms naive}} | |
+| 2, cache blocking | {{ms cache_friendly t=1}} | {{speedup cache_friendly/naive t=1}} |
+| 3, registers and vector lanes | {{ms simd t=1}} | {{speedup simd/naive t=1}} |
+
+Level 3 is only {{speedup simd/cache_friendly t=1}} faster than level 2. Most of the single-thread
 gain therefore arrives with level 2, which changes the
 [loop order and blocks for the cache](crate::cache_friendly). A plausible reading is that
 the same operations, arranged this way, use data while it is still in the cache instead of
@@ -198,7 +205,9 @@ show here.
 **What this does not show.** The counts do not test the reading offered at n = 1024. The
 strongest evidence shows that the misses went away and the cycles went with them, not that
 the misses were the whole of the saving. Two more limits matter. The counts are from one
-thread, so they say nothing about why the gains shrink with more threads. And one count is
+thread, so they say nothing about why the gains shrink with more threads.
+
+And one count is
 not explained: level 1 on one thread counted about twice as many L1 data-cache loads as
 level 0 at both sizes ({{count l1d_loads threaded}} against {{count l1d_loads naive}} at n =
 {{env counters_n}}), though the two run the same loop in the same time. The L1 counts of
@@ -209,8 +218,7 @@ those two levels should not be over-read.
 Level 5 was built for matrices that do not fit in memory, not for speed, and on four threads
 at the largest size it is nonetheless the fastest case measured.
 
-[Level 5](crate::streaming) exists to make the problem possible when the matrices do not
-fit in memory, not to make it faster when they do, and the chapter says so. The reference
+The [level 5](crate::streaming) chapter says so. The reference
 run measures it only on matrices that fit. It copies tiles into buffers, and at the two
 largest sizes it was faster than level 3 at every thread count, as level 4 was. At
 n = {{env largest}} it was ahead of level 4 at every thread count, though by little:
@@ -226,10 +234,12 @@ At that size, level 4 gets most of the way from level 3 to level 5 at every thre
 At the two smaller sizes level 5 loses the lead: it is close to level 3, sometimes ahead and sometimes
 behind, but never more than about a tenth behind.
 
-Level 4 also helps explain the twist. One reading offered for level 5's lead was that its
-small buffers hold short rows that lie next to each other in memory, while level 3 works on
+Level 4 also helps explain the twist. One reading offered for level 5's lead was this. Its
+small buffers hold short rows that lie next to each other in memory. Level 3 works on
 the full matrices, whose rows lie n × 8 bytes apart (16 KiB at n = 2048), and rows that far
-apart, at a power-of-two distance, may compete for the same places in a cache. Level 4
+apart, at a power-of-two distance, may compete for the same places in a cache.
+
+Level 4
 copies only the second matrix, in blocks, and keeps level 3's loops otherwise, and it
 recovers most of the lead. That is evidence that the way the second matrix is read in place
 is most of what level 5 avoids at these sizes, because a change that touches nothing else
@@ -284,7 +294,9 @@ suggests the arithmetic units themselves are not what runs out, but it does not 
 main memory is. A rough count, not a measurement: level 5 at n = {{env largest}} reads its
 input tiles about 1 GB worth in all, even if every tile came from main memory, and at the
 triad's {{triad t=4}} that would take under a tenth of its {{ms streaming t=4}} on four
-threads. That makes main-memory bandwidth look an unlikely limit, for level 5 at least, but
+threads.
+
+That makes main-memory bandwidth look an unlikely limit, for level 5 at least, but
 the count is an estimate and the triad is one access pattern among many, so the data cannot
 rule it out. The other candidates are what two hyper-threads of one core share besides the
 arithmetic: the L1 and the {{env l2}} L2 cache of that core, and the machinery that feeds
