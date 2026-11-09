@@ -74,8 +74,8 @@ const entries = chapters.reduce((groups, chapter) => {
     <main id="content">
       <article>
         <h1>{isHome ? siteTitle : title}</h1>
-        {progress && <p class="progress">{progress}</p>}
         {isHome && <p class="subtitle">{siteSubtitle}</p>}
+        {progress && <p class="progress">{progress}</p>}
         <slot />
       </article>
       <nav class="pager" aria-label="Previous and next chapter">
