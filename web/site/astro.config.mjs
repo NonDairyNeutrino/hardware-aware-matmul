@@ -1,7 +1,13 @@
+import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'astro/config';
 import { unified } from '@astrojs/markdown-remark';
+import remarkGlossary, { loadTerms } from './src/plugins/remark-glossary.mjs';
 import remarkRustdoc from './src/plugins/remark-rustdoc.mjs';
 import { base, insertions, links, results } from './site.config.mjs';
+
+// The primer's terms, shown as tooltips in the chapters (remark-glossary runs after
+// remark-rustdoc). Read once here: a primer without its terms table fails the build.
+const terms = loadTerms(fileURLToPath(new URL('../../docs/paper/primer.md', import.meta.url)));
 
 // The browser gates' own test pages (/gate/, /gate/step-through/ and /gate/migrate/) are built
 // only when GATE=1, which the gate scripts set; the production build never contains them.
@@ -39,7 +45,9 @@ export default defineConfig({
     },
   },
   markdown: {
-    processor: unified({ remarkPlugins: [[remarkRustdoc, { base, links, insertions, results }]] }),
+    processor: unified({
+      remarkPlugins: [[remarkRustdoc, { base, links, insertions, results }], [remarkGlossary, { terms }]],
+    }),
     shikiConfig: { themes: { light: 'github-light', dark: 'github-dark' }, defaultColor: false },
   },
 });
