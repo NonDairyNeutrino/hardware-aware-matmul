@@ -76,9 +76,9 @@ levels, natively and in a web browser, on one machine; the [Discussion](crate::d
 them and says what they do and do not show; the [Conclusion](crate::conclusion) gives the verdict
 and the part that stays open. The [playground](crate::playground) runs the same benchmark on your own machine.
 
-Short on time? Read this page, then [level 2](crate::cache_friendly), where most of the gain
-arrives, then the summary at the top of the [Discussion](crate::discussion) and the
-[Conclusion](crate::conclusion). That is about fifteen minutes.
+Short on time? Read this page, then [level 2](crate::cache_friendly), where most of the
+one-thread gain arrives, then the summary at the top of the [Discussion](crate::discussion)
+and the [Conclusion](crate::conclusion). That is about twenty minutes.
 
 You can also jump straight to a chapter; each stands on its own. The code is real Rust: the
 diagrams are driven by it and so are the measurements. It is written in plain loops so that

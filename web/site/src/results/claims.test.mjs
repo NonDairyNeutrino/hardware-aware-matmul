@@ -195,7 +195,7 @@ test('levels 2 to 5 stop scaling at the physical cores; level 2 gains a little m
   assert.ok(native(2, largest, 8) < native(2, largest, 4));
 });
 
-test('most of the one-thread gain arrives with level 2, and its gain over level 0 grows after n=512 (Discussion, Abstract, Conclusion)', () => {
+test('most of the one-thread gain arrives with level 2, and its gain over level 0 grows after n=512 (Introduction, Discussion, Abstract, Conclusion)', () => {
   const l2 = Math.log(native(0, largest, 1) / native(2, largest, 1));
   const l3 = Math.log(native(0, largest, 1) / native(3, largest, 1));
   assert.ok(l2 / l3 > 0.5);

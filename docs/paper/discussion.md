@@ -81,7 +81,7 @@ At n = {{env largest}}, on one thread:
 
 | level | time | faster than level 0 |
 |---|---|---|
-| 0, the textbook loop | {{ms naive}} | |
+| 0, the textbook loop | {{ms naive}} | – |
 | 2, cache blocking | {{ms cache_friendly t=1}} | {{speedup cache_friendly/naive t=1}} |
 | 3, registers and vector lanes | {{ms simd t=1}} | {{speedup simd/naive t=1}} |
 
@@ -219,7 +219,7 @@ Level 5 was built for matrices that do not fit in memory, not for speed, and on 
 at the largest size it is nonetheless the fastest case measured.
 
 The [level 5](crate::streaming) chapter says so. The reference
-run measures it only on matrices that fit. It copies tiles into buffers, and at the two
+run measures level 5 only on matrices that fit. It copies tiles into buffers, and at the two
 largest sizes it was faster than level 3 at every thread count, as level 4 was. At
 n = {{env largest}} it was ahead of level 4 at every thread count, though by little:
 
@@ -235,7 +235,7 @@ At the two smaller sizes level 5 loses the lead: it is close to level 3, sometim
 behind, but never more than about a tenth behind.
 
 Level 4 also helps explain the twist. One reading offered for level 5's lead was this. Its
-small buffers hold short rows that lie next to each other in memory. Level 3 works on
+small buffers hold short rows that lie next to each other in memory. Level 3, in contrast, works on
 the full matrices, whose rows lie n × 8 bytes apart (16 KiB at n = 2048), and rows that far
 apart, at a power-of-two distance, may compete for the same places in a cache.
 
