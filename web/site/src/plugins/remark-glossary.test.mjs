@@ -6,7 +6,9 @@ import remarkGfm from 'remark-gfm';
 import remarkParse from 'remark-parse';
 import remarkStringify from 'remark-stringify';
 import { unified } from 'unified';
-import remarkGlossary, { escapeHtml, loadTerms, parseTerms, splitTerm } from './remark-glossary.mjs';
+import { base, chapters, insertions, links, results } from '../../site.config.mjs';
+import remarkGlossary, { escapeHtml, loadTerms, parseTerms, splitTerm, termPattern } from './remark-glossary.mjs';
+import remarkRustdoc from './remark-rustdoc.mjs';
 
 const docsPath = (id) => fileURLToPath(new URL(`../../../../docs/${id}.md`, import.meta.url));
 const primerPath = docsPath('paper/primer');
@@ -136,4 +138,61 @@ test('the primer, and pages outside levels/ and paper/, are left unchanged', asy
   assert.notEqual(await render(markdown, { terms }, '/repo/docs/levels/naive.md'), plain);
   const primer = readFileSync(primerPath, 'utf8');
   assert.equal(await render(primer, { terms: loadTerms(primerPath) }, primerPath), await renderPlain(primer));
+});
+
+// The real chapters, through the same plugins as the site (remark-rustdoc first).
+async function renderChapter(id, glossaryTerms) {
+  const path = docsPath(id);
+  const processor = unified()
+    .use(remarkParse)
+    .use(remarkGfm)
+    .use(remarkRustdoc, { base, links, insertions, results })
+    .use(remarkGlossary, { terms: glossaryTerms })
+    .use(remarkStringify);
+  return String(await processor.process({ value: readFileSync(path, 'utf8'), path }));
+}
+
+// Primer terms that no chapter marks, each with the reason. Found by running the test below.
+const unmarked = {
+  'memory-bound': 'the chapters describe the two limits without using the word',
+  'compute-bound': 'the chapters describe the two limits without using the word',
+  axpy: 'always written as code (`axpy`), and code is never marked',
+  LLC: 'the chapters spell out "last-level cache", which is marked',
+  IPC: 'the chapters spell out "instructions per cycle", which is marked',
+  prefetch: 'the chapters say "prefetcher", which is marked',
+};
+
+test('every primer term is marked on at least one chapter, except the listed ones', async () => {
+  const primerTerms = loadTerms(primerPath);
+  const pattern = new RegExp(termPattern(primerTerms).source, 'i');
+  const found = new Set();
+  for (const chapter of chapters) {
+    for (const word of marked(await renderChapter(chapter.id, primerTerms))) {
+      found.add(pattern.exec(word)[1].toLowerCase());
+    }
+  }
+  const dead = primerTerms.map((t) => t.term).filter((term) => !found.has(term.toLowerCase()));
+  assert.deepEqual(dead.sort(), Object.keys(unmarked).sort());
+});
+
+test('on the real chapters the discussion marks terms, the primer none, and tooltip ids are unique', async () => {
+  const primerTerms = loadTerms(primerPath);
+  for (const chapter of chapters) {
+    const out = await renderChapter(chapter.id, primerTerms);
+    const ids = [...out.matchAll(/class="tip" role="tooltip" id="([^"]+)"/g)].map((m) => m[1]);
+    assert.equal(new Set(ids).size, ids.length, `${chapter.id}: duplicate tooltip ids`);
+    if (chapter.id === 'paper/primer') assert.equal(ids.length, 0, 'the primer marks no terms');
+    if (chapter.id === 'paper/discussion') assert.ok(ids.length >= 10, `the discussion marks only ${ids.length} terms`);
+  }
+});
+
+test('the stylesheet shows a tooltip on hover and focus, inside a phone-width screen', () => {
+  const css = readFileSync(new URL('../styles/site.css', import.meta.url), 'utf8');
+  assert.match(css, /\.term \{[^}]*position: relative/);
+  assert.match(css, /\.term \.tip \{[^}]*display: none/);
+  assert.match(css, /\.term:hover \.tip, \.term:focus \.tip \{[^}]*display: block/);
+  assert.match(css, /\.term \.tip \{[^}]*max-width: min\(22rem, calc\(100vw - 2rem\)\)/);
+  assert.match(css, /\.term \.tip \{[^}]*overflow-wrap: anywhere/);
+  assert.match(css, /@media \(max-width: 40rem\) \{\s*\.term \.tip \{[^}]*position: fixed/);
+  assert.doesNotMatch(css, /\.term[^{]*\{[^}]*outline: (none|0)/, 'the focus outline stays on terms');
 });

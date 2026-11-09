@@ -241,3 +241,15 @@ figure.reuse-figure figcaption, figure.register-figure figcaption { font-size: 0
 
 /* The measured result of a level, boxed under the chapter's first heading. */
 .findings { margin: 1rem 0; padding: 0.6rem 0.9rem; border-left: 4px solid var(--accent); background: var(--code-bg); font-size: 0.95rem; }
+
+/* Glossary: a term the primer defines shows its definition on hover or keyboard focus, with no
+   script (src/plugins/remark-glossary.mjs marks its first use on each page). The :focus-visible
+   outline set at the top of this file stays on. */
+.term { position: relative; text-decoration: underline dotted; text-decoration-color: var(--muted); text-underline-offset: 0.2em; cursor: help; }
+.term .tip { display: none; position: absolute; left: 0; top: 100%; z-index: 5; width: max-content; max-width: min(22rem, calc(100vw - 2rem)); margin-top: 0.3rem; padding: 0.45rem 0.7rem; background: var(--bg); color: var(--fg); border: 1px solid var(--border); border-radius: 6px; box-shadow: 0 2px 8px rgb(0 0 0 / 0.2); font-size: 0.9rem; font-style: normal; font-weight: normal; line-height: 1.45; text-align: left; white-space: normal; overflow-wrap: anywhere; }
+.term:hover .tip, .term:focus .tip { display: block; }
+/* On a narrow screen a tooltip anchored at the term could run past the right edge, so it is shown
+   across the bottom of the screen instead, inside the page gutters. */
+@media (max-width: 40rem) {
+  .term .tip { position: fixed; left: var(--gutter); right: var(--gutter); top: auto; bottom: var(--gutter); width: auto; max-width: none; }
+}
