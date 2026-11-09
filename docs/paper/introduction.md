@@ -73,7 +73,7 @@ previous level left behind and closes with what its own fix did not cure. A shor
 Levels 1, 2, 3 and 5 have a diagram you can step through, and levels 2, 3 and 4 have a figure
 that counts what the change saves. The [Results](crate::results) are measurements of the six
 levels, natively and in a web browser, on one machine; the [Discussion](crate::discussion) weighs
-them and says what they do and do not show; the [Conclusion](crate::conclusion) gives the verdict
+them and says what they do and do not show; the [Conclusion](crate::conclusion) gives the lesson
 and the part that stays open. The [playground](crate::playground) runs the same benchmark on your own machine.
 
 Short on time? Read this page, then [level 2](crate::cache_friendly), where most of the
