@@ -16,6 +16,8 @@
 //   - a paper page (abstract, results, discussion, conclusion) with an unresolved `{{...}}`
 //     placeholder or a NaN/undefined/Infinity/null where a number should be, and a Results page
 //     whose count of tables or charts differs from what site.config.mjs inserts;
+//   - a Discussion with no glossary term marked, a primer with any (it defines them), a chapter
+//     whose glossary tooltip ids repeat, and a level chapter without exactly one story box;
 //   - a video the pages reference that was not copied into dist/media/;
 //   - a production build (GATE unset) that contains the gates' test pages under gate/, or a
 //     gate build (GATE=1) that lacks them;
@@ -108,6 +110,16 @@ for (const chapter of chapters) {
     // The pages written from the data must show real numbers.
     if (html.includes('{{')) problems.push(`${where}: contains an unresolved "{{" placeholder`);
     if (/\b(NaN|undefined|Infinity|null)\b/.test(html)) problems.push(`${where}: contains NaN, undefined, Infinity or null`);
+  }
+  // The glossary (src/plugins/remark-glossary.mjs) and the story boxes (levelStory in
+  // site.config.mjs).
+  if (chapter.id === 'paper/discussion' && !html.includes('class="term"')) problems.push(`${where}: no glossary term is marked`);
+  if (chapter.id === 'paper/primer' && html.includes('class="term"')) problems.push(`${where}: marks glossary terms; the primer defines them`);
+  const tipIds = [...html.matchAll(/class="tip" role="tooltip" id="([^"]+)"/g)].map((m) => m[1]);
+  if (new Set(tipIds).size !== tipIds.length) problems.push(`${where}: duplicate glossary tooltip ids`);
+  if (chapter.id.startsWith('levels/')) {
+    const stories = (html.match(/<aside class="story"/g) ?? []).length;
+    if (stories !== 1) problems.push(`${where}: ${stories} story boxes, expected 1`);
   }
   if (chapter.id === 'paper/results') {
     const tables = (html.match(/<table class="results"/g) ?? []).length;
