@@ -1,11 +1,10 @@
-**Level 0, of levels 0 to 5.** The textbook algorithm: one thread, three nested loops, no
-tricks. Everything else in this crate is a modification of this function, and
+**Level 0, of levels 0 to 5.** The textbook algorithm: one thread and three nested loops.
+Everything else in this crate is a modification of this function, and
 every other level is tested against it.
 New to caches, cache lines or SIMD? The project's website has a short primer on them.
 
-This is where the case starts. It is the baseline that every other level is measured against,
-and it is correct and easy to read. It is also far from what the processor can do, and nothing
-in the code says why. The chapters that follow look for the reason one suspect at a time.
+This is where the case starts. It is far from what the processor can do, and nothing
+in the code says why.
 
 # The idea
 
@@ -42,8 +41,7 @@ assert_eq!(c, Matrix::new(2, 2, vec![58.0, 64.0, 139.0, 154.0]));
 
 # What it gets right
 
-- **It is obviously correct.** There is nothing here to get wrong, which is
-  why it is the reference for the other levels.
+- **It is obviously correct.** It is the reference for the other levels.
 - **It defines the summation order.** Each `C[i][j]` is accumulated in
   increasing `k`, starting from zero. Every later level preserves that order,
   so every level returns *exactly the same bits*.
@@ -53,22 +51,19 @@ assert_eq!(c, Matrix::new(2, 2, vec![58.0, 64.0, 139.0, 154.0]));
 # What it costs
 
 The arithmetic is `2·m·n·p` floating-point operations, and **no later level
-reduces that count**. Everything that follows is about doing the same work
-faster, or on bigger data. The problems with this version are about *how* it
+reduces that count**. The problems with this version are about *how* it
 touches memory and processors:
 
 1. **One core.** Only one thread runs; every other core sits idle. Level 1
    fixes this.
 2. **A column walk.** The inner loop reads `B[0][j], B[1][j], B[2][j], …`.
-   `Matrix` stores rows contiguously, so consecutive reads are `p` elements
-   apart: almost every access lands on a different cache line, and a line
-   fetched for `B[k][j]` is mostly wasted when the loop moves on. For large
-   matrices the processor probably spends much of its time waiting for memory. Level 2
+   Rows are contiguous, so consecutive reads are `p` elements apart. Nearly every read fetches
+   a new cache line and uses one value from it. For large matrices the processor probably
+   spends much of its time waiting for memory. Level 2
    fixes this.
 3. **A bounds check per element access.** `Index` asserts that the index is in
-   range on every call. This is a constant-factor cost (the optimiser can
-   remove some of it, not reliably all), and later levels sidestep it by
-   iterating over slices.
+   range on every call. The optimiser removes some of these checks, not reliably all. Later
+   levels avoid them by iterating over slices.
 4. **Three whole matrices in memory.** `A`, `B`, and `C` must all be resident
    at once, which for `n × n` matrices of `f64` is `3·n²·8` bytes. Level 5
    removes this limit.

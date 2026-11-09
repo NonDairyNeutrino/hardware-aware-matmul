@@ -2,17 +2,13 @@
 thread's loops are rearranged so that each thread reuses data while it is still in
 the cache.
 
-Level 1 left a clue: adding threads did not fix the loop, so the number of cores doing the arithmetic
-was not what held it back. This level goes after the best remaining suspect, the way the
-loop walks memory, and the measurements on the project's website show that these two changes
-to the loop, on a single thread, beat level 1 on every thread.
+Level 1's clue: more cores did not fix the loop, so the shortage was not cores. The next suspect
+is the order in which the loop walks memory.
 
 # What changed from level 1
 
-Only the kernel, the loop nest each thread runs. The row-block partitioning
-and the scoped threads are the same driver as level 1
-([`threaded`](crate::threaded)); the kernel is what changes.
-Two changes to the kernel:
+Only the kernel, the loop nest each thread runs, changes; the row-block partitioning and the
+scoped threads are level 1's ([`threaded`](crate::threaded)). Two changes to the kernel:
 
 1. a different **loop order**, and
 2. **cache blocking**.
@@ -20,9 +16,7 @@ Two changes to the kernel:
 # Change 1: loop order `i-k-j`
 
 The earlier levels compute each `C[i][j]` as a dot product of a row of `A`
-with a *column* of `B`. In row-major storage a column is strided, so nearly
-every read of `B` touches a different cache line, and most of each line that
-is fetched goes unused.
+with a *column* of `B`, a strided walk.
 
 The `i-k-j` order does the same additions in a different order. For each
 element `A[i][k]`, it adds `A[i][k]` times *row* `k` of `B` into *row* `i` of
@@ -51,9 +45,8 @@ being held in a register, so `C` must start at zero.
 # Change 2: cache blocking
 
 Contiguous loops help, but for large matrices there is a second problem.
-Row `k` of `B` is used for one `i`, and then, by the time the loop returns to
-it for the next `i`, it has been evicted. The data is reloaded from main
-memory once per row of the output block.
+Row `k` of `B` is evicted before the loop needs it again for the next `i`. The data is
+reloaded from main memory once per row of the output block.
 
 Cache blocking restructures the loops so that a small block of `B` is reused
 for *every* row of the output block before moving to the next block:
@@ -112,26 +105,14 @@ exact equality with [`naive`](crate::naive) across shapes and thread counts.
 # What it costs
 
 - **`C` still moves through memory on every step.** The inner loop loads a
-  segment of `C`, adds to it and stores it back, once per `(i, k)` pair, even
-  though the data is now in the cache. Loads and stores can limit the speed as
-  much as the arithmetic does. Level 3 removes most of that traffic.
-- **Faster threads saturate sooner.** The quicker each thread gets, the sooner
-  the threads together use up something they share (memory bandwidth, cache, or
-  the arithmetic units of a core). A fast level may therefore gain less from
-  extra threads than a slow one does.
-- **Still three whole matrices in memory.** Neither blocking nor threading
-  changes how much memory the problem needs.
-- **Not a BLAS.** There is no register-blocked micro-kernel, no packing of `B`,
-  and no SIMD intrinsics, only the two changes above.
+  segment of `C`, adds to it and stores it back, once per `(i, k)` pair, even though the
+  data is now in the cache. Loads and stores can limit the speed as much as the
+  arithmetic does.
 - **Every thread streams all of `B`.** Each thread reads all of `B` from main
   memory for its own rows. The blocking keeps that reading efficient, but the
   total traffic scales with the number of threads.
 
 # Where to go next
 
-Most of the gain is in, but the inner loop still moves `C` through memory on every step: the
-data is now close to the core, and it still travels. [`simd`](crate::simd) keeps a block of `C`
-in vector registers instead.
-
-After that, one assumption remains: every level so far needs `A`, `B`, and `C` to fit in memory.
-For a `100 000 × 100 000` product that is 240 GB. [`streaming`](crate::streaming) removes it.
+[`simd`](crate::simd) removes most of the first cost above: it keeps a block of `C` in vector
+registers for the whole inner loop.

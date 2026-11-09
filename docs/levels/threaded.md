@@ -1,9 +1,7 @@
-**Level 1, of levels 0 to 5.** The same triple loop, spread across threads. One idea, a
-few lines of new code.
+**Level 1, of levels 0 to 5.** The same triple loop, spread across threads.
 
 The obvious suspect is that the loop leaves most of the machine's cores idle. This level tests
-that by giving every core a share of the same loop. The chapter shows how, and the measurements
-on the project's website show how far it gets.
+that by giving every core a share of the same loop.
 
 # What changed from level 0
 
@@ -78,8 +76,6 @@ partitioning on the other, is kept at every level from here on.
 
 # What it gets right
 
-- **Near-linear scaling is possible**, up to the number of cores, when nothing
-  the threads share is used up.
 - **Results are unchanged.** Each output element is still computed by exactly
   one thread, in exactly the same order as at level 0, so the result is
   bit-for-bit identical for any thread count.
@@ -88,23 +84,16 @@ partitioning on the other, is kept at every level from here on.
 
 # What it costs
 
-- **Each thread is as slow as level 0, and the threads share the hardware.**
-  Every thread still walks a *column* of `B` for each output element (the
-  level-0 access pattern), and all of them share the same memory system and the
-  same cores. Threads help until something they share is used up, and which
-  resource that is depends on the machine and on how efficient each thread's
-  loop is. This loop probably spends much of its time waiting for memory, which would
-  leave idle time for other threads to use, so it can keep gaining for a long
-  time. What it cannot do is make any single thread faster. That is the main
-  reason level 2 exists: speed up what each thread does, and the threads go
-  further.
+- **The threads share the hardware.** Every thread still walks a *column* of `B` for each
+  output element (the level-0 access pattern), and all of them share the same memory system and
+  the same cores. Threads help until they exhaust a shared resource. Which resource that is
+  depends on the machine and on each thread's loop. If this loop mostly waits for memory, other
+  threads can use those idle cycles, so gains may continue for a while.
 - **Fixed, equal-sized blocks.** Work is divided in advance, with no
-  rebalancing. For this problem every row costs the same, so equal blocks are
-  fine, but if one thread were slowed by something else the others would idle
-  waiting for it. Level 5 uses a work queue instead.
+  rebalancing. Every row costs the same, so equal blocks suit this problem. If one thread is
+  slowed, though, the others wait. Level 5 uses a work queue instead.
 - **Parallelism is capped at the row count.** With fewer rows than threads,
   only as many threads as rows are used.
-- **Still three whole matrices in memory.**
 
 # Where to go next
 
