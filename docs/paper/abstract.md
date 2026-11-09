@@ -1,31 +1,11 @@
 # Abstract
 
-Multiplying two {{env largest}} × {{env largest}} matrices takes {{ms naive}} when it is
-written as the textbook three nested loops, on the laptop used for this paper, and
-{{ms streaming t=4}} when it is written another way. Both versions perform exactly the same
-multiply-adds, in the same order, and return the same answer bit for bit, so no better
-algorithm explains the difference. This paper asks where the time goes, and answers by
-changing one thing at a time, in six levels of safe, dependency-free Rust.
+At n = {{env largest}}, the textbook three loops multiply two matrices in {{ms naive}}. Another version takes {{ms streaming t=4}}. Both do the same multiply-adds in the same order and return the same bits, so a better algorithm is not the reason. Where does the time go?
 
-The obvious suspect, too few cores, is cleared early. The simplest threaded version took
-{{ms threaded t=8}} on all {{env threads_native}} hardware threads, more than the
-{{ms cache_friendly t=1}} that a version of the loop that merely walks memory in a better order
-needs on one. On one core the textbook loop reaches {{frac naive t=1}} of the rate of an
-arithmetic test loop, so it is not short of arithmetic.
+More cores were not the answer. The simplest threaded version took {{ms threaded t=8}} on all {{env threads_native}} threads. A version that only reorders the loops took {{ms cache_friendly t=1}} on one. On one core, the textbook loop reaches just {{frac naive t=1}} of a test loop's rate.
 
-What it was short of, most plausibly,
-was data arriving from memory in a good order: most of the one-thread gain came from reordering
-the loops and blocking them for the cache, and copying each block of the second matrix into a
-contiguous buffer cut its L1 cache misses {{countratio l1d_misses simd/packed}} at the largest
-size. Streaming tiles of the matrices through small buffers, a change made so that the matrices
-need not fit in memory at all, gave the fastest case measured at the largest size,
-{{speedup streaming/naive t=4}} faster than the textbook loop on four threads.
+Memory is the likely culprit. Reordering the loops and blocking them for the cache gave most of the one-thread gain. Copying blocks of the second matrix into a contiguous buffer cut L1 cache misses {{countratio l1d_misses simd/packed}}. Streaming tiles through small buffers was fastest: {{speedup streaming/naive t=4}} faster than the textbook loop, on four threads.
 
-One question
-stays open: the three fastest levels stopped gaining where the physical cores ran out, although
-the test loop kept gaining, and these measurements do not say what limits them.
+One question stays open. The three fastest levels stopped gaining where the physical cores ran out, though the test loop kept gaining. The data cannot say why.
 
-Compiled to WebAssembly, the same code ran in a browser at {{gflops simd lite}} on one thread,
-against {{gflops simd t=1}} natively. Matrix multiplication is only the worked example; the
-ideas apply wherever code moves a lot of data. Each level is presented as a method, with an
-interactive diagram, driven by the real code, that shows how it divides the work.
+In a browser, the same code ran at {{gflops simd lite}} on one thread, against {{gflops simd t=1}} natively.
