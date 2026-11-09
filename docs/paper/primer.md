@@ -115,5 +115,13 @@ again and again. They are the checklist to carry through each chapter:
 | instructions per cycle (IPC) | how many instructions the core finishes per cycle; a high figure means it is rarely waiting |
 | TLB | a small cache of the translations from a program's addresses to physical memory; a miss costs a lookup |
 | STREAM triad | a standard test of memory bandwidth: it streams three large arrays and measures bytes per second |
+| L1, L2, L3 | the levels of cache, from the smallest and fastest, private to one core, to the largest and slowest, usually shared by the cores |
+| FMA (fused multiply-add) | one instruction that multiplies and adds with a single rounding, so its result can differ from a separate multiply and add |
+| micro-kernel | the innermost routine that updates a small block of the output held in vector registers |
+| packing | copying a block of a matrix into a contiguous buffer, laid out in the order the code reads it |
+| broadcast | copying one value into every lane of a vector register |
+| memory page | the unit in which the operating system maps a program's addresses to physical memory; each page in use needs a TLB entry |
+| prefetch, prefetcher | fetching data into the cache before the code asks for it; a prefetcher is hardware that does this when it spots a regular pattern of accesses |
+| speedup | how many times faster one case is than another: the slower time divided by the faster |
 
 That is the whole toolkit. [Level 0](crate::naive) is where the case starts.
