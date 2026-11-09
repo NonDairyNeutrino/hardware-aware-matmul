@@ -4,7 +4,9 @@ cache-related suspects. This page reports them, with a question to answer before
 figures, and nothing else: the [Discussion](crate::discussion) says what they mean. Every
 figure on it comes from the committed data of the reference run, not from this text.
 
-Short on time? Skip to [Native](#native) for the tables and come back to [What was measured](#what-was-measured) when a number needs context.
+Short on time? Skip to [Native](#native) for the tables and come back to
+[What was measured](#what-was-measured) when a number needs context (it explains the †
+marks).
 
 # What was measured
 

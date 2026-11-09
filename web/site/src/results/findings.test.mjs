@@ -37,7 +37,7 @@ test('each strip is generated with its numbers filled in', () => {
     const html = strips[0].html;
     assert.ok(!html.includes('{{'), `${chapter.id}: unresolved placeholder`);
     assert.ok(!/NaN|undefined/.test(html), `${chapter.id}: bad value`);
-    assert.ok(/[0-9]/.test(html), `${chapter.id}: no number rendered`);
+    assert.match(html.replace(/[Ll]evel \d/g, ''), /\d/, `${chapter.id}: no number rendered`);
     assert.ok(!html.includes('crate::'), `${chapter.id}: crate:: link text`);
     assert.ok(!html.includes('<step-through'), `${chapter.id}: looks like a demo`);
   }
@@ -56,4 +56,10 @@ test('each strip sits directly under the chapter\'s first heading, before anythi
     );
     assert.equal(later.length, 0, `${chapter.id}: an insertion after the strip lands above it`);
   }
+});
+
+test('the thread counts the strips name were measured', () => {
+  const data = JSON.parse(readFileSync(new URL('../data/results.json', import.meta.url), 'utf8'));
+  const native = data.parameters.threads.native;
+  for (const threads of [1, 4, 8]) assert.ok(native.includes(threads), `no native run with t=${threads}`);
 });
