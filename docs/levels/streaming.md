@@ -3,11 +3,9 @@ matrices no longer have to be in memory at all. The product is computed one
 small output tile at a time, by streaming the matching tiles of the inputs
 past a running accumulator and handing each finished tile to an output sink.
 
-The earlier levels asked how to make the product faster. This one asks a different question:
-what if the matrices do not fit in memory at all? It is the only level that is not about speed
-on data that already fits in RAM; it was built to make the problem possible, not to win a race.
-What happened when it was timed against the others anyway is the twist in the story, told in
-the Discussion on the project's website.
+The earlier levels asked how to make the product faster. This one asks a different question: what if
+the matrices do not fit in memory at all? It is the only level built for data that does not fit in
+RAM.
 
 # The problem
 
@@ -36,11 +34,10 @@ and a vertical strip of `B`.
 └─────────────┘      └───────────┘
 ```
 
-So never compute "the product". Compute one output tile at a time. The strips
-are themselves too big to hold, so split the shared dimension `n` into slices
-of depth `D` and *stream* them through three small buffers, adding each partial
-product into a running sum. That makes it an **online algorithm**: it consumes
-its input incrementally and never needs it all at once.
+So never compute "the product". Compute one output tile at a time. The strips are themselves too big
+to hold. So split the shared dimension `n` into slices of depth `D`, *stream* them through three
+small buffers, and add each partial product to a running sum. That makes it an **online algorithm**:
+it consumes its input incrementally and never needs it all at once.
 
 # What changed from level 2
 
@@ -53,10 +50,6 @@ its input incrementally and never needs it all at once.
 | Work distribution | fixed equal row blocks | **dynamic**: workers claim tiles from an atomic counter |
 | Inner kernel | `i-k-j` + cache blocks, on `Matrix` | the *same* kernel, on flat tile buffers |
 | Errors | dimension mismatch only | plus I/O errors from sources and sinks |
-
-The inner loop is deliberately not new: level 2's `axpy`, its `i-k-j` loop
-order, and its cache-block constants are reused unchanged. Level 5 adds a
-layer *around* the level-2 kernel, not a replacement for it.
 
 # The algorithm
 
@@ -193,33 +186,22 @@ Fix an output element `C[i][j]` and let `t` be the tile containing it.
 
 </details>
 
-By the argument in the implementation notes above, every `C[i][j]` receives
-every product `A[i][k]·B[k][j]` exactly once, summed in increasing `k`, and is
-stored exactly once: the product, with the same bits as
-[`naive`](crate::naive).
+So every `C[i][j]` receives every product `A[i][k]·B[k][j]` exactly once, summed in increasing `k`,
+and is stored exactly once: the product, with the same bits as [`naive`](crate::naive).
 
 # What it costs
 
-- **Not designed to be faster on data that fits in memory.** In-memory
-  matrices are copied into the tile buffers before being used, work that the
-  other levels do not do. How that copying compares with
-  [`simd`](crate::simd) depends on the machine: the small, contiguous buffers
-  may suit the caches better than rows of the full matrices, which can offset
-  the copy. That is not the purpose of this level, so measure rather than
-  count on it. If
-  everything fits in RAM, [`cache_friendly`](crate::cache_friendly) and
-  [`simd`](crate::simd) are simpler. Level 5 earns its keep when the data does
-  not fit, or when you want to consume results without storing them.
-- **Rereading.** The inputs are read many times;
-  [`StreamConfig::peak_buffer_bytes`] and
+- **Not designed to be faster on data that fits in memory.** In-memory operands are copied into tile
+  buffers, which other levels skip. On some machines the small, contiguous buffers may suit the
+  cache well enough to offset the copy. That is not this level's purpose: if everything fits in RAM,
+  [`cache_friendly`](crate::cache_friendly) and [`simd`](crate::simd) are simpler. Level 5 earns its
+  keep when the data does not fit, or when you want to consume results without storing them.
+- **Rereading.** The inputs are read many times; [`StreamConfig::peak_buffer_bytes`] and
   [`StreamConfig::with_tile_shape`] let you trade memory against rereading.
-- **I/O can fail.** Sources and sinks return `io::Result`, so this level has a
-  richer error type, [`MatmulError`](crate::MatmulError).
-- **More machinery.** A tile abstraction, a plan, per-worker buffers, and an
-  error-propagation protocol: that is the cost of the generality.
+- **I/O can fail.** Sources and sinks return `io::Result`, so this level has a richer error type,
+  [`MatmulError`](crate::MatmulError).
 
-That is the last level. What the six together do and do not explain is in the Discussion on
-the project's website, and one question, what stops the threads, is still open there.
+That is the last level.
 
 [`TileSource`]: crate::streaming::TileSource
 [`TileSink`]: crate::streaming::TileSink

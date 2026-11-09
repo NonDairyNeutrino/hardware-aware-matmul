@@ -1,11 +1,9 @@
 **Level 3, of levels 0 to 5.** Same threads, same partitioning, same results as level 2,
 but the innermost step is rebuilt around the processor's vector registers.
 
-Level 2 put the data close to the core, and the loop still carries the output block through
-memory on every step. This level removes that last trip: it keeps a small block of the output
-in the processor's vector registers for the whole inner loop. On one thread the gain is much
-smaller than level 2's, which is itself part of the answer: most of the gain over the
-textbook loop had already arrived with level 2.
+Level 2 put the data close to the core, and the loop still carries the output block through memory
+on every step. This level removes that last trip: it keeps a small block of the output in the
+processor's vector registers for the whole inner loop.
 
 # What changed from level 2
 
@@ -17,14 +15,12 @@ for each row i, for each k:
     C[i][j_block] ← C[i][j_block] + A[i][k] × B[k][j_block]
 ```
 
-The compiler can vectorise that loop, because its iterations are independent,
-but look at what each pass does: it *loads* a segment of `B`, *loads* a segment
-of `C`, performs one multiply and one add, and *stores* the segment of `C`
-back. Two loads and a store for one multiply-add. The load/store units can
-limit the speed even when every access hits the cache, because the arithmetic
-cannot go faster than the data arrives. How much that costs depends on how well
-the processor overlaps the traffic with the arithmetic, so the gain from the fix
-varies from one machine to another.
+The compiler can vectorise that loop, because its iterations are independent, but look at what each
+pass does: it *loads* a segment of `B`, *loads* a segment of `C`, performs one multiply and one add,
+and *stores* the segment of `C` back. Two loads and a store for one multiply-add. The load/store
+units can limit the speed even when every access hits the cache, because the arithmetic cannot go
+faster than the data arrives. The gain depends on how well the processor overlaps memory traffic
+with arithmetic.
 
 The fix is to stop moving `C` through memory on every `k`. Keep a small block
 of `C` in **registers** for the whole `k` loop, and do all the arithmetic on it
@@ -32,10 +28,9 @@ there.
 
 # A little SIMD background
 
-A **SIMD** (single instruction, multiple data) instruction applies one
-operation to a whole **vector** of numbers held in a wide register. Each slot
-of the vector is a **lane**. How many `f64` lanes a register has depends on the
-instruction set:
+A **SIMD** (single instruction, multiple data) instruction applies one operation to a whole
+**vector** of numbers in a wide register, one per **lane**. How many `f64` lanes a register has
+depends on the instruction set:
 
 | Instruction set | Register width | `f64` lanes |
 |-----------------|----------------|-------------|
@@ -43,9 +38,8 @@ instruction set:
 | AVX, AVX2       | 256 bits       | 4 |
 | AVX-512         | 512 bits       | 8 |
 
-One vector multiply-add therefore does 2, 4, or 8 scalar multiply-adds in the
-time of one. The condition for using it is that those scalar operations are
-**independent**: lane `l` must not need lane `l - 1`'s result.
+One vector multiply-add therefore does 2, 4, or 8 scalar multiply-adds in the time of one, provided
+they are **independent**: lane `l` must not need lane `l - 1`'s result.
 
 # The micro-kernel
 
@@ -81,11 +75,9 @@ PROCEDURE micro_kernel(a_rows[MR], b, c_rows[MR], j, depth)
     c_rows[i][j .. j+NR] ← acc[i]                 // store C once
 ```
 
-Per `k` this does one `B` load and `MR` broadcasts to perform `MR × NR`
-multiply-adds, and `C` is loaded and stored once per *`depth`* multiply-adds
-instead of once per multiply-add. This is the central idea of every
-high-performance matrix multiply: keep the output block in registers, and the
-memory system only has to feed the inputs.
+Each `k` costs one `B` load and `MR` broadcasts for `MR × NR` multiply-adds. `C` moves once per
+*`depth`* steps, not on every step. This is the central idea of every high-performance matrix
+multiply: keep the output block in registers, and the memory system only has to feed the inputs.
 
 The micro-tile shape is `MR = 4` rows by `NR = 4` columns on a baseline build,
 or `NR = 8` when compiled for AVX or later. In both cases the accumulators
@@ -169,13 +161,11 @@ afterwards). Edge regions that do not fill a micro-tile (fewer than `MR` rows
 left, or fewer than `NR` columns left in a cache block) fall back to level 2's
 `axpy`, which adds the same terms in the same order.
 
-Rust also does not fuse a multiply and an add into a single FMA instruction on
-its own, even when the target has one, so each product is rounded before it is
-added, exactly as in the naive loop. A fused multiply-add rounds once instead of
-twice. It is faster and slightly more accurate, but it would change the bits,
-so this crate does not use it (`f64::mul_add` would be the way). The test suite asserts exact
-equality with [`naive`](crate::naive) across shapes that stress every edge of
-the micro-tile.
+Rust never fuses a multiply and an add into an FMA on its own, so each product is rounded before the
+add, as in the naive loop. A fused multiply-add rounds once instead of twice: faster and slightly
+more accurate, but it would change the bits, so this crate does not use it (`f64::mul_add` would be
+the way). The test suite asserts exact equality with [`naive`](crate::naive) across shapes that
+stress every edge of the micro-tile.
 
 # Example
 
@@ -204,24 +194,15 @@ assert_eq!(c, Matrix::new(2, 2, vec![58.0, 64.0, 139.0, 154.0]));
 
 # What it costs
 
-- **Compile-time vector width.** One binary, one width. There is no run-time
-  detection and dispatch, because that needs `unsafe` today.
-- **Depends on the optimiser.** The speed comes from the compiler recognising
-  the loops. Check the assembly if it matters.
-- **No packing.** Each micro-kernel call reads `NR` consecutive elements from
-  each of `depth` rows of `B`, a row apart. Copying `B` blocks into a
-  contiguous, micro-kernel-shaped buffer ("packing") makes those reads purely
-  sequential. [`packed`](crate::packed) does exactly that.
-- **Untuned constants.** `MR`, `NR`, and the cache-block sizes are reasonable
-  defaults, not measured optima.
-- **Still three whole matrices in memory.**
+- **Compile-time vector width.** One binary, one width. There is no run-time detection and dispatch,
+  because that needs `unsafe` today.
+- **No packing.** Each micro-kernel call reads `NR` consecutive elements from each of `depth` rows
+  of `B`, a row apart.
 
 # Where to go next
 
-One cost is still hidden. The kernel reads `B` where it lies in memory, a whole row apart at
-every step, and that spreads each small block over many cache lines. [`packed`](crate::packed)
-keeps this micro-kernel and changes where it reads `B` from: a contiguous copy of each cache
-block instead of the matrix itself.
+[`packed`](crate::packed) removes the last cost above. It keeps this micro-kernel and changes where
+it reads `B` from: a contiguous copy of each cache block instead of the matrix itself.
 
 [`micro_tile_shape`]: crate::simd::micro_tile_shape
 [`target_vector_isa`]: crate::simd::target_vector_isa

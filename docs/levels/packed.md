@@ -1,19 +1,14 @@
-**Level 4, of levels 0 to 5.** Same threads, same partitioning, same micro-kernel, same
-results as level 3, but the micro-kernel no longer reads `B` where it lies in
-memory. Each cache block of `B` is first **packed**: copied once into a small
-contiguous buffer, laid out in the order the micro-kernel reads it.
+**Level 4, of levels 0 to 5.** Same as level 3, but each cache block of `B` is first **packed**:
+copied into a contiguous buffer in the order the micro-kernel reads it.
 
-Level 3 left a cost in plain sight: its kernel reads `B` a row apart at every step. This level
-pays to copy each block once, which looks like a pure loss, and the measurements on the
-project's website ask whether the copy earns its cost back.
+Level 3 left a cost in plain sight: its kernel reads `B` a row apart at every step. This level pays
+to copy each block once.
 
 # What changed from level 3
 
-Level 3's micro-kernel computes an `MR × NR` block of `C`. For every `k` it
-reads `NR` consecutive elements of one row of `B`, then moves to the next row.
-Rows of `B` are `n` elements apart, so a strip of `B` that the kernel reads in
-order is spread over memory at a stride of `8·n` bytes: one cache line (or less)
-from each of `depth` different places.
+Level 3's micro-kernel computes an `MR × NR` block of `C`. For every `k` it reads `NR` consecutive
+elements of one row of `B`, then moves to the next row. Rows of `B` are `8·n` bytes apart, so each
+strip the kernel reads comes from `depth` scattered cache lines.
 
 Level 4 changes where that data comes from, and nothing else:
 
@@ -38,8 +33,8 @@ The micro-kernel is level 3's, called unchanged. A packed strip is a
 
 # Why it helps, and why it might not
 
-Three costs of a strided read go away. These are the usual reasons given for
-packing; how much of each a given machine shows is for a measurement to say.
+Three costs of a strided read go away; how much of each a given machine shows is for a measurement
+to say.
 
 - **Cache lines.** A strip of `NR` doubles is one 64-byte line when `NR = 8`
   and half of one when `NR = 4`. In `B` each such piece pulls in a line whose
@@ -53,15 +48,13 @@ packing; how much of each a given machine shows is for a measurement to say.
   evict one another, even though the cache as a whole has room. In the packed
   buffer the strips are adjacent, so they cannot.
 
-Against that, packing is **extra work**: every element of `B` is read and
-written once more per pass over it. It pays when each packed block is then used
-by many groups of rows, and level 4's blocks are reused by every `MR` rows of the
-thread's output block. It does not pay for a tile with fewer than `MR` rows,
-which never reaches the micro-kernel, so such a tile skips the copy.
+Against that, packing is **extra work**: every element of `B` is read and written once more per pass
+over it. Packing pays when many row groups reuse a block. Here every `MR`-row group in the thread's
+output block reuses it. It does not pay for a tile with fewer than `MR` rows, which never reaches
+the micro-kernel, so such a tile skips the copy.
 
-Whether packing wins on a given machine is a measurement, not a fact about the
-method. A processor with large, highly associative caches and a good hardware
-prefetcher may hide most of the strided-read cost already.
+A processor with large, highly associative caches and a good hardware prefetcher may hide most of
+the strided-read cost already.
 
 # The result is still bit-identical
 
@@ -110,7 +103,6 @@ assert_eq!(c, Matrix::new(2, 2, vec![58.0, 64.0, 139.0, 154.0]));
 
 # Where to go next
 
-At the two largest sizes the copy did earn its cost back, and the remaining difficulty is no
-longer mainly speed: every level so far assumes `A`, `B`, and `C` all fit in memory.
-[`streaming`](crate::streaming) removes that assumption. It computes its tiles
-with level 2's `axpy` kernel, not with this level's packed micro-kernel.
+One assumption remains: every level so far assumes `A`, `B`, and `C` all fit in memory.
+[`streaming`](crate::streaming) removes that assumption. It computes its tiles with level 2's `axpy`
+kernel, not with this level's packed micro-kernel.
