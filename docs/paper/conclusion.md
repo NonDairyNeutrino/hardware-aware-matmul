@@ -21,32 +21,36 @@ and each chapter says what it fixes and what it still costs.
 
 # The verdict
 
-The cores were not the main cause: at the largest size, the cache-friendly level on one
-thread beat the simplest threaded level at every thread count. Most of the one-thread gain
-came from reordering the loops and blocking for the cache, which on one thread at
-n = {{env largest}} made level 2 {{speedup cache_friendly/naive t=1}} faster than the
-textbook loop; the vector kernel then took a smaller step, a further
-{{speedup simd/cache_friendly t=1}}. Threads helped the blocked, vector and streaming levels
-until the physical cores ran out, and little beyond. Level 4, which copies each block of the
-second matrix first, was within a tenth of level 3 at the two smaller sizes, neither always
-ahead, and faster at every thread count at the two largest. Level 5, built for a different
-reason (matrices that do not fit in memory), was likewise about as fast as level 3 on
-matrices that do at the two smaller sizes and faster at the two largest, and level 4
-recovered most of that lead. Streaming was the fastest case measured, natively at the
-largest size on four threads: {{speedup streaming/naive t=4}} faster than the textbook loop,
-against {{speedup simd/naive}} for level 3 with all of its threads.
-
-In the reference run, timed in the [Results](crate::results) and compared in the
-[Discussion](crate::discussion), every case returned the same result, whatever the level, the
-thread count or the environment. Counting events on one thread, level 4 had
-{{countratio l1d_misses simd/packed n=1024}} fewer L1 misses than level 3 at n = 1024 and took
-about the same cycles; at the largest size it had {{countratio l1d_misses simd/packed}} fewer,
-sent far fewer loads past the L2, and took {{countratio cycles simd/packed}} fewer cycles, in
-step with its shorter time. In the browser, at the largest size, the single-threaded build ran
-more slowly than native code at levels 2 to 5, by an amount that depended on the level;
-levels 3 and 4, which are written around vector registers, came closest, level 3 at
-{{gflops simd lite}} against {{gflops simd t=1}} natively. Levels 0 and 1 ran about as fast in
-the browser as natively at the largest size.
+- **The cores.** The cores were not the main cause: at the largest size, the cache-friendly
+  level on one thread beat the simplest threaded level at every thread count.
+- **Memory.** Most of the one-thread gain came from reordering the loops and blocking for the
+  cache, which on one thread at n = {{env largest}} made level 2
+  {{speedup cache_friendly/naive t=1}} faster than the textbook loop; the vector kernel then
+  took a smaller step, a further {{speedup simd/cache_friendly t=1}}.
+- **Threads.** Threads helped the blocked, vector and streaming levels until the physical
+  cores ran out, and little beyond.
+- **Packing.** Level 4, which copies each block of the second matrix first, was within a tenth
+  of level 3 at the two smaller sizes, neither always ahead, and faster at every thread count
+  at the two largest.
+- **Streaming.** Level 5, built for a different reason (matrices that do not fit in memory),
+  was likewise about as fast as level 3 on matrices that do at the two smaller sizes and faster
+  at the two largest, and level 4 recovered most of that lead. Streaming was the fastest case
+  measured, natively at the largest size on four threads: {{speedup streaming/naive t=4}}
+  faster than the textbook loop, against {{speedup simd/naive}} for level 3 with all of its
+  threads.
+- **The same answer.** In the reference run, timed in the [Results](crate::results) and
+  compared in the [Discussion](crate::discussion), every case returned the same result,
+  whatever the level, the thread count or the environment.
+- **The counters.** Counting events on one thread, level 4 had
+  {{countratio l1d_misses simd/packed n=1024}} fewer L1 misses than level 3 at n = 1024 and took
+  about the same cycles; at the largest size it had {{countratio l1d_misses simd/packed}} fewer,
+  sent far fewer loads past the L2, and took {{countratio cycles simd/packed}} fewer cycles, in
+  step with its shorter time.
+- **The browser.** In the browser, at the largest size, the single-threaded build ran more
+  slowly than native code at levels 2 to 5, by an amount that depended on the level; levels 3
+  and 4, which are written around vector registers, came closest, level 3 at
+  {{gflops simd lite}} against {{gflops simd t=1}} natively. Levels 0 and 1 ran about as fast
+  in the browser as natively at the largest size.
 
 # What it means, and what it does not
 

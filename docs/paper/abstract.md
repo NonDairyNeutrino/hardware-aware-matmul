@@ -7,12 +7,12 @@ multiply-adds, in the same order, and return the same answer bit for bit, so no 
 algorithm explains the difference. This paper asks where the time goes, and answers by
 changing one thing at a time, in six levels of safe, dependency-free Rust.
 
-The obvious suspect, too few cores, is cleared early: the simplest threaded version took
+The obvious suspect, too few cores, is cleared early. The simplest threaded version took
 {{ms threaded t=8}} on all {{env threads_native}} hardware threads, more than the
 {{ms cache_friendly t=1}} that a version of the loop that merely walks memory in a better order
 needs on one. On one core the textbook loop reaches {{frac naive t=1}} of the rate of an
 arithmetic test loop, so it is not short of arithmetic. What it was short of, most plausibly,
-was data arriving from memory in a good order: most of the one-thread gain came from reordering
+was data arriving from memory in a good order. Most of the one-thread gain came from reordering
 the loops and blocking them for the cache, and copying each block of the second matrix into a
 contiguous buffer cut its L1 cache misses {{countratio l1d_misses simd/packed}} at the largest
 size. Streaming tiles of the matrices through small buffers, a change made so that the matrices
