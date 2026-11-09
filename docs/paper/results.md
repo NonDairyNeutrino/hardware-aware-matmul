@@ -4,6 +4,8 @@ cache-related suspects. This page reports them, with a question to answer before
 figures, and nothing else: the [Discussion](crate::discussion) says what they mean. Every
 figure on it comes from the committed data of the reference run, not from this text.
 
+Short on time? Skip to [Native](#native) for the tables and come back to [What was measured](#what-was-measured) when a number needs context.
+
 # What was measured
 
 Each case multiplies two square matrices of the project's order-sensitive test data (the
@@ -31,19 +33,17 @@ threads.
 
 This section asks how much faster each level is than the textbook loop.
 
-> **Predict.** Before you read the tables: with all the threads, which level will be fastest?
-> At the larger size, how many times faster than level 0 will each level be?
+> **Predict.** With all the threads, which level will be fastest, and how many times faster than level 0?
 
 The tables give every level at the largest thread count measured ({{env threads_native}}
 threads; level 0 has one), first at n = 512 and then at n = {{env largest}}.
 
 # Throughput against matrix size, native
 
-> **Predict.** Doubling n makes the arithmetic eight times larger. Does the time grow eight
-> times? If a level's throughput (operations per second) stays the same as n grows, the machine
-> is doing the same work per second on a larger problem; if it falls, something got in the way.
-> Which level's throughput will fall most? On one thread, is level 1 faster than level 0? How
-> much faster is level 2 than level 0, and is the gap bigger at the smaller size or the larger?
+> **Predict.** Doubling n makes the arithmetic eight times larger. If a level's throughput
+> (operations per second) stays the same as n grows, the machine is doing the same work per
+> second on a larger problem; if it falls, something got in the way. Which level's throughput
+> will fall most?
 
 The chart gives each level's throughput on one thread at every size measured, so that
 the size is the only thing that changes.
