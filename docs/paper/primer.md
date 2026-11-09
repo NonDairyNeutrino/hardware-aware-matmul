@@ -1,9 +1,6 @@
-The [Introduction](crate::introduction) left a question open: why does a loop that performs the
-same multiply-adds as its fastest relative use so little of what the core can do? Answering it
-takes a few ideas about how a processor works. This page introduces them once, with small
-examples you can check by hand, so that the chapters can use them as instruments without
-stopping. If you already know what a cache line, a stride, a hardware thread and a vector lane
-are, skip to [level 0](crate::naive).
+This page introduces the few ideas about processors that the chapters use. If you already know
+what a cache line, a stride, a hardware thread and a vector lane are, skip to
+[level 0](crate::naive).
 
 # Arithmetic is cheap, moving data is not
 
@@ -34,27 +31,26 @@ A matrix is stored **row by row**: the elements of the first row, then the secon
 so on. Take an 8 × 8 matrix, and, to keep the picture small, a cache line of four values
 instead of eight. Each row is two cache lines.
 
-Walking along a row touches eight values and brings in two cache lines: every value
-that arrives is used. Walking **down a column**, a **strided** walk in which each step jumps over a whole row, touches eight values and brings in eight
-cache lines, one per row, and uses one value in each: a quarter of what was fetched. With
+Walking along a row touches eight values and brings in two cache lines: every value that arrives
+is used. Walking **down a column** is **strided**: each step jumps a whole row. It touches eight
+values but brings in eight lines and uses one value from each, a quarter of what was fetched. With
 real 64-byte lines it is one value in eight.
 
 The waste is avoidable if the lines survive in the cache until the next column asks for their
-neighbours. For a matrix with n rows, a column walk touches n lines, so keeping them needs
-n lines of 64 bytes: 64 KiB for n = 1024, which is more than the {{env l1d}} L1 data cache of the laptop used in this paper holds. If the lines do not all stay in the cache, then by the time the loop moves to the next column they have been evicted and must be fetched again. That is the likely reason the textbook loop of level 0 slows down as matrices grow, and it is why level 2 rearranges its loops. The [Discussion](crate::discussion) says how far the measurements support this.
+neighbours. A column walk over n rows touches n lines, 64 KiB at n = 1024. That is more than this
+laptop's {{env l1d}} L1 data cache. If the lines do not all stay in the cache, then by the time
+the loop moves to the next column they have been evicted and must be fetched again.
 
 # There is a lot of reuse to be had
 
-Multiplying two n × n matrices does 2n³ floating-point operations on 3n² numbers.
-That is 2n/3 operations for every number in the problem: about 680 at n = 1024. Each
-element of `A` and `B` is used n times. Moving a number from memory costs far more than doing
-arithmetic with it, so a good implementation ideally loads each number once, or as few times as possible, and uses it many times before it leaves the fast memory.
+Multiplying two n × n matrices does 2n³ floating-point operations on 3n² numbers. That is 2n/3
+operations for every number in the problem: about 680 at n = 1024. Each element of `A` and `B` is
+used n times. Moving a number costs far more than computing with it, so a good implementation
+loads each number as few times as possible and uses it many times while it is close.
 
 The levels differ in how much of that **reuse** they capture. The measure to keep in mind is
-**bytes moved per operation**: the fewer bytes the program drags through the slow memories
-for each multiply-add, the less time it waits. Every level of the Methods is an answer to
-the question "how can the same arithmetic move fewer bytes, or move them in a way the
-hardware likes?"
+**bytes moved per operation**: the fewer bytes the program drags through the slow memories for
+each multiply-add, the less time it waits.
 
 A program is **memory-bound** when waiting for data sets its speed, and **compute-bound**
 when the arithmetic does. **Bandwidth** is the number of bytes per second a memory can
@@ -62,23 +58,22 @@ deliver, and the cores of a processor share it.
 
 # Cores, hardware threads and vector lanes
 
-A processor has several **cores**, and each can run its own thread of the program. The
-reference machine of the Results, {{env cpu}}, has {{env physical_cores}} physical cores. It
-also presents {{env cores}} **hardware threads**: each core can keep two threads in flight, and while one waits for memory the other can use the core's idle arithmetic units; the two share those units.
-A second thread on a core therefore helps a program that waits a lot, and helps a program that
-rarely waits only a little.
+A processor has several **cores**, and each can run its own thread of the program. The reference
+machine of the Results, {{env cpu}}, has {{env physical_cores}} physical cores. It presents
+{{env cores}} **hardware threads**: each core runs two, which share its arithmetic units, so one
+can compute while the other waits for memory. A second thread on a core therefore helps a program
+that waits a lot, and helps a program that rarely waits only a little.
 
-Inside a core, the arithmetic units work on **registers**, the processor's own working
-storage. A **vector register** holds several values at once, and one **SIMD** instruction
-("single instruction, multiple data") operates on all of them. Each value's slot is a
-**lane**. A 128-bit register holds two `f64` values, so one instruction does two
-multiplications. The Results use 128-bit vectors in both environments:
-{{env native_isa}} natively and {{env browser_isa}} in the browser. (The machine could do wider vectors; a default build does not ask for them, which also keeps the native and browser results comparable.)
+Inside a core, the arithmetic units work on **registers**, the processor's own working storage. A
+**vector register** holds several values at once, and one **SIMD** instruction ("single
+instruction, multiple data") operates on all of them. Each value's slot is a **lane**. A 128-bit
+register holds two `f64` values, so one instruction does two multiplications. The Results use
+128-bit vectors in both environments: {{env native_isa}} natively and {{env browser_isa}} in the
+browser.
 
 # Four questions
 
-Each suspect in the case comes down to one of four questions, and the Methods return to them
-again and again. They are the checklist to carry through each chapter:
+Four questions recur:
 
 1. **Is the access contiguous?** Does the code use every byte of the cache lines it fetches?
 2. **What is reused, and how far apart are the uses?** Does a value stay in a fast memory
