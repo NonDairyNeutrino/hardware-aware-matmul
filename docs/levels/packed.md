@@ -1,4 +1,4 @@
-**Level 4 of 5.** Same threads, same partitioning, same micro-kernel, same
+**Level 4, of levels 0 to 5.** Same threads, same partitioning, same micro-kernel, same
 results as level 3, but the micro-kernel no longer reads `B` where it lies in
 memory. Each cache block of `B` is first **packed**: copied once into a small
 contiguous buffer, laid out in the order the micro-kernel reads it.

@@ -1,4 +1,4 @@
-**Level 1 of 5.** The same triple loop, spread across threads. One idea, a
+**Level 1, of levels 0 to 5.** The same triple loop, spread across threads. One idea, a
 few lines of new code.
 
 The obvious suspect is that the loop leaves most of the machine's cores idle. This level tests

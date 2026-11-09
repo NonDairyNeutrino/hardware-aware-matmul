@@ -110,5 +110,10 @@ again and again. They are the checklist to carry through each chapter:
 | work queue | threads claim the next small piece of work when they are free, instead of getting a fixed share in advance |
 | thread | an independent sequence of instructions that the program runs |
 | SIMD | one instruction operating on all the lanes of a vector register |
+| last-level cache (LLC) | the largest cache, shared by all the cores (usually the L3); a load that misses it goes to main memory |
+| cycle | one tick of the processor's clock; a cycle count measures time in ticks |
+| instructions per cycle (IPC) | how many instructions the core finishes per cycle; a high figure means it is rarely waiting |
+| TLB | a small cache of the translations from a program's addresses to physical memory; a miss costs a lookup |
+| STREAM triad | a standard test of memory bandwidth: it streams three large arrays and measures bytes per second |
 
 That is the whole toolkit. [Level 0](crate::naive) is where the case starts.

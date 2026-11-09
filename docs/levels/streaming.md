@@ -1,4 +1,4 @@
-**Level 5 of 5.** Everything from level 2, plus **bounded memory**: the
+**Level 5, of levels 0 to 5.** Everything from level 2, plus **bounded memory**: the
 matrices no longer have to be in memory at all. The product is computed one
 small output tile at a time, by streaming the matching tiles of the inputs
 past a running accumulator and handing each finished tile to an output sink.

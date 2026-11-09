@@ -1,4 +1,4 @@
-**Level 0 of 5.** The textbook algorithm: one thread, three nested loops, no
+**Level 0, of levels 0 to 5.** The textbook algorithm: one thread, three nested loops, no
 tricks. Everything else in this crate is a modification of this function, and
 every other level is tested against it.
 New to caches, cache lines or SIMD? The project's website has a short primer on them.

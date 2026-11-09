@@ -1,4 +1,4 @@
-**Level 3 of 5.** Same threads, same partitioning, same results as level 2,
+**Level 3, of levels 0 to 5.** Same threads, same partitioning, same results as level 2,
 but the innermost step is rebuilt around the processor's vector registers.
 
 Level 2 put the data close to the core, and the loop still carries the output block through
