@@ -2,8 +2,8 @@
 thread's loops are rearranged so that each thread reuses data while it is still in
 the cache.
 
-Level 1's clue: more cores did not fix the loop, so the shortage was not cores. The next suspect
-is the order in which the loop walks memory.
+Level 1's clue: more cores did not fix the loop. The next suspect is the order in which the loop
+walks memory.
 
 # What changed from level 1
 

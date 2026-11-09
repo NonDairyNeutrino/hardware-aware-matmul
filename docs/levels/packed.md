@@ -51,10 +51,8 @@ to say.
 Against that, packing is **extra work**: every element of `B` is read and written once more per pass
 over it. Packing pays when many row groups reuse a block. Here every `MR`-row group in the thread's
 output block reuses it. It does not pay for a tile with fewer than `MR` rows, which never reaches
-the micro-kernel, so such a tile skips the copy.
-
-A processor with large, highly associative caches and a good hardware prefetcher may hide most of
-the strided-read cost already.
+the micro-kernel, so such a tile skips the copy. A processor with large, highly associative caches
+and a good hardware prefetcher may hide most of the strided-read cost already.
 
 # The result is still bit-identical
 

@@ -49,7 +49,7 @@ Level 1 by thread count:
 
 The eight threads are all the machine's hardware threads, on {{env physical_cores}} physical cores.
 
-At n = {{env largest}} none of it comes close to [level 2](crate::cache_friendly) on a single
+At n = {{env largest}} no level 1 time comes close to [level 2](crate::cache_friendly) on a single
 thread: {{ms cache_friendly t=1}}, against level 1's {{ms threaded t=8}} on all eight threads.
 
 # The culprit: memory
@@ -178,13 +178,13 @@ show here.
 
 **What this does not show.** The counts do not test the reading offered at n = 1024. The strongest
 evidence shows that the misses went away and the cycles went with them, not that the misses were the
-whole of the saving. Two more limits matter. The counts are from one thread, so they say nothing
-about why the gains shrink with more threads. The reference run did not count memory traffic, the
-use of the execution units, anything with several threads running, or anything in the browser. And
-one count is not explained: level 1 on one thread counted about twice as many L1 data-cache loads as
-level 0 at both sizes ({{count l1d_loads threaded}} against {{count l1d_loads naive}} at n =
-{{env counters_n}}), though the two run the same loop in the same time. The L1 counts of those two
-levels should not be over-read.
+whole of the saving. The counts are from one thread, so they say nothing about why the gains shrink
+with more threads. The reference run did not count memory traffic, the use of the execution units,
+anything with several threads running, or anything in the browser. And one count is not explained:
+level 1 on one thread counted about twice as many L1 data-cache loads as level 0 at both sizes
+({{count l1d_loads threaded}} against {{count l1d_loads naive}} at n = {{env counters_n}}), though
+the two run the same loop in the same time. The L1 counts of those two levels should not be
+over-read.
 
 # The twist: streaming
 

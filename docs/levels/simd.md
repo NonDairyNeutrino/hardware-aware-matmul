@@ -19,12 +19,11 @@ The compiler can vectorise that loop, because its iterations are independent, bu
 pass does: it *loads* a segment of `B`, *loads* a segment of `C`, performs one multiply and one add,
 and *stores* the segment of `C` back. Two loads and a store for one multiply-add. The load/store
 units can limit the speed even when every access hits the cache, because the arithmetic cannot go
-faster than the data arrives. The gain depends on how well the processor overlaps memory traffic
-with arithmetic.
+faster than the data arrives.
 
-The fix is to stop moving `C` through memory on every `k`. Keep a small block
-of `C` in **registers** for the whole `k` loop, and do all the arithmetic on it
-there.
+The fix is to stop moving `C` through memory on every `k`. Keep a small block of `C` in
+**registers** for the whole `k` loop, and do all the arithmetic on it there. The gain depends on how
+well the processor overlaps memory traffic with arithmetic.
 
 # A little SIMD background
 

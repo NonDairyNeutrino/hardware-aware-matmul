@@ -201,8 +201,6 @@ and is stored exactly once: the product, with the same bits as [`naive`](crate::
 - **I/O can fail.** Sources and sinks return `io::Result`, so this level has a richer error type,
   [`MatmulError`](crate::MatmulError).
 
-That is the last level.
-
 [`TileSource`]: crate::streaming::TileSource
 [`TileSink`]: crate::streaming::TileSink
 [`StreamConfig::peak_buffer_bytes`]: crate::streaming::StreamConfig::peak_buffer_bytes
