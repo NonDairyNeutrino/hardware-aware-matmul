@@ -5,10 +5,10 @@ import { progressLabel } from './progress.mjs';
 
 const at = (id) => chapters.findIndex((chapter) => chapter.id === id);
 
-test('level chapters say which level they are and how many there are', () => {
-  assert.equal(progressLabel(chapters, at('levels/naive')), 'Level 0, of levels 0 to 5');
-  assert.equal(progressLabel(chapters, at('levels/simd')), 'Level 3, of levels 0 to 5');
-  assert.equal(progressLabel(chapters, at('levels/streaming')), 'Level 5, of levels 0 to 5');
+test('level chapters say their place in the reading order, like every other chapter', () => {
+  for (const id of ['levels/naive', 'levels/simd', 'levels/streaming']) {
+    assert.equal(progressLabel(chapters, at(id)), `Page ${at(id) + 1} of ${chapters.length}`);
+  }
 });
 
 test('every other chapter says its place in the reading order', () => {
@@ -17,9 +17,6 @@ test('every other chapter says its place in the reading order', () => {
   assert.equal(progressLabel(chapters, at('paper/results')), `Page ${at('paper/results') + 1} of ${chapters.length}`);
 });
 
-test('the label counts the level chapters, not a fixed six', () => {
-  const fake = [
-    { id: 'paper/a' }, { id: 'levels/x' }, { id: 'levels/y' }, { id: 'paper/b' },
-  ];
-  assert.equal(progressLabel(fake, 2), 'Level 1, of levels 0 to 1');
+test('the label depends only on the position in the given list', () => {
+  assert.equal(progressLabel([{ id: 'a' }, { id: 'levels/x' }, { id: 'b' }], 1), 'Page 2 of 3');
 });

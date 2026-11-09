@@ -11,13 +11,17 @@ The obvious suspect, too few cores, is cleared early. The simplest threaded vers
 {{ms threaded t=8}} on all {{env threads_native}} hardware threads, more than the
 {{ms cache_friendly t=1}} that a version of the loop that merely walks memory in a better order
 needs on one. On one core the textbook loop reaches {{frac naive t=1}} of the rate of an
-arithmetic test loop, so it is not short of arithmetic. What it was short of, most plausibly,
+arithmetic test loop, so it is not short of arithmetic.
+
+What it was short of, most plausibly,
 was data arriving from memory in a good order: most of the one-thread gain came from reordering
 the loops and blocking them for the cache, and copying each block of the second matrix into a
 contiguous buffer cut its L1 cache misses {{countratio l1d_misses simd/packed}} at the largest
 size. Streaming tiles of the matrices through small buffers, a change made so that the matrices
 need not fit in memory at all, gave the fastest case measured at the largest size,
-{{speedup streaming/naive t=4}} faster than the textbook loop on four threads. One question
+{{speedup streaming/naive t=4}} faster than the textbook loop on four threads.
+
+One question
 stays open: the three fastest levels stopped gaining where the physical cores ran out, although
 the test loop kept gaining, and these measurements do not say what limits them.
 

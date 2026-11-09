@@ -77,9 +77,7 @@ scaling to show.
 
 # Hardware event counts
 
-> **Predict.** Level 4 copies each block of the second matrix before using it. Will it miss the
-> L1 data cache more often than level 3, or less? Will it need fewer cycles, and does the answer
-> depend on the size?
+> **Predict.** Level 4 copies each block of the second matrix before using it. Will it need fewer cycles than level 3?
 
 The timings say which levels are faster; these counts say what the hardware was doing
 differently, and are the nearest thing to direct evidence for the memory-system suspects.

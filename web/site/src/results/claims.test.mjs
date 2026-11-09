@@ -55,7 +55,7 @@ test('at the smaller sizes level 5 loses that lead: sometimes ahead, sometimes b
   assert.ok(ratios.every((r) => r < 1.1), `never more than about a tenth behind: ${ratios}`);
 });
 
-test('level 4 (packing) against level 3: a lead only at the two largest sizes, and the larger one at the largest (Discussion, Conclusion, packed.md)', () => {
+test('level 4 (packing) against level 3: a lead only at the two largest sizes, and the larger one at the largest (Discussion, Conclusion, packed.md, level strips)', () => {
   for (const n of sizes.slice(-2)) {
     for (const t of nativeThreads) {
       assert.ok(native(4, n, t) < native(3, n, t), `n=${n} t=${t}`);
@@ -88,7 +88,7 @@ test('level 5 stays ahead of level 4 at the largest size, and level 4 gets most 
   }
 });
 
-test('level 5 on four threads, natively, is the fastest case measured at the largest size (Discussion)', () => {
+test('level 5 on four threads, natively, is the fastest case measured at the largest size (Discussion, level strips)', () => {
   // "the fastest case measured at that size": every environment, not just native.
   const runs = data.runs.filter((r) => r.n === largest);
   const fastest = runs.reduce((a, b) => (b.median_ms < a.median_ms ? b : a));
@@ -320,7 +320,7 @@ test('the hook: the textbook loop uses a small fraction of a test loop\'s rate o
   assert.ok(gflops(0, largest, 1) / hardware.peak_gflops[1] < 0.1);
 });
 
-test('the first clue: level 2 on one thread beats level 1 on every thread, and level 1 barely gains from four to eight (Abstract, Introduction, Discussion)', () => {
+test('the first clue: level 2 on one thread beats level 1 on every thread, and level 1 barely gains from four to eight (Abstract, Introduction, Discussion, level strips)', () => {
   for (const t of nativeThreads) {
     assert.ok(native(2, largest, 1) < native(1, largest, t), `level 1 at ${t} threads`);
   }

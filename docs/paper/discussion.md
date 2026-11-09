@@ -18,7 +18,7 @@ the [Introduction](crate::introduction) was where the time of the textbook loop 
 The levels, by number: 0 the textbook loop, 1 threads, 2 cache blocking, 3 registers and
 vector lanes, 4 the packed copy, 5 streaming.
 
-The sections below take these in order, and end with a side trip to the browser. Everything
+The sections below take these in order, with the event counts after the cleanups, and end with a side trip to the browser. Everything
 below refers to the reference run: one laptop, one day, one browser. Every figure is filled
 in from that run's committed data. Most sections open with their claim and then give a
 table; what the data cannot show is collected in a paragraph labelled "What this does not
@@ -65,7 +65,6 @@ At n = 1024 level 1 also roughly halves its time with two threads and gains a li
 from the second four. One plausible reading of that last gain is that level 1's inner loop
 spends much of its time waiting for memory, and a thread that is waiting leaves its core
 free for the thread that shares it.
-
 The measurements at n = 1024 are consistent with that
 and do not test it; those at n = {{env largest}} do not support it. And at n =
 {{env largest}} none of it comes close to [level 2](crate::cache_friendly) on a single
@@ -206,7 +205,6 @@ show here.
 strongest evidence shows that the misses went away and the cycles went with them, not that
 the misses were the whole of the saving. Two more limits matter. The counts are from one
 thread, so they say nothing about why the gains shrink with more threads.
-
 And one count is
 not explained: level 1 on one thread counted about twice as many L1 data-cache loads as
 level 0 at both sizes ({{count l1d_loads threaded}} against {{count l1d_loads naive}} at n =
@@ -218,7 +216,7 @@ those two levels should not be over-read.
 Level 5 was built for matrices that do not fit in memory, not for speed, and on four threads
 at the largest size it is nonetheless the fastest case measured.
 
-The [level 5](crate::streaming) chapter says so. The reference
+The [level 5](crate::streaming) chapter says it was built to make the problem possible, not to make it fast. The reference
 run measures level 5 only on matrices that fit. It copies tiles into buffers, and at the two
 largest sizes it was faster than level 3 at every thread count, as level 4 was. At
 n = {{env largest}} it was ahead of level 4 at every thread count, though by little:
