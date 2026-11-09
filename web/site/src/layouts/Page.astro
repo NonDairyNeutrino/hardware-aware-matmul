@@ -9,8 +9,10 @@ interface Props {
   next?: { title: string; route: string } | null;
   // The page has a step-through demo, so it loads the script that defines it.
   interactive?: boolean;
+  // A short "where am I" label shown under the heading (chapter pages only).
+  progress?: string | null;
 }
-const { title, previous = null, next = null, interactive = false } = Astro.props;
+const { title, previous = null, next = null, interactive = false, progress = null } = Astro.props;
 const base = import.meta.env.BASE_URL;
 const here = Astro.url.pathname;
 // The landing page (the abstract) is headed by the site title and its subtitle; every other
@@ -72,6 +74,7 @@ const entries = chapters.reduce((groups, chapter) => {
     <main id="content">
       <article>
         <h1>{isHome ? siteTitle : title}</h1>
+        {progress && <p class="progress">{progress}</p>}
         {isHome && <p class="subtitle">{siteSubtitle}</p>}
         <slot />
       </article>

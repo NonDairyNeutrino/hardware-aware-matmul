@@ -2,6 +2,7 @@
 import { getCollection, render } from 'astro:content';
 import Page from '../layouts/Page.astro';
 import { chapters, demos } from '../../site.config.mjs';
+import { progressLabel } from '../components/progress.mjs';
 
 export async function getStaticPaths() {
   const entries = await getCollection('chapters');
@@ -10,14 +11,20 @@ export async function getStaticPaths() {
     if (!entry) throw new Error(`chapter ${chapter.id} not found in docs/`);
     return {
       params: { slug: chapter.route || undefined },
-      props: { entry, chapter, previous: chapters[index - 1] ?? null, next: chapters[index + 1] ?? null },
+      props: {
+        entry,
+        chapter,
+        previous: chapters[index - 1] ?? null,
+        next: chapters[index + 1] ?? null,
+        progress: progressLabel(chapters, index),
+      },
     };
   });
 }
 
-const { entry, chapter, previous, next } = Astro.props;
+const { entry, chapter, previous, next, progress } = Astro.props;
 const { Content } = await render(entry);
 ---
-<Page title={chapter.title} previous={previous} next={next} interactive={demos.some((d) => d.chapter === chapter.id)}>
+<Page title={chapter.title} previous={previous} next={next} progress={progress} interactive={demos.some((d) => d.chapter === chapter.id)}>
   <Content />
 </Page>
