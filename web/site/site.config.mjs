@@ -117,6 +117,44 @@ const findingsHeading = {
   'levels/streaming': 'The problem',
 };
 
+// Where the reader is in the case, one box per level chapter, above the measurements strip: what
+// the chapters before have found (level 0: what the case is), and what this level asks. Plain
+// text condensed from the level pages, with no numbers and no placeholders (it goes through no
+// substitute). The one comparison it repeats, level 2 on one thread against level 1 on every
+// thread, is the claim tested as 'the first clue' in src/results/claims.test.mjs.
+export const levelStory = {
+  'levels/naive': {
+    label: 'The case:',
+    so_far: 'The textbook loop is correct and easy to read, and every other level is measured against it. It is also far from what the processor can do, and nothing in the code says why.',
+    this_level: 'Set out the baseline: one thread, three nested loops, no tricks. The chapters that follow look for the reason it is slow, one suspect at a time.',
+  },
+  'levels/threaded': {
+    label: 'So far:',
+    so_far: 'Level 0 is correct but runs on one core, and its inner loop walks down a column of B, so almost every read lands on a different cache line.',
+    this_level: 'Test the obvious suspect, that the loop leaves most of the cores idle, by giving every core a share of the same loop.',
+  },
+  'levels/cache_friendly': {
+    label: 'So far:',
+    so_far: "Adding threads did not fix the loop, so the number of cores doing the arithmetic was not what held it back. Each thread still runs the level 0 loop, only on its own rows.",
+    this_level: 'Go after the best remaining suspect, the way the loop walks memory: reorder the loops so that each thread reads whole rows, and block for the cache so that data is reused while it is still there.',
+  },
+  'levels/simd': {
+    label: 'So far:',
+    so_far: 'Level 2 put the data close to the core, and on one thread it beat level 1 on every thread. Its inner loop still carries the output block through memory on every step.',
+    this_level: 'Remove that last trip: keep a small block of the output in vector registers for the whole inner loop.',
+  },
+  'levels/packed': {
+    label: 'So far:',
+    so_far: 'Level 3 keeps a block of the output in registers, but its kernel still reads B where it lies in memory, a row apart at every step.',
+    this_level: 'Copy each block of B once into a contiguous buffer, in the order the micro-kernel reads it, and ask whether the copy earns its cost back.',
+  },
+  'levels/streaming': {
+    label: 'So far:',
+    so_far: 'Every level so far asks how to make the product faster, and every one needs A, B and C to fit in memory at once.',
+    this_level: 'Ask a different question: what if the matrices do not fit in memory at all? Compute the output one small tile at a time, streaming the inputs through small buffers.',
+  },
+};
+
 // Figures and demos inserted after a heading of a chapter (by heading text).
 export const insertions = [
   ...demos.map(({ chapter, afterHeading, level, lookFor }) => ({
@@ -221,5 +259,13 @@ export const insertions = [
     afterHeading: findingsHeading[chapter],
     blocksAfter: 0,
     html: `<aside class="findings"><strong>What the measurements found.</strong> ${substitute(text, results)}</aside>`,
+  })),
+  // The story boxes come after the strips, so each lands above its chapter's strip (same heading,
+  // blocksAfter 0). Under the heading: story box, measurements strip, then the videos and demos.
+  ...Object.entries(levelStory).map(([chapter, { label, so_far, this_level }]) => ({
+    chapter,
+    afterHeading: findingsHeading[chapter],
+    blocksAfter: 0,
+    html: `<aside class="story"><p><strong>${label}</strong> ${so_far}</p><p><strong>This level:</strong> ${this_level}</p></aside>`,
   })),
 ];

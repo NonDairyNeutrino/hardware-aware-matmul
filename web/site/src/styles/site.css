@@ -253,3 +253,8 @@ figure.reuse-figure figcaption, figure.register-figure figcaption { font-size: 0
 @media (max-width: 40rem) {
   .term .tip { position: fixed; left: var(--gutter); right: var(--gutter); top: auto; bottom: var(--gutter); width: auto; max-width: none; }
 }
+
+/* Where the reader is in the case, boxed above a level's measurements strip. */
+.story { margin: 1rem 0; padding: 0.6rem 0.9rem; border-left: 4px solid var(--series-2); background: var(--code-bg); font-size: 0.95rem; }
+.story p { margin: 0 0 0.4rem; }
+.story p:last-child { margin-bottom: 0; }

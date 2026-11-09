@@ -50,9 +50,10 @@ test('each strip sits directly under the chapter\'s first heading, before anythi
     assert.equal(strip.afterHeading, firstHeading(chapter.id), chapter.id);
     assert.equal(strip.blocksAfter ?? 0, 0, chapter.id);
     // Insertions are spliced in order, each at heading + 1 + blocksAfter, so a later one at the
-    // same spot would land above the strip.
+    // same spot would land above the strip. The story box is meant to (src/results/story.test.mjs).
     const later = insertions.slice(index + 1).filter(
-      (i) => i.chapter === chapter.id && i.afterHeading === strip.afterHeading && (i.blocksAfter ?? 0) === 0,
+      (i) => i.chapter === chapter.id && i.afterHeading === strip.afterHeading && (i.blocksAfter ?? 0) === 0 &&
+        !i.html.includes('class="story"'),
     );
     assert.equal(later.length, 0, `${chapter.id}: an insertion after the strip lands above it`);
   }
