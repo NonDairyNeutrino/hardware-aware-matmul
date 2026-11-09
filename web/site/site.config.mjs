@@ -121,7 +121,7 @@ const findingsHeading = {
 // the chapters before have found (level 0: what the case is), and what this level asks. Plain
 // text condensed from the level pages, with no numbers and no placeholders (it goes through no
 // substitute). The one comparison it repeats, level 2 on one thread against level 1 on every
-// thread, is the claim tested as 'the first clue' in src/results/claims.test.mjs.
+// thread, is the claim tested as 'the first clue' in src/results/claims.test.mjs, and the naive box's "far from what the processor can do" is tested there as 'the hook'.
 export const levelStory = {
   'levels/naive': {
     label: 'The case:',

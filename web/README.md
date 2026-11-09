@@ -35,6 +35,13 @@ methods (the levels), results, discussion and conclusion. The design is in
   `web/site/src/plugins/` strips rustdoc-hidden lines and rewrites intra-doc links
   through the table in `site.config.mjs`. A link that is not in the table fails
   the build.
+- The glossary plugin, `remark-glossary.mjs`, reads the `# Terms used in the chapters`
+  table in `docs/paper/primer.md`; that heading and the two-column `term | definition`
+  row format are load-bearing, and a missing table fails the build. A new primer
+  term must be marked on some chapter or be listed in `unmarked` in
+  `remark-glossary.test.mjs`. `levelStory` in `site.config.mjs` is plain text inserted
+  unescaped, so it holds no numbers, `{{`, or `&<>`. Under `astro dev` a primer edit
+  needs a restart, because the terms are read once in `astro.config.mjs`.
 - `docs/paper/` holds the paper's own pages. The site renders them but rustdoc
   does not. The site's Introduction is `docs/paper/introduction.md`.
   `docs/introduction.md` is the crate's rustdoc front page and is not rendered on

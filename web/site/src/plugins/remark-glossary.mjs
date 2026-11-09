@@ -99,7 +99,7 @@ export default function remarkGlossary({ terms = [] } = {}) {
           type: 'html',
           value:
             `<span class="term" tabindex="0" aria-describedby="${id}"><span>${escapeHtml(match[0])}</span>` +
-            `<span class="tip" role="tooltip" id="${id}">${escapeHtml(meanings.get(key))}</span></span>`,
+            `<span class="tip" role="tooltip" id="${id}" hidden>${escapeHtml(meanings.get(key))}</span></span>`,
         });
         last = match.index + match[0].length;
       }

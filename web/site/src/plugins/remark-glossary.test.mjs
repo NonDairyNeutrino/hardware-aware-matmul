@@ -73,7 +73,7 @@ test('a primer without the terms table, with an empty one or with a bad row fail
 test('a marked term is a focusable span with its definition as a tooltip', async () => {
   const out = await render('A thread.\n');
   assert.ok(
-    out.includes('<span class="term" tabindex="0" aria-describedby="g-1"><span>thread</span><span class="tip" role="tooltip" id="g-1">a sequence of instructions</span></span>'),
+    out.includes('<span class="term" tabindex="0" aria-describedby="g-1"><span>thread</span><span class="tip" role="tooltip" id="g-1" hidden>a sequence of instructions</span></span>'),
     out,
   );
 });
@@ -124,8 +124,8 @@ test('the definition is escaped and the tooltip ids are unique on the page', asy
   const out = await render('A thread and a cache.\n', {
     terms: [{ term: 'thread', meaning: 'x & y < z > w "q"' }, { term: 'cache', meaning: 'fast' }],
   });
-  assert.ok(out.includes('<span class="tip" role="tooltip" id="g-1">x &amp; y &lt; z &gt; w &quot;q&quot;</span>'), out);
-  assert.ok(out.includes('aria-describedby="g-2"') && out.includes('id="g-2">fast</span>'), out);
+  assert.ok(out.includes('<span class="tip" role="tooltip" id="g-1" hidden>x &amp; y &lt; z &gt; w &quot;q&quot;</span>'), out);
+  assert.ok(out.includes('aria-describedby="g-2"') && out.includes('id="g-2" hidden>fast</span>'), out);
   assert.equal(escapeHtml('<&>"'), '&lt;&amp;&gt;&quot;');
 });
 
@@ -193,6 +193,7 @@ test('the stylesheet shows a tooltip on hover and focus, inside a phone-width sc
   assert.match(css, /\.term:hover \.tip, \.term:focus \.tip \{[^}]*display: block/);
   assert.match(css, /\.term \.tip \{[^}]*max-width: min\(22rem, calc\(100vw - 2rem\)\)/);
   assert.match(css, /\.term \.tip \{[^}]*overflow-wrap: anywhere/);
+  assert.match(css, /\.term \.tip::before \{[^}]*bottom: 100%/);
   assert.match(css, /@media \(max-width: 40rem\) \{\s*\.term \.tip \{[^}]*position: fixed/);
   assert.doesNotMatch(css, /\.term[^{]*\{[^}]*outline: (none|0)/, 'the focus outline stays on terms');
 });

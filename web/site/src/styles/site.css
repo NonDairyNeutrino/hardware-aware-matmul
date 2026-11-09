@@ -248,10 +248,13 @@ figure.reuse-figure figcaption, figure.register-figure figcaption { font-size: 0
 .term { position: relative; text-decoration: underline dotted; text-decoration-color: var(--muted); text-underline-offset: 0.2em; cursor: help; }
 .term .tip { display: none; position: absolute; left: 0; top: 100%; z-index: 5; width: max-content; max-width: min(22rem, calc(100vw - 2rem)); margin-top: 0.3rem; padding: 0.45rem 0.7rem; background: var(--bg); color: var(--fg); border: 1px solid var(--border); border-radius: 6px; box-shadow: 0 2px 8px rgb(0 0 0 / 0.2); font-size: 0.9rem; font-style: normal; font-weight: normal; line-height: 1.45; text-align: left; white-space: normal; overflow-wrap: anywhere; }
 .term:hover .tip, .term:focus .tip { display: block; }
+/* The tooltip sits a little below the term; this invisible strip fills the gap so the pointer can move onto it without losing :hover. */
+.term .tip::before { content: ""; position: absolute; left: 0; right: 0; bottom: 100%; height: 0.4rem; }
 /* On a narrow screen a tooltip anchored at the term could run past the right edge, so it is shown
    across the bottom of the screen instead, inside the page gutters. */
 @media (max-width: 40rem) {
   .term .tip { position: fixed; left: var(--gutter); right: var(--gutter); top: auto; bottom: var(--gutter); width: auto; max-width: none; }
+  .term .tip::before { display: none; }
 }
 
 /* Where the reader is in the case, boxed above a level's measurements strip. */

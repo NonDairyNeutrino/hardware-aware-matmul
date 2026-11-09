@@ -103,7 +103,7 @@ again and again. They are the checklist to carry through each chapter:
 | lane | one value's slot in a vector register |
 | vectorise | the compiler turns a scalar loop into SIMD instructions |
 | register blocking | keeping a small block of the output in registers while it is updated |
-| block, tile | a small rectangular piece of a matrix worked on at a time; at level 2 small enough to stay in the cache |
+| block, tile | a rectangular piece of a matrix worked on as a unit, sized for where it is kept: a cache, the registers, or one thread's share |
 | hit, miss | a hit finds the data in the cache; a miss must fetch it from a slower memory |
 | GFLOP/s | billions of floating-point operations per second |
 | axpy | `y ← y + a·x` over two slices; the inner loop of levels 2 to 5 |
